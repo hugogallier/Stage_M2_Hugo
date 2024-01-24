@@ -1,10 +1,8 @@
 ---
-title: "script_analyse_test"
+title: "script_stage test ouverture données Goêlo"
 author: "Hugo Gallier"
-date: "2024-01-23"
+date: "2024-01-24"
 output: html_document
-editor_options: 
-  chunk_output_type: console
 ---
 
 
@@ -39,7 +37,7 @@ MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
 ## Chargement data
 Boucle de chargement des fichiers csv 
 ```{r}
-setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
+setwd('D:/Hugo/Recif_Goelo') # à modifier avec nom de ton DD
 
 data_list=list.files(pattern =".csv", recursive=T)
 
@@ -61,7 +59,7 @@ L[[i]]<-data
 ## Date d'immersion
 Ajout des dates d'immersion des différents récifs
 ```{r}
-Immer_site=data.frame(Site=c('Bi','Bu','VB','Fe'), Date=c(as.Date('2020-10-30'),as.Date('2020-11-26'),as.Date('2020-11-27'),as.Date('2020-11-30'))) %>%
+Immer_site=data.frame(Site=c('Paim'), Date=c(as.Date('2023-10-01'),as.Date('2022-09-01'),as.Date('2023-07-01'))) %>%
        mutate( Date_imm_ok=format(as.POSIXlt(Date,  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT")) %>% select(Site, Date_imm_ok)
          
 ```
@@ -101,15 +99,14 @@ data_PQ=do.call(rbind,L) %>%
   mutate(Site=substr(Name_file, start = 1, stop = 2)) %>%
   # test2=substr(Name_file, start = 1, stop = 6))%>%
   # test3=sub("^([^_]*_[^_]*).*", "\\2", Name_file),
-  separate(col = Name_file, into = c('Site','Date','Micro','truc','Quad'), sep = '_') %>%
-  mutate( Site=ifelse(Site=='FR','Fe',Site),
-          Quad=ifelse(is.na(Quad),truc,Quad),
-          Quad2=substr(Quad, start = 1, stop = 2),
+  separate(col = Name_file, into = c('Date','Micro','Quad'), sep = '_') %>%
+  mutate(Quad2=substr(Quad, start = 1, stop = 1),
           Month_str=gsub("-.*", "", Date,perl=TRUE),
           YY=gsub(".*-", "", Date,perl=TRUE),
           Month=case_when( Month_str=='Avri'~'04',
                            Month_str=="Janv"~'01',
-                           Month_str=='Juil'~'07',
+                           Month_str=='Juill'~'07',
+                           Month_str=='Sept'~'09',
                            Month_str=='Oct'~'10',
                            Month_str=='Nov'~'11'),
           Date_ok=format(as.POSIXlt(paste0('01/',Month,'/',YY),  format = "%d/%m/%y"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
@@ -155,15 +152,10 @@ knitr::kable(data_PQ_light %>% select(spp,abb)%>% unique())
 corresp=data_PQ_light %>% select(spp,abb)%>% unique()
 ```
 
-Vérification que la colonne "strcut_groups" est correctement informée
-
-
-
-#################### Réduction des colonnes et transformation des valeurs ####################
 ```{r}
-dataR<-data_PQ_light
-dataR<-dataR[,-c(1,6:7,15:23)]
-dataR<-na.omit(dataR)#enlève les lignes ayant du NA (correspondant aux zones sans faune et flore béton)
+dataR2<-data_PQ_light
+dataR2<-dataR2[,-c(1,6,7,15:23)]
+dataR2<-na.omit(dataR2)
 
 dataR$spp.Name<-as.factor(dataR$spp.Name)
 dataR$spp.ID<-as.factor(dataR$spp.ID)
@@ -179,8 +171,3 @@ dataR$Date_ok<-as.factor(dataR$Date_ok)
 dataR$Date_courte<-as.factor(dataR$Date_courte)
 dataR$Week<-as.factor(dataR$Week)
 ```
-
-
-
-
-
