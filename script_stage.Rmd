@@ -3,6 +3,157 @@ title: "script_analyse_test"
 author: "Hugo Gallier"
 date: "2024-01-23"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
-hello world !!!
+
+# Library
+
+Package à télécharger
+```{r}
+rm(list=ls())
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(here)
+
+
+```
+
+#Data
+
+Identification des fichiers à charger
+```{r}
+setwd(here::here())
+
+
+
+MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
+  # mutate(Micro=) %>%
+  mutate(Micro=sub("\\_.*", "", Code_struct))
+  
+```
+
+## Chargement data
+Boucle de chargement des fichiers csv 
+```{r}
+setwd('E:/Marineff/suivi_scientifique') # à modifier avec nom de ton DD
+
+data_list=list.files(pattern =".csv", recursive=T)
+
+L=list()
+for( i in 1: length(data_list)){
+  
+    Name_file=basename(data_list[i])
+
+data=read.csv(data_list[i], sep=',', header=T, fileEncoding="latin1") %>%
+  mutate(Name_file=rep(basename(data_list[i]), n()))
+
+L[[i]]<-data
+
+}
+
+# fileEncoding="latin1"
+```
+
+## Date d'immersion
+
+Ajout des date d'immersion des différents récifs
+```{r}
+Immer_site=data.frame(Site=c('Bi','Bu','VB','Fe'), Date=c(as.Date('2020-10-30'),as.Date('2020-11-26'),as.Date('2020-11-27'),as.Date('2020-11-30'))) %>%
+       mutate( Date_imm_ok=format(as.POSIXlt(Date,  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT")) %>% select(Site, Date_imm_ok)
+         
+```
+
+## Saison - date
+
+Data frame d'identification des saisons
+```{r}
+
+Date_sais=data.frame(
+           start=c(
+             format(as.POSIXlt(as.Date('2021-03-20'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+             format(as.POSIXlt(as.Date('2021-06-21'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+             format(as.POSIXlt(as.Date('2021-09-22'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+             format(as.POSIXlt(as.Date('2021-12-21'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+      format(as.POSIXlt(as.Date('2022-03-20'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+      format(as.POSIXlt(as.Date('2022-06-21'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+       format(as.POSIXlt(as.Date('2022-09-22'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT")))
+```
+
+
+## Mise en forme des données
+
+Mise en forme des fichiers chargés:
+
+-Ajout de métadata à partir du nom du fichier: site, date , micro env., Num quadrat ...
+- Transformation format Date
+- Correction nom taxon érroné
+- Changements de noms des micro env.
+- Regroupement des micro env dans structure internes vs externes
+```{r}
+# data_PQ[grepl('rndpts.csv.rndpts',data_PQ$Name_file),]
+
+## ajout de categories à partir du nom de fichier
+
+data_PQ=do.call(rbind,L) %>%
+  mutate(Site=substr(Name_file, start = 1, stop = 2)) %>%
+  # test2=substr(Name_file, start = 1, stop = 6))%>%
+  # test3=sub("^([^_]*_[^_]*).*", "\\2", Name_file),
+  separate(col = Name_file, into = c('Site','Date','Micro','truc','Quad'), sep = '_') %>%
+  mutate( Site=ifelse(Site=='FR','Fe',Site),
+          Quad=ifelse(is.na(Quad),truc,Quad),
+          Quad2=substr(Quad, start = 1, stop = 2),
+          Month_str=gsub("-.*", "", Date,perl=TRUE),
+          YY=gsub(".*-", "", Date,perl=TRUE),
+          Month=case_when( Month_str=='Avri'~'04',
+                           Month_str=="Janv"~'01',
+                           Month_str=='Juil'~'07',
+                           Month_str=='Oct'~'09',
+                           Month_str=='Nov'~'11'),
+          Date_ok=format(as.POSIXlt(paste0('01/',Month,'/',YY),  format = "%d/%m/%y"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+          Date_courte=format(as.POSIXlt(paste0('01/',Month,'/',YY),  format = "%d/%m/%y"), format="%Y-%m", tz="GMT"),
+          Week=strftime(Date_ok, format = "%V")) %>%
+  mutate(spp.Name= ifelse(spp.Name == 'Tubularia indivisa ',
+                          'Tubularia indivisa',spp.Name),
+         spp.Name=ifelse(spp.Name == 'Unidentified',
+                          'NI',spp.Name))
+  
+
+# Version synthétique du df
+
+data_PQ_light=data_PQ %>% dplyr::select(Image, spp.Name,spp.ID,N.pts.per.species,Cov..per.species,
+               N.pts.ALL.species,Cov..ALL.species, Site,Date_ok,Micro,Quad2,
+               Week,Date_courte,Month_str )%>%
+rename('spp'='spp.Name',
+       'Count'='N.pts.per.species',
+       'Cov'='Cov..per.species',
+       'Count_all'='N.pts.ALL.species',
+       'Cov_all'='Cov..ALL.species')%>%
+  mutate(abb=abbreviate(spp))%>%
+  left_join(MPhoto, by=c('Micro')) %>%
+  mutate(Structure2=recode_factor(Structure,
+   "Bandes"="Dome",
+   "Bandes.C1"="Disc",
+   "Faille"="Inner_slots",
+   "Faille_coupole"="Upper_slots",
+   "Pilier.C2"="Columns",
+   "Trous"="Holes",
+   "Pieds"="Pillars"))%>% 
+  mutate(Strcut_groups=case_when(
+  Structure2 %in% c('Dome','Upper_slots')~'Horizontal_section',
+ Structure2 %in% c('Disc','Columns','Pillars')~'Vertical_section',
+  Structure2 %in% c('Inner_slots','Holes')~'Inner_section',
+ TRUE ~ 'NA')) %>%
+  mutate(M_ensemble=ifelse(Micro %in% c("P1","P2","P3","T1","T2","T3","T4"),substr(Micro, start = 1, stop = 1),substr(Micro, start = 1, stop = 3)),
+         M_ensemble2=ifelse(M_ensemble == 'DPF','DGF',M_ensemble))%>%
+  left_join(Immer_site, by='Site') 
+
+
+knitr::kable(data_PQ_light %>% select(spp,abb)%>% unique())
+corresp=data_PQ_light %>% select(spp,abb)%>% unique()
+```
+
+Vérification que la colonne "strcut_groups" est correctement informée
