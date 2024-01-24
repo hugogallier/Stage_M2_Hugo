@@ -37,7 +37,7 @@ MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
 ## Chargement data
 Boucle de chargement des fichiers csv 
 ```{r}
-setwd('D:/Hugo/Recif_Goelo') # à modifier avec nom de ton DD
+setwd('F:/Hugo/Recif_Goelo') # à modifier avec nom de ton DD
 
 data_list=list.files(pattern =".csv", recursive=T)
 
@@ -100,7 +100,9 @@ data_PQ=do.call(rbind,L) %>%
   # test2=substr(Name_file, start = 1, stop = 6))%>%
   # test3=sub("^([^_]*_[^_]*).*", "\\2", Name_file),
   separate(col = Name_file, into = c('Date','Micro','Quad'), sep = '_') %>%
-  mutate(Quad2=substr(Quad, start = 1, stop = 1),
+  mutate(Micro=stringr::str_replace_all(Micro, ".rndpts.csv", ""),
+    Quad2=substr(Quad, start = 1, stop = 1),
+         
           Month_str=gsub("-.*", "", Date,perl=TRUE),
           YY=gsub(".*-", "", Date,perl=TRUE),
           Month=case_when( Month_str=='Avri'~'04',
