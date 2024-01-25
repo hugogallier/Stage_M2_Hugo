@@ -165,22 +165,165 @@ dataR<-data_PQ_light
 dataR<-dataR[,-c(1,6:7,15:23)]
 dataR<-na.omit(dataR)#enlève les lignes ayant du NA (correspondant aux zones sans faune et flore béton)
 
-dataR$spp.Name<-as.factor(dataR$spp.Name)
+dataR$spp<-as.factor(dataR$spp)
 dataR$spp.ID<-as.factor(dataR$spp.ID)
-dataR$N.pts.per.species<-as.numeric(dataR$N.pts.per.species)
 dataR$Site<-as.factor(dataR$Site)
 dataR$Micro<-as.factor(dataR$Micro)
-dataR$Quad2<-as.factor(dataR$Quad2)
-dataR$Date<-as.factor(dataR$Date)
+dataR$Count<-as.numeric(dataR$Count)
 dataR$Month_str<-as.factor(dataR$Month_str)
-dataR$YY<-as.factor(dataR$YY)
 dataR$Month<-as.factor(dataR$Month)
 dataR$Date_ok<-as.factor(dataR$Date_ok)
 dataR$Date_courte<-as.factor(dataR$Date_courte)
 dataR$Week<-as.factor(dataR$Week)
+dataR$Quad2<-as.factor(dataR$Quad2)
+str(dataR)
 ```
 
 
+##### Indice de Simpson #####
+```{r}
+beta<-rep(0, times=106) #a utiliser en fonction des périodes/localisations,... souhaitées
+for (i in 1:106){
+  beta[i]<-simpson(dataR2$spp.ID==i)
+}
+
+```
+
+##### Indice Alpha #####
+```{r}
+A<-table(dataR2$spp.ID) #a utiliser en fonction des périodes/localisations,... souhaitées
+length(A)
+
+##Test calcul selon micro habitat
+# nrow(dataR2[dataR2$Micro=="C1B1" & dataR2$Month_str=="Juill",])
+
+#Conditions
+condition <- "C1B1"
+# condition2 <- "C1B2"
+# condition3 <- "C1B3"
+# condition4 <- "C1B4"
+# condition5 <- "C1B5"
+# condition6 <- "C1B6"
+# condition7 <- "C1B7"
+# condition8 <- "C1B8"
+# condition9 <- "C2B1"
+# condition10<- "C2B2"
+# condition11<- "C2B3"
+# condition12<- "C2B4"
+# condition13<- "C2B5"
+# condition14<- "C2B6"
+# condition15<- "C2B7"
+# condition16<- "C2B8"
+
+condition<-c("C1B1","C1B2","C1B3","C1B4","C1B5","C1B6","C1B7","C1B8","C2P1","C2P2","C2P3","C2P4","C2P5","C2P6","C2P7","C2P8","CGF1","CHG2","CGF3"
+             ,"CGF4","CHB1","CHB2","CHB3","CHB4","CHB5","CHB6","CHB7","CHB8","CPF1","CPF2","CPF3","CPF4","DGF1","DGF2","DGF3","DGF4","DPF1","DPF2"
+             ,"DPF3","DPF4","P1","P2","P3","T1","T2","T3","T4")
+condition<-as.factor(condition)
+conditiont <- c("2021-01","2021-04","2021-07","2021-10","2021-11","2022-01","2022-04","2022-07","2022-11")
+conditiont<-as.factor(conditiont)
+str(conditiont)
+conditionr <- c("Bi","Bu","Fe","VB")
+conditionr<-as.factor(conditionr)
+
+
+#Filtrer les données selon les conditions
+filtered_dataA <- dataR %>% 
+  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont1, dataR$Site == conditionr1)
+filtered_dataB <- dataR %>% 
+  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont2, dataR$Site == conditionr1)
+filtered_dataC <- dataR %>% 
+  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont3, dataR$Site == conditionr1)
+
+filtered_dataD <- dataR %>% 
+  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont4, dataR$Site == conditionr2)
+filtered_dataE <- dataR %>% 
+  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont2, dataR$Site == conditionr2)
+filtered_dataF <- dataR %>% 
+  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont3, dataR$Site == conditionr2)
+
+filtered_dataG <- dataR %>% 
+  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont5, dataR$Site == conditionr3)
+filtered_dataH <- dataR %>% 
+  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont2, dataR$Site == conditionr3)
+filtered_dataI <- dataR %>% 
+  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont7, dataR$Site == conditionr3)
+
+# Récupérer le nombre de variables différentes
+A <- length(unique(unlist(filtered_dataA[,1])))#colonne où les variables doivent être différentes
+B <- length(unique(unlist(filtered_dataB[,1])))#colonne où les variables doivent être différentes
+C <- length(unique(unlist(filtered_dataC[,1])))#colonne où les variables doivent être différentes
+
+D <- length(unique(unlist(filtered_dataD[,1])))
+E <- length(unique(unlist(filtered_dataE[,1])))
+F <- length(unique(unlist(filtered_dataF[,1])))
+
+G <- length(unique(unlist(filtered_dataG[,1])))
+H <- length(unique(unlist(filtered_dataH[,1])))
+I <- length(unique(unlist(filtered_dataI[,1])))
+
+C1B1table<-data.frame(Micro=rep(c(conditiont1,conditiont2,conditiont3),each=1),
+                     alpha=rbind(A,B,C))
+C1B1table2<-data.frame(Micro2=rep(c(conditiont4,conditiont2,conditiont3),each=1),
+                     alpha2=rbind(D,E,F))
+C1B1table3<-data.frame(Micro3=rep(c(conditiont4,conditiont2,conditiont3),each=1),
+                     alpha3=rbind(G,H,I))
+
+C1B1t<-cbind(C1B1table,C1B1table2,C1B1table3)
+
+C1B1t[,1]<-as.factor(C1B1t[,1])
+C1B1t[,2]<-as.numeric(C1B1t[,2])
+
+plot(C1B1table$alpha~C1B1table$Micro,col="red")
+
+ggplot(data=C1B1t)+
+  geom_point(aes(x=Micro,y=alpha),col="red")+
+  geom_point(aes(x=Micro2,y=alpha2),col="blue")+
+  geom_point(aes(x=Micro3,y=alpha3),col="green")
+```
+
+```{r}
+#association d'un microhabitat a un nombre
+assigndata <- data.frame(
+  variable_a_assigner = levels(dataR$Micro),
+  valeur_associée = c(1:nlevels(dataR$Micro)))
+# Utiliser la fonction factor pour obtenir les niveaux uniques
+assigndata$variable_a_assigner <- as.integer(factor(assigndata$variable_a_assigner, levels = unique(assigndata$variable_a_assigner)))
 
 
 
+
+Table<-rep(0,times=nlevels(dataR$Date_courte))
+
+i<-1
+j<-1
+k<-1
+
+for (i in 1:nlevels(dataR$Micro)){ #microhabitat
+  for (j in 1:nlevels(dataR$Site)){ #récif
+    for (k in 1:nlevels(dataR$Date_courte)){ #date
+
+for (i in 1:nlevels(condition)){ #microhabitat
+  for (j in 1:nlevels(conditionr)){ #récif
+    for (k in 1:nlevels(conditiont)){ #date
+      
+filtered_dataA <- dataR %>% 
+  filter(dataR$Micro == condition[i], dataR$Date_courte == conditiont[k], dataR$Site == conditionr[j])
+# filtered_dataB <- dataR %>% 
+#   filter(dataR$Micro == condition[i], dataR$Date_courte == conditiont[k], dataR$Site == conditionr[j])
+# filtered_dataC <- dataR %>% 
+#   filter(dataR$Micro == condition[i], dataR$Date_courte == conditiont[k], dataR$Site == conditionr[j])
+
+A <- length(unique(unlist(filtered_dataA[,1])))#[,1]colonne où les variables doivent être différentes
+# B <- length(unique(unlist(filtered_dataB[,1])))
+# C <- length(unique(unlist(filtered_dataC[,1])))
+}}}
+Table[i]<-data.frame(Micro=rep(c(conditiont[k]),each=1),
+                     alpha=rbind(Table,A))
+}
+
+      
+Table[i]<-data.frame(Micro=rep(c(conditiont1),each=1),
+                     alpha=rbind(A,B,C))
+    }
+  }
+}
