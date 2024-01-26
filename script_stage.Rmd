@@ -18,7 +18,7 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(here)
-
+library(vegan)
 
 ```
 
@@ -39,7 +39,8 @@ MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
 ## Chargement data
 Boucle de chargement des fichiers csv 
 ```{r}
-setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
+setwd('E:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
+# setwd('E:/Marineff/suivi_scientifique')
 
 data_list=list.files(pattern =".csv", recursive=T)
 
@@ -158,7 +159,7 @@ corresp=data_PQ_light %>% select(spp,abb)%>% unique()
 Vérification que la colonne "strcut_groups" est correctement informée
 
 
-
+# Partie Hugo
 ##Réduction des colonnes et transformation des valeurs
 ```{r}
 dataR1<-data_PQ_light
@@ -295,7 +296,8 @@ dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlèveles NI
   group_by(Site,Date_courte,Structure2) %>% #filtre selon le site, date et structure
   summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
 
-
+#######################################
+###################### Version Hugo ########
 dataR2$Site<-as.factor(dataR2$Site)
 dataR2$Date_courte<-as.factor(dataR2$Date_courte)
 dataR2$S<-as.numeric(dataR2$S)
@@ -309,8 +311,43 @@ dataR2022<-dataR2[which(dataR2$Date_courte=="2022-01" | dataR2$Date_courte=="202
 par(mfrow=c(1,1))
 plot(dataR2021$S~dataR2021$Structure2,ylab="Richesse taxonomique",las=2,xlab="",ylim=c(0,22),main="Richesse taxonomique des récifs en 2021")#las permet de changer l'orientation des labels
 plot(dataR2022$S~dataR2022$Structure2,ylab="Richesse taxonomique",las=2,xlab="",ylim=c(0,22),main="Richesse taxonomique des récifs en 2022")
+```
+
+#### Version Bruno
+
+ On va simplement utiliser ggplot à partir du dataframe pour visualiser plusieurs choses rapidement
+
+Pour comparer des "catégories" --> mieux utiliser les boxplot
+Pour comparer des varations d'une variable dans le temps --> mieux vaut utiliser des courbes
+```{r}
+
+# Plot1: Visualition différences entre sites pour chaque micro habitat
+
+ggplot(dataR2, aes(Structure2,S, fill=Site))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
+  geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
+  geom_boxplot()+
+  theme_bw()  # Juste pour retirer le fond gris pas défaut (--> moche !)
 
 
+# Plot 2 : Visualisation des différences de chaque micro habitat par Site
+
+ggplot(dataR2, aes(Site,S, fill=Structure2))+ 
+  geom_jitter(alpha=.3)+  
+  geom_boxplot()+
+  theme_bw() 
+
+
+# Plot 3: Visualisation changement de S dans le temps, par Site et pour chaque micro habitat
+ggplot(dataR2, aes(Date_courte,S, col=Site))+
+  geom_point()+
+  geom_line( aes(group=Site))+
+  facet_wrap(.~Structure2)+ # <- cette fonction permet de réaliser les geoms précegents mais pour différentes catégories (ici j'ai choisi les micro habitat, mais on aurait pu le faire pour les sites par exemples)
+  theme_bw()+
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # <- rotation des dates pour qu'elles soient lisibles
+```
+
+
+```{r}
 #####Comparaison richesse taxo entre les 4 sites - 2021
 par(mfrow=c(2,2))
 plot(dataR2021$S[which(dataR2021$Site=="Bi")]~dataR2021$Structure2[which(dataR2021$Site=="Bi")],ylab="Richesse taxonomique",las=2,xlab="",main="2021 - Site Bi",ylim=c(0,20))#las permet de changer l'orientation des labels
