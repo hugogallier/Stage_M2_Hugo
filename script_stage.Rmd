@@ -348,6 +348,8 @@ dataR2022
 ########2021########
 par(mfrow=c(3,2))
 plot(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-01")]~dataR2021$Structure2[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-01")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Janvier 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+m<-mean(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-01")])
+sd<-sd(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-01")])
 
 plot(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-04")]~dataR2021$Structure2[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-04")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Avril 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
 
@@ -449,7 +451,7 @@ plot(dataR2022$S[which(dataR2022$Site=="VB" | dataR2022$Date_courte=="2022-11")]
 
 
 
-###Test Anova
+###Test Shapiro/Levene/Anova
 ```{r}
 library(rstatix)
 dataR2021<-dataR2[which(dataR2$Date_courte=="2021-01" | dataR2$Date_courte=="2021-04" | dataR2$Date_courte=="2021-07" 
@@ -462,8 +464,11 @@ shapiro_test(residuals(model1))#si pvalue supérieure à 0,05 alors permet de di
 
 leveneTest(S~Structure2,data=dataR2021)#Si p value supérieur à 0,05 alors variance entre les groupes est égale
 
-test_anova<-aov(S~factor(Structure2)*factor(Date_courte),data=dataR2021)#anova en prenant la date ainsi que les structures comme facteur
+test_anova<-aov(S~factor(Site)*factor(Date_courte),data=dataR2022)#anova en prenant la date ainsi que les structures comme facteur
 summary(test_anova)
+
+
+
 ```
 
 # Comparaison intersite et temporelle
@@ -678,4 +683,31 @@ ggplot(data=TableCompRec)+
   theme_classic()+ ylab("Diversité taxonomique")
 
 
+```
+
+#Test radar plot
+```{r}
+# devtools::install_github("ricardo-bion/ggradar")
+library(ggradar)
+dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Structure2 %in% c("Dome","Upper_slots")) %>%
+  select(spp,Site,Date_courte,Structure2) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Structure2) %>% #filtre selon le site, date et structure
+  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+
+dataR2021a<-dataR2[which(dataR2$Date_courte=="2021-01" & dataR2$Site=="Bi"),] 
+dataR2021b<-dataR2[which(dataR2$Date_courte=="2021-04" & dataR2$Site=="Bi"),] 
+dataR2021c<-dataR2[which(dataR2$Date_courte=="2021-07" & dataR2$Site=="Bi"),] 
+# dataR2021d<-dataR2[which(dataR2$Date_courte=="2021-10" & dataR2$Site=="Bi"),] 
+dataR2021e<-dataR2[which(dataR2$Date_courte=="2021-11" & dataR2$Site=="Bi"),] 
+dataR2021f<-cbind(dataR2021a[,-c(1,2)],dataR2021b[,-c(1,2)],dataR2021c[,-c(1,2)],dataR2021e[,-c(1,2)])
+dataR2021f<-dataR2021f[,-c(3,5,7)]
+colnames(dataR2021f)<-c("Micro","Janvier","Avril","Juillet","Novembre")
+dataR2021f$Janvier<-as.numeric(dataR2021f$Janvier)
+dataR2021f$Avril<-as.numeric(dataR2021f$Avril)
+dataR2021f$Juillet<-as.numeric(dataR2021f$Juillet)
+dataR2021f$Novembre<-as.numeric(dataR2021f$Novembre)
+
+ggradar(dataR2021f,grid.min = 0,grid.max =22)
 ```
