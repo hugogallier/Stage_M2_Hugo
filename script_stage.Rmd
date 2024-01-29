@@ -324,6 +324,8 @@ Pour comparer des varations d'une variable dans le temps --> mieux vaut utiliser
 # Plot1: Visualition différences entre sites pour chaque micro habitat
 
 ggplot(dataR2, aes(Structure2,S, fill=Site))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
+  xlab("Structure")+
+  ylab("Richesse taxonomique")+
   geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
   geom_boxplot()+
   theme_bw()  # Juste pour retirer le fond gris pas défaut (--> moche !)
@@ -332,13 +334,27 @@ ggplot(dataR2, aes(Structure2,S, fill=Site))+ # Avec "fill" ou "col" du peut ajo
 # Plot 2 : Visualisation des différences de chaque micro habitat par Site
 
 ggplot(dataR2, aes(Site,S, fill=Structure2))+ 
+  xlab("Site")+
+  ylab("Richesse taxonomique")+
   geom_jitter(alpha=.3)+  
   geom_boxplot()+
   theme_bw() 
 
 
 # Plot 3: Visualisation changement de S dans le temps, par Site et pour chaque micro habitat
-ggplot(dataR2, aes(Date_courte,S, col=Site))+
+ggplot(dataR2 %>%  filter(!Structure2 == "Holes") %>% filter(!Date_courte=="2021-01"), aes(Date_courte,S, col=Site))+
+  xlab("Date")+
+  ylab("Richesse taxonomique")+
+  geom_point()+
+  geom_line( aes(group=Site))+
+  facet_wrap(.~Structure2)+ # <- cette fonction permet de réaliser les geoms précegents mais pour différentes catégories (ici j'ai choisi les micro habitat, mais on aurait pu le faire pour les sites par exemples)
+  theme_bw()+
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # <- rotation des dates pour qu'elles soient lisibles
+
+
+ggplot(dataR2 %>%  filter(!Structure2 %in% c("Holes","Upper_slots","Dome")) %>% filter(!Date_courte=="2021-01"), aes(Date_courte,S, col=Structure2))+
+  xlab("Date")+
+  ylab("Richesse taxonomique")+
   geom_point()+
   geom_line( aes(group=Site))+
   facet_wrap(.~Structure2)+ # <- cette fonction permet de réaliser les geoms précegents mais pour différentes catégories (ici j'ai choisi les micro habitat, mais on aurait pu le faire pour les sites par exemples)
@@ -510,241 +526,325 @@ summary(test_anova)
 
 # Comparaison intersite et temporelle
 ```{r}
-load(file="dataR.Rdata")
-dataR%>%filter(!spp=="NI")
-dataRBi<-dataR[which(dataR$Site=="Bi"),]
-dataRBu<-dataR[which(dataR$Site=="Bu"),]
-dataRVb<-dataR[which(dataR$Site=="VB"),]
-dataRFe<-dataR[which(dataR$Site=="Fe"),]
-
-
-##### 01-2021 #####
-dataR2021_01<-dataR[which(dataR$Date_courte=="2021-01"),]
-
-filtered_dataI <- dataR2021_01 %>% 
-  filter(dataR2021_01$Site == "Bi")
-filtered_dataJ <- dataR2021_01 %>% 
-  filter(dataR2021_01$Site == "Bu")
-filtered_dataK <- dataR2021_01 %>% 
-  filter(dataR2021_01$Site == "VB")
-filtered_dataL <- dataR2021_01 %>% 
-  filter(dataR2021_01$Site == "Fe")
-
-I <- length(unique(unlist(filtered_dataI[,1])))#colonne où les variables doivent être différentes
-J <- length(unique(unlist(filtered_dataJ[,1])))#colonne où les variables doivent être différentes
-K <- length(unique(unlist(filtered_dataK[,1])))#colonne où les variables doivent être différentes
-L <- length(unique(unlist(filtered_dataL[,1])))#colonne où les variables doivent être différentes
-
-
-Table2021_01<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-                     Jan2021=rbind(I,J,K,L))
-
-##### 04-2021 #####
-dataR2021_04<-dataR[which(dataR$Date_courte=="2021-04"),]
-
-filtered_dataM <- dataR2021_04 %>% 
-  filter(dataR2021_04$Site == "Bi")
-filtered_dataN <- dataR2021_04 %>% 
-  filter(dataR2021_04$Site == "Bu")
-filtered_dataO <- dataR2021_04 %>% 
-  filter(dataR2021_04$Site == "VB")
-filtered_dataP <- dataR2021_04 %>% 
-  filter(dataR2021_04$Site == "Fe")
-
-M <- length(unique(unlist(filtered_dataM[,1])))#colonne où les variables doivent être différentes
-N <- length(unique(unlist(filtered_dataN[,1])))#colonne où les variables doivent être différentes
-O <- length(unique(unlist(filtered_dataO[,1])))#colonne où les variables doivent être différentes
-P <- length(unique(unlist(filtered_dataP[,1])))#colonne où les variables doivent être différentes
-
-
-Table2021_04<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-                     Jan2021=rbind(M,N,O,P))
-
-##### 07-2021 #####
-dataR2021_07<-dataR[which(dataR$Date_courte=="2021-07"),]
-
-filtered_dataQ <- dataR2021_07 %>% 
-  filter(dataR2021_07$Site == "Bi")
-filtered_dataR <- dataR2021_07 %>% 
-  filter(dataR2021_07$Site == "Bu")
-filtered_dataS <- dataR2021_07 %>% 
-  filter(dataR2021_07$Site == "VB")
-filtered_dataT <- dataR2021_07 %>% 
-  filter(dataR2021_07$Site == "Fe")
-
-Q <- length(unique(unlist(filtered_dataQ[,1])))#colonne où les variables doivent être différentes
-R <- length(unique(unlist(filtered_dataR[,1])))#colonne où les variables doivent être différentes
-S <- length(unique(unlist(filtered_dataS[,1])))#colonne où les variables doivent être différentes
-T <- length(unique(unlist(filtered_dataT[,1])))#colonne où les variables doivent être différentes
-
-Table2021_07<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-                     Jan2021=rbind(Q,R,S,T))
-
-##### 10-2021 #####
-dataR2021_10<-dataR[which(dataR$Date_courte=="2021-10"),]
-
-filtered_dataU <- dataR2021_10 %>% 
-  filter(dataR2021_10$Site == "Bi")
-filtered_dataV <- dataR2021_10 %>% 
-  filter(dataR2021_10$Site == "Bu")
-filtered_dataW <- dataR2021_10 %>% 
-  filter(dataR2021_10$Site == "VB")
-filtered_dataX <- dataR2021_10 %>% 
-  filter(dataR2021_10$Site == "Fe")
-
-U <- length(unique(unlist(filtered_dataU[,1])))#colonne où les variables doivent être différentes
-V <- length(unique(unlist(filtered_dataV[,1])))#colonne où les variables doivent être différentes
-W <- length(unique(unlist(filtered_dataW[,1])))#colonne où les variables doivent être différentes
-X <- length(unique(unlist(filtered_dataX[,1])))#colonne où les variables doivent être différentes
-
-Table2021_10<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-                     Jan2021=rbind(U,V,W,X))
-
-##### 11-2021 #####
-dataR2021_11<-dataR[which(dataR$Date_courte=="2021-11"),]
-
-filtered_dataA <- dataR2021_11 %>% 
-  filter(dataR2021_11$Site == "Bi")
-filtered_dataB <- dataR2021_11 %>% 
-  filter(dataR2021_11$Site == "Bu")
-filtered_dataC <- dataR2021_11 %>% 
-  filter(dataR2021_11$Site == "VB")
-filtered_dataC <- dataR2021_11 %>% 
-  filter(dataR2021_11$Site == "Fe")
-
-A <- length(unique(unlist(filtered_dataA[,1])))#colonne où les variables doivent être différentes
-B <- length(unique(unlist(filtered_dataB[,1])))#colonne où les variables doivent être différentes
-C <- length(unique(unlist(filtered_dataC[,1])))#colonne où les variables doivent être différentes
-D <- length(unique(unlist(filtered_dataD[,1])))#colonne où les variables doivent être différentes
-
-Table2021_11<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-                     Nov2021=rbind(A,B,C,D))
-
-##### 01-2022 #####
-dataR2022_01<-dataR[which(dataR$Date_courte=="2022-01"),]
-
-filtered_dataAA <- dataR2022_01 %>% 
-  filter(dataR2022_01$Site == "Bi")
-filtered_dataBB <- dataR2022_01 %>% 
-  filter(dataR2022_01$Site == "Bu")
-filtered_dataCC <- dataR2022_01 %>% 
-  filter(dataR2022_01$Site == "VB")
-filtered_dataDD <- dataR2022_01 %>% 
-  filter(dataR2022_01$Site == "Fe")
-
-AA <- length(unique(unlist(filtered_dataAA[,1])))#colonne où les variables doivent être différentes
-BB <- length(unique(unlist(filtered_dataBB[,1])))#colonne où les variables doivent être différentes
-CC <- length(unique(unlist(filtered_dataCC[,1])))#colonne où les variables doivent être différentes
-DD <- length(unique(unlist(filtered_dataDD[,1])))#colonne où les variables doivent être différentes
-
-dataR2022_01<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-                     Jan2021=rbind(AA,BB,CC,DD))
-
-##### 04-2022 #####
-dataR2022_04<-dataR[which(dataR$Date_courte=="2022-04"),]
-
-filtered_dataEE <- dataR2022_04 %>% 
-  filter(dataR2022_04$Site == "Bi")
-filtered_dataFF <- dataR2022_04 %>% 
-  filter(dataR2022_04$Site == "Bu")
-filtered_dataGG <- dataR2022_04 %>% 
-  filter(dataR2022_04$Site == "VB")
-filtered_dataHH <- dataR2022_04 %>% 
-  filter(dataR2022_04$Site == "Fe")
-
-EE <- length(unique(unlist(filtered_dataEE[,1])))#colonne où les variables doivent être différentes
-FF <- length(unique(unlist(filtered_dataFF[,1])))#colonne où les variables doivent être différentes
-GG <- length(unique(unlist(filtered_dataGG[,1])))#colonne où les variables doivent être différentes
-HH <- length(unique(unlist(filtered_dataHH[,1])))#colonne où les variables doivent être différentes
-
-dataR2022_04<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-                     Jan2021=rbind(EE,FF,GG,HH))
-
-##### 07-2022 #####
-dataR2022_07<-dataR[which(dataR$Date_courte=="2022-07"),]
-
-filtered_dataII <- dataR2022_07 %>% 
-  filter(dataR2022_07$Site == "Bi")
-filtered_dataJJ <- dataR2022_07 %>% 
-  filter(dataR2022_07$Site == "Bu")
-filtered_dataKK <- dataR2022_07 %>% 
-  filter(dataR2022_07$Site == "VB")
-filtered_dataLL <- dataR2022_07 %>% 
-  filter(dataR2022_07$Site == "Fe")
-
-II <- length(unique(unlist(filtered_dataII[,1])))#colonne où les variables doivent être différentes
-JJ <- length(unique(unlist(filtered_dataJJ[,1])))#colonne où les variables doivent être différentes
-KK <- length(unique(unlist(filtered_dataKK[,1])))#colonne où les variables doivent être différentes
-LL <- length(unique(unlist(filtered_dataLL[,1])))#colonne où les variables doivent être différentes
-
-dataR2022_07<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-                     Jan2021=rbind(II,JJ,KK,LL))
-
-##### 11-2022 #####
-dataR2022_11<-dataR[which(dataR$Date_courte=="2022-11"),]
-
-filtered_dataE <- dataR2022_11 %>% 
-  filter(dataR2022_11$Site == "Bi")
-filtered_dataF <- dataR2022_11 %>% 
-  filter(dataR2022_11$Site == "Bu")
-filtered_dataG <- dataR2022_11 %>% 
-  filter(dataR2022_11$Site == "VB")
-filtered_dataH <- dataR2022_11 %>% 
-  filter(dataR2022_11$Site == "Fe")
-
-E <- length(unique(unlist(filtered_dataE[,1])))#colonne où les variables doivent être différentes
-F <- length(unique(unlist(filtered_dataF[,1])))#colonne où les variables doivent être différentes
-G <- length(unique(unlist(filtered_dataG[,1])))#colonne où les variables doivent être différentes
-H <- length(unique(unlist(filtered_dataH[,1])))#colonne où les variables doivent être différentes
-
-Table2022_11<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-                     Nov2022=rbind(E,F,G,H))
-
-
-
-########## Graphique ##########
-TableCompRec<-cbind(Table2021_01,Table2021_04[,-1],Table2021_07[,-1],Table2021_10[,-1],Table2021_11[,-1],dataR2022_01[,-1],dataR2022_04[,-1]
-                    ,dataR2022_07[,-1],Table2022_11[,-1])
-TableCompRec[TableCompRec==0]<-NA
-colnames(TableCompRec)<-c("Site","Jan_2021","Avr_2021","Juil_2021","Oct_2021","Nov_2021","Jan_2022","Avr_2022","Juil_2022","Nov_2022")
-ggplot(data=TableCompRec)+
-  geom_point(aes(x=Site,y=Jan_2021),col="red",size=3)+
-  geom_point(aes(x=Site,y=Avr_2021),col="blue",size=3)+
-  geom_point(aes(x=Site,y=Juil_2021),col="green",size=3)+
-  geom_point(aes(x=Site,y=Oct_2021),col="black",size=3)+
-  geom_point(aes(x=Site,y=Nov_2021),col="pink",size=3)+
-  geom_point(aes(x=Site,y=Jan_2022),col="purple",size=3)+
-  geom_point(aes(x=Site,y=Avr_2022),col="yellow",size=3)+
-  geom_point(aes(x=Site,y=Juil_2022),col="orange",size=3)+
-  geom_point(aes(x=Site,y=Nov_2022),col="darkgreen",size=3)+
-  theme_classic()+ ylab("Diversité taxonomique")
+# load(file="dataR.Rdata")
+# dataR%>%filter(!spp=="NI")
+# dataRBi<-dataR[which(dataR$Site=="Bi"),]
+# dataRBu<-dataR[which(dataR$Site=="Bu"),]
+# dataRVb<-dataR[which(dataR$Site=="VB"),]
+# dataRFe<-dataR[which(dataR$Site=="Fe"),]
+# 
+# 
+# ##### 01-2021 #####
+# dataR2021_01<-dataR[which(dataR$Date_courte=="2021-01"),]
+# 
+# filtered_dataI <- dataR2021_01 %>% 
+#   filter(dataR2021_01$Site == "Bi")
+# filtered_dataJ <- dataR2021_01 %>% 
+#   filter(dataR2021_01$Site == "Bu")
+# filtered_dataK <- dataR2021_01 %>% 
+#   filter(dataR2021_01$Site == "VB")
+# filtered_dataL <- dataR2021_01 %>% 
+#   filter(dataR2021_01$Site == "Fe")
+# 
+# I <- length(unique(unlist(filtered_dataI[,1])))#colonne où les variables doivent être différentes
+# J <- length(unique(unlist(filtered_dataJ[,1])))#colonne où les variables doivent être différentes
+# K <- length(unique(unlist(filtered_dataK[,1])))#colonne où les variables doivent être différentes
+# L <- length(unique(unlist(filtered_dataL[,1])))#colonne où les variables doivent être différentes
+# 
+# 
+# Table2021_01<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
+#                      Jan2021=rbind(I,J,K,L))
+# 
+# ##### 04-2021 #####
+# dataR2021_04<-dataR[which(dataR$Date_courte=="2021-04"),]
+# 
+# filtered_dataM <- dataR2021_04 %>% 
+#   filter(dataR2021_04$Site == "Bi")
+# filtered_dataN <- dataR2021_04 %>% 
+#   filter(dataR2021_04$Site == "Bu")
+# filtered_dataO <- dataR2021_04 %>% 
+#   filter(dataR2021_04$Site == "VB")
+# filtered_dataP <- dataR2021_04 %>% 
+#   filter(dataR2021_04$Site == "Fe")
+# 
+# M <- length(unique(unlist(filtered_dataM[,1])))#colonne où les variables doivent être différentes
+# N <- length(unique(unlist(filtered_dataN[,1])))#colonne où les variables doivent être différentes
+# O <- length(unique(unlist(filtered_dataO[,1])))#colonne où les variables doivent être différentes
+# P <- length(unique(unlist(filtered_dataP[,1])))#colonne où les variables doivent être différentes
+# 
+# 
+# Table2021_04<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
+#                      Jan2021=rbind(M,N,O,P))
+# 
+# ##### 07-2021 #####
+# dataR2021_07<-dataR[which(dataR$Date_courte=="2021-07"),]
+# 
+# filtered_dataQ <- dataR2021_07 %>% 
+#   filter(dataR2021_07$Site == "Bi")
+# filtered_dataR <- dataR2021_07 %>% 
+#   filter(dataR2021_07$Site == "Bu")
+# filtered_dataS <- dataR2021_07 %>% 
+#   filter(dataR2021_07$Site == "VB")
+# filtered_dataT <- dataR2021_07 %>% 
+#   filter(dataR2021_07$Site == "Fe")
+# 
+# Q <- length(unique(unlist(filtered_dataQ[,1])))#colonne où les variables doivent être différentes
+# R <- length(unique(unlist(filtered_dataR[,1])))#colonne où les variables doivent être différentes
+# S <- length(unique(unlist(filtered_dataS[,1])))#colonne où les variables doivent être différentes
+# T <- length(unique(unlist(filtered_dataT[,1])))#colonne où les variables doivent être différentes
+# 
+# Table2021_07<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
+#                      Jan2021=rbind(Q,R,S,T))
+# 
+# ##### 10-2021 #####
+# dataR2021_10<-dataR[which(dataR$Date_courte=="2021-10"),]
+# 
+# filtered_dataU <- dataR2021_10 %>% 
+#   filter(dataR2021_10$Site == "Bi")
+# filtered_dataV <- dataR2021_10 %>% 
+#   filter(dataR2021_10$Site == "Bu")
+# filtered_dataW <- dataR2021_10 %>% 
+#   filter(dataR2021_10$Site == "VB")
+# filtered_dataX <- dataR2021_10 %>% 
+#   filter(dataR2021_10$Site == "Fe")
+# 
+# U <- length(unique(unlist(filtered_dataU[,1])))#colonne où les variables doivent être différentes
+# V <- length(unique(unlist(filtered_dataV[,1])))#colonne où les variables doivent être différentes
+# W <- length(unique(unlist(filtered_dataW[,1])))#colonne où les variables doivent être différentes
+# X <- length(unique(unlist(filtered_dataX[,1])))#colonne où les variables doivent être différentes
+# 
+# Table2021_10<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
+#                      Jan2021=rbind(U,V,W,X))
+# 
+# ##### 11-2021 #####
+# dataR2021_11<-dataR[which(dataR$Date_courte=="2021-11"),]
+# 
+# filtered_dataA <- dataR2021_11 %>% 
+#   filter(dataR2021_11$Site == "Bi")
+# filtered_dataB <- dataR2021_11 %>% 
+#   filter(dataR2021_11$Site == "Bu")
+# filtered_dataC <- dataR2021_11 %>% 
+#   filter(dataR2021_11$Site == "VB")
+# filtered_dataC <- dataR2021_11 %>% 
+#   filter(dataR2021_11$Site == "Fe")
+# 
+# A <- length(unique(unlist(filtered_dataA[,1])))#colonne où les variables doivent être différentes
+# B <- length(unique(unlist(filtered_dataB[,1])))#colonne où les variables doivent être différentes
+# C <- length(unique(unlist(filtered_dataC[,1])))#colonne où les variables doivent être différentes
+# D <- length(unique(unlist(filtered_dataD[,1])))#colonne où les variables doivent être différentes
+# 
+# Table2021_11<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
+#                      Nov2021=rbind(A,B,C,D))
+# 
+# ##### 01-2022 #####
+# dataR2022_01<-dataR[which(dataR$Date_courte=="2022-01"),]
+# 
+# filtered_dataAA <- dataR2022_01 %>% 
+#   filter(dataR2022_01$Site == "Bi")
+# filtered_dataBB <- dataR2022_01 %>% 
+#   filter(dataR2022_01$Site == "Bu")
+# filtered_dataCC <- dataR2022_01 %>% 
+#   filter(dataR2022_01$Site == "VB")
+# filtered_dataDD <- dataR2022_01 %>% 
+#   filter(dataR2022_01$Site == "Fe")
+# 
+# AA <- length(unique(unlist(filtered_dataAA[,1])))#colonne où les variables doivent être différentes
+# BB <- length(unique(unlist(filtered_dataBB[,1])))#colonne où les variables doivent être différentes
+# CC <- length(unique(unlist(filtered_dataCC[,1])))#colonne où les variables doivent être différentes
+# DD <- length(unique(unlist(filtered_dataDD[,1])))#colonne où les variables doivent être différentes
+# 
+# dataR2022_01<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
+#                      Jan2021=rbind(AA,BB,CC,DD))
+# 
+# ##### 04-2022 #####
+# dataR2022_04<-dataR[which(dataR$Date_courte=="2022-04"),]
+# 
+# filtered_dataEE <- dataR2022_04 %>% 
+#   filter(dataR2022_04$Site == "Bi")
+# filtered_dataFF <- dataR2022_04 %>% 
+#   filter(dataR2022_04$Site == "Bu")
+# filtered_dataGG <- dataR2022_04 %>% 
+#   filter(dataR2022_04$Site == "VB")
+# filtered_dataHH <- dataR2022_04 %>% 
+#   filter(dataR2022_04$Site == "Fe")
+# 
+# EE <- length(unique(unlist(filtered_dataEE[,1])))#colonne où les variables doivent être différentes
+# FF <- length(unique(unlist(filtered_dataFF[,1])))#colonne où les variables doivent être différentes
+# GG <- length(unique(unlist(filtered_dataGG[,1])))#colonne où les variables doivent être différentes
+# HH <- length(unique(unlist(filtered_dataHH[,1])))#colonne où les variables doivent être différentes
+# 
+# dataR2022_04<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
+#                      Jan2021=rbind(EE,FF,GG,HH))
+# 
+# ##### 07-2022 #####
+# dataR2022_07<-dataR[which(dataR$Date_courte=="2022-07"),]
+# 
+# filtered_dataII <- dataR2022_07 %>% 
+#   filter(dataR2022_07$Site == "Bi")
+# filtered_dataJJ <- dataR2022_07 %>% 
+#   filter(dataR2022_07$Site == "Bu")
+# filtered_dataKK <- dataR2022_07 %>% 
+#   filter(dataR2022_07$Site == "VB")
+# filtered_dataLL <- dataR2022_07 %>% 
+#   filter(dataR2022_07$Site == "Fe")
+# 
+# II <- length(unique(unlist(filtered_dataII[,1])))#colonne où les variables doivent être différentes
+# JJ <- length(unique(unlist(filtered_dataJJ[,1])))#colonne où les variables doivent être différentes
+# KK <- length(unique(unlist(filtered_dataKK[,1])))#colonne où les variables doivent être différentes
+# LL <- length(unique(unlist(filtered_dataLL[,1])))#colonne où les variables doivent être différentes
+# 
+# dataR2022_07<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
+#                      Jan2021=rbind(II,JJ,KK,LL))
+# 
+# ##### 11-2022 #####
+# dataR2022_11<-dataR[which(dataR$Date_courte=="2022-11"),]
+# 
+# filtered_dataE <- dataR2022_11 %>% 
+#   filter(dataR2022_11$Site == "Bi")
+# filtered_dataF <- dataR2022_11 %>% 
+#   filter(dataR2022_11$Site == "Bu")
+# filtered_dataG <- dataR2022_11 %>% 
+#   filter(dataR2022_11$Site == "VB")
+# filtered_dataH <- dataR2022_11 %>% 
+#   filter(dataR2022_11$Site == "Fe")
+# 
+# E <- length(unique(unlist(filtered_dataE[,1])))#colonne où les variables doivent être différentes
+# F <- length(unique(unlist(filtered_dataF[,1])))#colonne où les variables doivent être différentes
+# G <- length(unique(unlist(filtered_dataG[,1])))#colonne où les variables doivent être différentes
+# H <- length(unique(unlist(filtered_dataH[,1])))#colonne où les variables doivent être différentes
+# 
+# Table2022_11<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
+#                      Nov2022=rbind(E,F,G,H))
+# 
+# 
+# 
+# ########## Graphique ##########
+# TableCompRec<-cbind(Table2021_01,Table2021_04[,-1],Table2021_07[,-1],Table2021_10[,-1],Table2021_11[,-1],dataR2022_01[,-1],dataR2022_04[,-1]
+#                     ,dataR2022_07[,-1],Table2022_11[,-1])
+# TableCompRec[TableCompRec==0]<-NA
+# colnames(TableCompRec)<-c("Site","Jan_2021","Avr_2021","Juil_2021","Oct_2021","Nov_2021","Jan_2022","Avr_2022","Juil_2022","Nov_2022")
+# ggplot(data=TableCompRec)+
+#   geom_point(aes(x=Site,y=Jan_2021),col="red",size=3)+
+#   geom_point(aes(x=Site,y=Avr_2021),col="blue",size=3)+
+#   geom_point(aes(x=Site,y=Juil_2021),col="green",size=3)+
+#   geom_point(aes(x=Site,y=Oct_2021),col="black",size=3)+
+#   geom_point(aes(x=Site,y=Nov_2021),col="pink",size=3)+
+#   geom_point(aes(x=Site,y=Jan_2022),col="purple",size=3)+
+#   geom_point(aes(x=Site,y=Avr_2022),col="yellow",size=3)+
+#   geom_point(aes(x=Site,y=Juil_2022),col="orange",size=3)+
+#   geom_point(aes(x=Site,y=Nov_2022),col="darkgreen",size=3)+
+#   theme_classic()+ ylab("Diversité taxonomique")
 
 
 ```
 
-#Test radar plot
+#Radar plot
 ```{r}
+# https://r-charts.com/ranking/ggradar/
 # devtools::install_github("ricardo-bion/ggradar")
+dataR<-dataR1[,-c(1,6:7,15:18,20:23)]
+dataR<-dataR[,-c(2,4,6,8:9,11)]
+dataR<-na.omit(dataR)
+
 library(ggradar)
-dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
-  filter(!Structure2 %in% c("Dome","Upper_slots")) %>%
-  select(spp,Site,Date_courte,Structure2) %>% 
+
+##### Bottom disc #####
+resultat3<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
+  filter(!Date_courte == ("2021-01"))%>%
+  filter(Micro %in% c("C1B1","C1B2","C1B3","C1B4","C1B5","C1B6","C1B7","C1B8"))%>%
+  select(spp,Site,Date_courte,Micro) %>% 
   distinct() %>% 
-  group_by(Site,Date_courte,Structure2) %>% #filtre selon le site, date et structure
-  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
+  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
 
-dataR2021a<-dataR2[which(dataR2$Date_courte=="2021-01" & dataR2$Site=="Bi"),] 
-dataR2021b<-dataR2[which(dataR2$Date_courte=="2021-04" & dataR2$Site=="Bi"),] 
-dataR2021c<-dataR2[which(dataR2$Date_courte=="2021-07" & dataR2$Site=="Bi"),] 
-# dataR2021d<-dataR2[which(dataR2$Date_courte=="2021-10" & dataR2$Site=="Bi"),] 
-dataR2021e<-dataR2[which(dataR2$Date_courte=="2021-11" & dataR2$Site=="Bi"),] 
-dataR2021f<-cbind(dataR2021a[,-c(1,2)],dataR2021b[,-c(1,2)],dataR2021c[,-c(1,2)],dataR2021e[,-c(1,2)])
-dataR2021f<-dataR2021f[,-c(3,5,7)]
-colnames(dataR2021f)<-c("Micro","Janvier","Avril","Juillet","Novembre")
-dataR2021f$Janvier<-as.numeric(dataR2021f$Janvier)
-dataR2021f$Avril<-as.numeric(dataR2021f$Avril)
-dataR2021f$Juillet<-as.numeric(dataR2021f$Juillet)
-dataR2021f$Novembre<-as.numeric(dataR2021f$Novembre)
 
-ggradar(dataR2021f,grid.min = 0,grid.max =22)
+
+lcol<-c("blue","red","orange","black")
+
+ggradar(resultat3[,-2],grid.min = 1,grid.max =15,values.radar = c(0,7, 15),group.colours = lcol,legend.title="Site")
+
+
+##### Columns #####
+resultat3<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
+  filter(!Date_courte == ("2021-01"))%>%
+  filter(Micro %in% c("C2P1","C2P2","C2P3","C2P4","C2P5","C2P6","C2P7","C2P8"))%>%
+  select(spp,Site,Date_courte,Micro) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
+  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+resultat3[is.na(resultat3)]<-0
+
+ggradar(resultat3[,-2],grid.min = 1,grid.max =10,grid.mid=5,values.radar = c(0,5,10),group.colours = lcol,legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+
+
+##### Upper_slots #####
+resultat4<- spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Structure2 %in% c("Dome","Holes")) %>%
+  # filter(!Date_courte == ("2021-01"))%>%
+  filter(Micro %in% c("CGF1","CGF2","CGF3","CGF4"))%>%
+  select(spp,Site,Date_courte,Micro) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
+  summarize(S=n())),key=Micro,value=S) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+resultat4[is.na(resultat4)]<-0
+
+ggradar(resultat4[,-2],grid.min = 1,grid.max =13,grid.mid=5,values.radar = c(0,5,13),group.colours = lcol,legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+
+
+##### Pieds #####
+resultat5<- spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Structure2 %in% c("Dome","Holes")) %>%
+  # filter(!Date_courte == ("2021-01"))%>%
+  filter(Micro %in% c("P1","P2","P3"))%>%
+  select(spp,Site,Date_courte,Micro) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
+  summarize(S=n())),key=Micro,value=S) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+resultat5[is.na(resultat5)]<-0
+
+ggradar(resultat5[,-2],grid.min = 1,grid.max =14,grid.mid=5,values.radar = c(0,5,14),group.colours = lcol,legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+
+
+##### Dome #####
+resultat6<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Structure2 %in% c("Upper_slots","Holes")) %>%
+  filter(!Date_courte == ("2021-01"))%>%
+  filter(Micro %in% c("CHB1","CHB2","CHB3","CHB4","CHB5","CHB6","CHB7","CHB8"))%>%
+  select(spp,Site,Date_courte,Micro) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
+  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+resultat6[is.na(resultat6)]<-0
+
+ggradar(resultat6[,-2],grid.min = 1,grid.max =9,values.radar = c(0,5,9),group.colours = lcol,legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+
+
+##### Inner_slots #####
+resultat7<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Date_courte == ("2021-01"))%>%
+  filter(Micro %in% c("DGF1","DGF2","DGF3","DGF4"))%>%
+  select(spp,Site,Date_courte,Micro) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
+  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+resultat7[is.na(resultat7)]<-0
+
+ggradar(resultat7[,-2],grid.min = 1,grid.max =8,values.radar = c(0,3,7),group.colours = lcol,legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+
+
+##### Inner_slots #####
+resultat8<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Date_courte == ("2021-01"))%>%
+  filter(Micro %in% c("DPF1","DPF2","DPF3","DPF4"))%>%
+  select(spp,Site,Date_courte,Micro) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
+  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+resultat8[is.na(resultat8)]<-0
+
+ggradar(resultat8[,-2],grid.min = 1,grid.max =6,values.radar = c(0,3,6),group.colours = lcol,legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+
+
 ```
