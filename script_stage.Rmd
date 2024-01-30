@@ -19,7 +19,7 @@ library(tidyr)
 library(ggplot2)
 library(here)
 library(vegan)
-
+library(scales)
 ```
 
 #################### Importation du data et chargement ###################
@@ -27,8 +27,6 @@ library(vegan)
 Identification des fichiers à charger
 ```{r}
 setwd(here::here())
-
-
 
 MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
   # mutate(Micro=) %>%
@@ -39,7 +37,7 @@ MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
 ## Chargement data
 Boucle de chargement des fichiers csv 
 ```{r}
-setwd('E:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
+setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
 # setwd('E:/Marineff/suivi_scientifique')
 
 data_list=list.files(pattern =".csv", recursive=T)
@@ -181,106 +179,94 @@ dataR$Quad2<-as.factor(dataR$Quad2)
 str(dataR)
 ```
 
-
-# Indice de Simpson 
+#Indice Gamma
 ```{r}
-beta<-rep(0, times=106) #a utiliser en fonction des périodes/localisations,... souhaitées
-for (i in 1:106){
-  beta[i]<-simpson(dataR2$spp.ID==i)
-}
+# Quel est la richesse taxonomique global (Indice Gamma) d'un site et de la zone d'étude en général
 
+dataR<-dataR1[,-c(1,6:7,15:18,20:23)]
+dataR<-na.omit(dataR)
+seq1<-rep(0,times=5701)
+dataR3<-cbind(dataR,seq1)
+dataR<-dataR3
+
+# Indice gamma par site 
+dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
+  select(spp,Site) %>% 
+  distinct() %>% 
+  group_by(Site) %>% #filtre selon le site, date et structure
+  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+
+# Indice gamma global
+dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
+  select(spp,seq1) %>% 
+  distinct() %>% 
+  group_by(seq1) %>% #filtre selon le site, date et structure
+  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+
+      #ou
+
+length(unique(dataR1$spp))#permet de savoir le nombre de variable différente dans la colonne spp (mais ne prend pas en compte la suppression des N)
 ```
+
 
 # Indice Alpha 
 ```{r}
-A<-table(dataR2$spp.ID) #a utiliser en fonction des périodes/localisations,... souhaitées
-length(A)
-
-##Test calcul selon micro habitat
-# nrow(dataR2[dataR2$Micro=="C1B1" & dataR2$Month_str=="Juill",])
-
-#Conditions
-condition <- "C1B1"
-# condition2 <- "C1B2"
-# condition3 <- "C1B3"
-# condition4 <- "C1B4"
-# condition5 <- "C1B5"
-# condition6 <- "C1B6"
-# condition7 <- "C1B7"
-# condition8 <- "C1B8"
-# condition9 <- "C2B1"
-# condition10<- "C2B2"
-# condition11<- "C2B3"
-# condition12<- "C2B4"
-# condition13<- "C2B5"
-# condition14<- "C2B6"
-# condition15<- "C2B7"
-# condition16<- "C2B8"
-
-condition<-c("C1B1","C1B2","C1B3","C1B4","C1B5","C1B6","C1B7","C1B8","C2P1","C2P2","C2P3","C2P4","C2P5","C2P6","C2P7","C2P8","CGF1","CHG2","CGF3"
-             ,"CGF4","CHB1","CHB2","CHB3","CHB4","CHB5","CHB6","CHB7","CHB8","CPF1","CPF2","CPF3","CPF4","DGF1","DGF2","DGF3","DGF4","DPF1","DPF2"
-             ,"DPF3","DPF4","P1","P2","P3","T1","T2","T3","T4")
-condition<-as.factor(condition)
-conditiont <- c("2021-01","2021-04","2021-07","2021-10","2021-11","2022-01","2022-04","2022-07","2022-11")
-conditiont<-as.factor(conditiont)
-str(conditiont)
-conditionr <- c("Bi","Bu","Fe","VB")
-conditionr<-as.factor(conditionr)
-
-
-#Filtrer les données selon les conditions
-filtered_dataA <- dataR %>% 
-  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont1, dataR$Site == conditionr1)
-filtered_dataB <- dataR %>% 
-  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont2, dataR$Site == conditionr1)
-filtered_dataC <- dataR %>% 
-  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont3, dataR$Site == conditionr1)
-
-filtered_dataD <- dataR %>% 
-  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont4, dataR$Site == conditionr2)
-filtered_dataE <- dataR %>% 
-  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont2, dataR$Site == conditionr2)
-filtered_dataF <- dataR %>% 
-  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont3, dataR$Site == conditionr2)
-
-filtered_dataG <- dataR %>% 
-  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont5, dataR$Site == conditionr3)
-filtered_dataH <- dataR %>% 
-  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont2, dataR$Site == conditionr3)
-filtered_dataI <- dataR %>% 
-  filter(dataR$Micro == condition1, dataR$Date_courte == conditiont7, dataR$Site == conditionr3)
-
-# Récupérer le nombre de variables différentes
-A <- length(unique(unlist(filtered_dataA[,1])))#colonne où les variables doivent être différentes
-B <- length(unique(unlist(filtered_dataB[,1])))#colonne où les variables doivent être différentes
-C <- length(unique(unlist(filtered_dataC[,1])))#colonne où les variables doivent être différentes
-
-D <- length(unique(unlist(filtered_dataD[,1])))
-E <- length(unique(unlist(filtered_dataE[,1])))
-F <- length(unique(unlist(filtered_dataF[,1])))
-
-G <- length(unique(unlist(filtered_dataG[,1])))
-H <- length(unique(unlist(filtered_dataH[,1])))
-I <- length(unique(unlist(filtered_dataI[,1])))
-
-C1B1table<-data.frame(Micro=rep(c(conditiont1,conditiont2,conditiont3),each=1),
-                     alpha=rbind(A,B,C))
-C1B1table2<-data.frame(Micro2=rep(c(conditiont4,conditiont2,conditiont3),each=1),
-                     alpha2=rbind(D,E,F))
-C1B1table3<-data.frame(Micro3=rep(c(conditiont4,conditiont2,conditiont3),each=1),
-                     alpha3=rbind(G,H,I))
-
-C1B1t<-cbind(C1B1table,C1B1table2,C1B1table3)
-
-C1B1t[,1]<-as.factor(C1B1t[,1])
-C1B1t[,2]<-as.numeric(C1B1t[,2])
-
-plot(C1B1table$alpha~C1B1table$Micro,col="red")
-
-ggplot(data=C1B1t)+
-  geom_point(aes(x=Micro,y=alpha),col="red")+
-  geom_point(aes(x=Micro2,y=alpha2),col="blue")+
-  geom_point(aes(x=Micro3,y=alpha3),col="green")
+# A<-table(dataR2$spp.ID) #a utiliser en fonction des périodes/localisations,... souhaitées
+# 
+# 
+# #Filtrer les données selon les conditions
+# filtered_dataA <- dataR %>% 
+#   filter(dataR$Micro == condition1, dataR$Date_courte == conditiont1, dataR$Site == conditionr1)
+# filtered_dataB <- dataR %>% 
+#   filter(dataR$Micro == condition1, dataR$Date_courte == conditiont2, dataR$Site == conditionr1)
+# filtered_dataC <- dataR %>% 
+#   filter(dataR$Micro == condition1, dataR$Date_courte == conditiont3, dataR$Site == conditionr1)
+# 
+# filtered_dataD <- dataR %>% 
+#   filter(dataR$Micro == condition1, dataR$Date_courte == conditiont4, dataR$Site == conditionr2)
+# filtered_dataE <- dataR %>% 
+#   filter(dataR$Micro == condition1, dataR$Date_courte == conditiont2, dataR$Site == conditionr2)
+# filtered_dataF <- dataR %>% 
+#   filter(dataR$Micro == condition1, dataR$Date_courte == conditiont3, dataR$Site == conditionr2)
+# 
+# filtered_dataG <- dataR %>% 
+#   filter(dataR$Micro == condition1, dataR$Date_courte == conditiont5, dataR$Site == conditionr3)
+# filtered_dataH <- dataR %>% 
+#   filter(dataR$Micro == condition1, dataR$Date_courte == conditiont2, dataR$Site == conditionr3)
+# filtered_dataI <- dataR %>% 
+#   filter(dataR$Micro == condition1, dataR$Date_courte == conditiont7, dataR$Site == conditionr3)
+# 
+# # Récupérer le nombre de variables différentes
+# A <- length(unique(unlist(filtered_dataA[,1])))#colonne où les variables doivent être différentes
+# B <- length(unique(unlist(filtered_dataB[,1])))#colonne où les variables doivent être différentes
+# C <- length(unique(unlist(filtered_dataC[,1])))#colonne où les variables doivent être différentes
+# 
+# D <- length(unique(unlist(filtered_dataD[,1])))
+# E <- length(unique(unlist(filtered_dataE[,1])))
+# F <- length(unique(unlist(filtered_dataF[,1])))
+# 
+# G <- length(unique(unlist(filtered_dataG[,1])))
+# H <- length(unique(unlist(filtered_dataH[,1])))
+# I <- length(unique(unlist(filtered_dataI[,1])))
+# 
+# C1B1table<-data.frame(Micro=rep(c(conditiont1,conditiont2,conditiont3),each=1),
+#                      alpha=rbind(A,B,C))
+# C1B1table2<-data.frame(Micro2=rep(c(conditiont4,conditiont2,conditiont3),each=1),
+#                      alpha2=rbind(D,E,F))
+# C1B1table3<-data.frame(Micro3=rep(c(conditiont4,conditiont2,conditiont3),each=1),
+#                      alpha3=rbind(G,H,I))
+# 
+# C1B1t<-cbind(C1B1table,C1B1table2,C1B1table3)
+# 
+# C1B1t[,1]<-as.factor(C1B1t[,1])
+# C1B1t[,2]<-as.numeric(C1B1t[,2])
+# 
+# plot(C1B1table$alpha~C1B1table$Micro,col="red")
+# 
+# ggplot(data=C1B1t)+
+#   geom_point(aes(x=Micro,y=alpha),col="red")+
+#   geom_point(aes(x=Micro2,y=alpha2),col="blue")+
+#   geom_point(aes(x=Micro3,y=alpha3),col="green")
 ```
 
 
@@ -290,13 +276,18 @@ ggplot(data=C1B1t)+
 #Y'a t'il une différence de richesse taxonomique entre les différents micro habitats, et selon les différents sites ainsi que selon les années?
 dataR<-dataR1[,-c(1,6:7,15:18,20:23)]
 dataR<-na.omit(dataR)
-dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlèveles NI
-  select(spp,Site,Date_courte,Structure2) %>% 
+seq1<-rep(0,times=5701)
+dataR3<-cbind(dataR,seq1)
+dataR<-dataR3
+dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
+  select(spp,Site,Structure2,Date_courte) %>% 
   distinct() %>% 
-  group_by(Site,Date_courte,Structure2) %>% #filtre selon le site, date et structure
+  group_by(Site,Structure2,Date_courte) %>% #filtre selon le site, date et structure
   summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
 
-#######################################
+length(unique(dataR2$spp))#permet de savoir le nombre de variable différente dans la colonne spp
+
+
 ###################### Version Hugo ########
 dataR2$Site<-as.factor(dataR2$Site)
 dataR2$Date_courte<-as.factor(dataR2$Date_courte)
@@ -339,166 +330,145 @@ ggplot(dataR2, aes(Site,S, fill=Structure2))+
   geom_jitter(alpha=.3)+  
   geom_boxplot()+
   theme_bw() 
-
-
-# Plot 3: Visualisation changement de S dans le temps, par Site et pour chaque micro habitat
-ggplot(dataR2 %>%  filter(!Structure2 == "Holes") %>% filter(!Date_courte=="2021-01"), aes(Date_courte,S, col=Site))+
-  xlab("Date")+
-  ylab("Richesse taxonomique")+
-  geom_point()+
-  geom_line( aes(group=Site))+
-  facet_wrap(.~Structure2)+ # <- cette fonction permet de réaliser les geoms précegents mais pour différentes catégories (ici j'ai choisi les micro habitat, mais on aurait pu le faire pour les sites par exemples)
-  theme_bw()+
-theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # <- rotation des dates pour qu'elles soient lisibles
-
-
-ggplot(dataR2 %>%  filter(!Structure2 %in% c("Holes","Upper_slots","Dome")) %>% filter(!Date_courte=="2021-01"), aes(Date_courte,S, col=Structure2))+
-  xlab("Date")+
-  ylab("Richesse taxonomique")+
-  geom_point()+
-  geom_line( aes(group=Site))+
-  facet_wrap(.~Structure2)+ # <- cette fonction permet de réaliser les geoms précegents mais pour différentes catégories (ici j'ai choisi les micro habitat, mais on aurait pu le faire pour les sites par exemples)
-  theme_bw()+
-theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # <- rotation des dates pour qu'elles soient lisibles
 ```
 
 
 ```{r}
 #####Comparaison richesse taxo entre les 4 sites - 2021
-par(mfrow=c(2,2))
-plot(dataR2021$S[which(dataR2021$Site=="Bi")]~dataR2021$Structure2[which(dataR2021$Site=="Bi")],ylab="Richesse taxonomique",las=2,xlab="",main="2021 - Site Bi",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="Bu")]~dataR2021$Structure2[which(dataR2021$Site=="Bu")],ylab="Richesse taxonomique",las=2,xlab="",main="2021 - Site Bu",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="Fe")]~dataR2021$Structure2[which(dataR2021$Site=="Fe")],ylab="Richesse taxonomique",las=2,xlab="",main="2021 - Site Fe",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="VB")]~dataR2021$Structure2[which(dataR2021$Site=="VB")],ylab="Richesse taxonomique",las=2,xlab="",main="2021 - Site VB",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-
-#####Comparaison richesse taxo entre les 4 sites - 2022
-par(mfrow=c(2,2))
-plot(dataR2022$S[which(dataR2022$Site=="Bi")]~dataR2022$Structure2[which(dataR2022$Site=="Bi")],ylab="Richesse taxonomique",las=2,xlab="",main="2022 - Site Bi")#las permet de changer l'orientation des labels
-
-plot(dataR2022$S[which(dataR2022$Site=="Bu")]~dataR2022$Structure2[which(dataR2022$Site=="Bu")],ylab="Richesse taxonomique",las=2,xlab="",main="2022 - Site Bu")#las permet de changer l'orientation des labels
-
-plot(dataR2022$S[which(dataR2022$Site=="Fe")]~dataR2022$Structure2[which(dataR2022$Site=="Fe")],ylab="Richesse taxonomique",las=2,xlab="",main="2022 - Site Fe")#las permet de changer l'orientation des labels
-
-plot(dataR2022$S[which(dataR2022$Site=="VB")]~dataR2022$Structure2[which(dataR2022$Site=="VB")],ylab="Richesse taxonomique",las=2,xlab="",main="2022 - Site VB")#las permet de changer l'orientation des labels
+# par(mfrow=c(2,2))
+# plot(dataR2021$S[which(dataR2021$Site=="Bi")]~dataR2021$Structure2[which(dataR2021$Site=="Bi")],ylab="Richesse taxonomique",las=2,xlab="",main="2021 - Site Bi",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="Bu")]~dataR2021$Structure2[which(dataR2021$Site=="Bu")],ylab="Richesse taxonomique",las=2,xlab="",main="2021 - Site Bu",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="Fe")]~dataR2021$Structure2[which(dataR2021$Site=="Fe")],ylab="Richesse taxonomique",las=2,xlab="",main="2021 - Site Fe",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="VB")]~dataR2021$Structure2[which(dataR2021$Site=="VB")],ylab="Richesse taxonomique",las=2,xlab="",main="2021 - Site VB",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# 
+# #####Comparaison richesse taxo entre les 4 sites - 2022
+# par(mfrow=c(2,2))
+# plot(dataR2022$S[which(dataR2022$Site=="Bi")]~dataR2022$Structure2[which(dataR2022$Site=="Bi")],ylab="Richesse taxonomique",las=2,xlab="",main="2022 - Site Bi")#las permet de changer l'orientation des labels
+# 
+# plot(dataR2022$S[which(dataR2022$Site=="Bu")]~dataR2022$Structure2[which(dataR2022$Site=="Bu")],ylab="Richesse taxonomique",las=2,xlab="",main="2022 - Site Bu")#las permet de changer l'orientation des labels
+# 
+# plot(dataR2022$S[which(dataR2022$Site=="Fe")]~dataR2022$Structure2[which(dataR2022$Site=="Fe")],ylab="Richesse taxonomique",las=2,xlab="",main="2022 - Site Fe")#las permet de changer l'orientation des labels
+# 
+# plot(dataR2022$S[which(dataR2022$Site=="VB")]~dataR2022$Structure2[which(dataR2022$Site=="VB")],ylab="Richesse taxonomique",las=2,xlab="",main="2022 - Site VB")#las permet de changer l'orientation des labels
 
 ```
 
 
-## Comparaison intrasite 2021-2022 (temporalité saisonnale)
+# Comparaison intrasite 2021-2022 (temporalité saisonnale)
 ```{r}
 #Y'a t'il une différence de richesse taxonomique selon les microhabitats au sein d'un même récif au fil des inventaires?
 
-dataR2021
-dataR2022
-
-####################
-#      Site Bi     #
-####################
-########2021########
-par(mfrow=c(3,2))
-plot(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-01")]~dataR2021$Structure2[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-01")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Janvier 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-m<-mean(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-01")])
-sd<-sd(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-01")])
-
-plot(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-04")]~dataR2021$Structure2[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-04")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Avril 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-07")]~dataR2021$Structure2[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-07")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Juillet 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-10")]~dataR2021$Structure2[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-10")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Octobre 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-11")]~dataR2021$Structure2[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-11")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Novembre 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-########2022########
-par(mfrow=c(2,2))
-plot(dataR2022$S[which(dataR2022$Site=="Bi" | dataR2022$Date_courte=="2022-01")]~dataR2022$Structure2[which(dataR2022$Site=="Bi" | dataR2022$Date_courte=="2022-01")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Janvier 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2022$S[which(dataR2022$Site=="Bi" | dataR2022$Date_courte=="2022-04")]~dataR2022$Structure2[which(dataR2022$Site=="Bi" | dataR2022$Date_courte=="2022-04")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Avril 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2022$S[which(dataR2022$Site=="Bi" | dataR2022$Date_courte=="2022-07")]~dataR2022$Structure2[which(dataR2022$Site=="Bi" | dataR2022$Date_courte=="2022-07")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Juillet 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2022$S[which(dataR2022$Site=="Bi" | dataR2022$Date_courte=="2022-11")]~dataR2022$Structure2[which(dataR2022$Site=="Bi" | dataR2022$Date_courte=="2022-11")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Novembre 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-
-####################
-#      Site Bu     #
-####################
-########2021########
-par(mfrow=c(3,2))
-plot(dataR2021$S[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-01")]~dataR2021$Structure2[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-01")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Janvier 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-04")]~dataR2021$Structure2[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-04")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Avril 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-07")]~dataR2021$Structure2[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-07")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Juillet 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-10")]~dataR2021$Structure2[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-10")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Octobre 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-11")]~dataR2021$Structure2[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-11")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Novembre 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-########2022########
-par(mfrow=c(2,2))
-plot(dataR2022$S[which(dataR2022$Site=="Bu" | dataR2022$Date_courte=="2022-01")]~dataR2022$Structure2[which(dataR2022$Site=="Bu" | dataR2022$Date_courte=="2022-01")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Janvier 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2022$S[which(dataR2022$Site=="Bu" | dataR2022$Date_courte=="2022-04")]~dataR2022$Structure2[which(dataR2022$Site=="Bu" | dataR2022$Date_courte=="2022-04")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Avril 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2022$S[which(dataR2022$Site=="Bu" | dataR2022$Date_courte=="2022-07")]~dataR2022$Structure2[which(dataR2022$Site=="Bu" | dataR2022$Date_courte=="2022-07")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Juillet 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2022$S[which(dataR2022$Site=="Bu" | dataR2022$Date_courte=="2022-11")]~dataR2022$Structure2[which(dataR2022$Site=="Bu" | dataR2022$Date_courte=="2022-11")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Novembre 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-
-####################
-#      Site Fe     #
-####################
-########2021########
-par(mfrow=c(3,2))
-plot(dataR2021$S[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-01")]~dataR2021$Structure2[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-01")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Janvier 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-04")]~dataR2021$Structure2[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-04")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Avril 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-07")]~dataR2021$Structure2[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-07")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Juillet 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-10")]~dataR2021$Structure2[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-10")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Octobre 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-11")]~dataR2021$Structure2[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-11")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Novembre 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-########2022########
-par(mfrow=c(2,2))
-plot(dataR2022$S[which(dataR2022$Site=="Fe" | dataR2022$Date_courte=="2022-01")]~dataR2022$Structure2[which(dataR2022$Site=="Fe" | dataR2022$Date_courte=="2022-01")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Janvier 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2022$S[which(dataR2022$Site=="Fe" | dataR2022$Date_courte=="2022-04")]~dataR2022$Structure2[which(dataR2022$Site=="Fe" | dataR2022$Date_courte=="2022-04")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Avril 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2022$S[which(dataR2022$Site=="Fe" | dataR2022$Date_courte=="2022-07")]~dataR2022$Structure2[which(dataR2022$Site=="Fe" | dataR2022$Date_courte=="2022-07")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Juillet 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2022$S[which(dataR2022$Site=="Fe" | dataR2022$Date_courte=="2022-11")]~dataR2022$Structure2[which(dataR2022$Site=="Fe" | dataR2022$Date_courte=="2022-11")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Novembre 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-
-####################
-#      Site VB     #
-####################
-########2021########
-par(mfrow=c(3,2))
-plot(dataR2021$S[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-01")]~dataR2021$Structure2[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-01")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Janvier 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-04")]~dataR2021$Structure2[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-04")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Avril 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-07")]~dataR2021$Structure2[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-07")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Juillet 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-10")]~dataR2021$Structure2[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-10")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Octobre 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2021$S[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-11")]~dataR2021$Structure2[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-11")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Novembre 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-########2022########
-par(mfrow=c(2,2))
-plot(dataR2022$S[which(dataR2022$Site=="VB" | dataR2022$Date_courte=="2022-01")]~dataR2022$Structure2[which(dataR2022$Site=="VB" | dataR2022$Date_courte=="2022-01")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Janvier 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2022$S[which(dataR2022$Site=="VB" | dataR2022$Date_courte=="2022-04")]~dataR2022$Structure2[which(dataR2022$Site=="VB" | dataR2022$Date_courte=="2022-04")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Avril 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2022$S[which(dataR2022$Site=="VB" | dataR2022$Date_courte=="2022-07")]~dataR2022$Structure2[which(dataR2022$Site=="VB" | dataR2022$Date_courte=="2022-07")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Juillet 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
-
-plot(dataR2022$S[which(dataR2022$Site=="VB" | dataR2022$Date_courte=="2022-11")]~dataR2022$Structure2[which(dataR2022$Site=="VB" | dataR2022$Date_courte=="2022-11")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Novembre 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
+# dataR2021
+# dataR2022
+# 
+# ####################
+# #      Site Bi     #
+# ####################
+# ########2021########
+# par(mfrow=c(3,2))
+# plot(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-01")]~dataR2021$Structure2[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-01")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Janvier 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# m<-mean(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-01")])
+# sd<-sd(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-01")])
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-04")]~dataR2021$Structure2[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-04")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Avril 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-07")]~dataR2021$Structure2[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-07")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Juillet 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-10")]~dataR2021$Structure2[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-10")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Octobre 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-11")]~dataR2021$Structure2[which(dataR2021$Site=="Bi" | dataR2021$Date_courte=="2021-11")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Novembre 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# ########2022########
+# par(mfrow=c(2,2))
+# plot(dataR2022$S[which(dataR2022$Site=="Bi" | dataR2022$Date_courte=="2022-01")]~dataR2022$Structure2[which(dataR2022$Site=="Bi" | dataR2022$Date_courte=="2022-01")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Janvier 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2022$S[which(dataR2022$Site=="Bi" | dataR2022$Date_courte=="2022-04")]~dataR2022$Structure2[which(dataR2022$Site=="Bi" | dataR2022$Date_courte=="2022-04")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Avril 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2022$S[which(dataR2022$Site=="Bi" | dataR2022$Date_courte=="2022-07")]~dataR2022$Structure2[which(dataR2022$Site=="Bi" | dataR2022$Date_courte=="2022-07")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Juillet 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2022$S[which(dataR2022$Site=="Bi" | dataR2022$Date_courte=="2022-11")]~dataR2022$Structure2[which(dataR2022$Site=="Bi" | dataR2022$Date_courte=="2022-11")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bi - Novembre 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# 
+# ####################
+# #      Site Bu     #
+# ####################
+# ########2021########
+# par(mfrow=c(3,2))
+# plot(dataR2021$S[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-01")]~dataR2021$Structure2[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-01")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Janvier 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-04")]~dataR2021$Structure2[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-04")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Avril 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-07")]~dataR2021$Structure2[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-07")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Juillet 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-10")]~dataR2021$Structure2[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-10")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Octobre 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-11")]~dataR2021$Structure2[which(dataR2021$Site=="Bu" | dataR2021$Date_courte=="2021-11")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Novembre 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# ########2022########
+# par(mfrow=c(2,2))
+# plot(dataR2022$S[which(dataR2022$Site=="Bu" | dataR2022$Date_courte=="2022-01")]~dataR2022$Structure2[which(dataR2022$Site=="Bu" | dataR2022$Date_courte=="2022-01")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Janvier 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2022$S[which(dataR2022$Site=="Bu" | dataR2022$Date_courte=="2022-04")]~dataR2022$Structure2[which(dataR2022$Site=="Bu" | dataR2022$Date_courte=="2022-04")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Avril 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2022$S[which(dataR2022$Site=="Bu" | dataR2022$Date_courte=="2022-07")]~dataR2022$Structure2[which(dataR2022$Site=="Bu" | dataR2022$Date_courte=="2022-07")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Juillet 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2022$S[which(dataR2022$Site=="Bu" | dataR2022$Date_courte=="2022-11")]~dataR2022$Structure2[which(dataR2022$Site=="Bu" | dataR2022$Date_courte=="2022-11")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Bu - Novembre 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# 
+# ####################
+# #      Site Fe     #
+# ####################
+# ########2021########
+# par(mfrow=c(3,2))
+# plot(dataR2021$S[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-01")]~dataR2021$Structure2[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-01")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Janvier 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-04")]~dataR2021$Structure2[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-04")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Avril 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-07")]~dataR2021$Structure2[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-07")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Juillet 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-10")]~dataR2021$Structure2[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-10")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Octobre 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-11")]~dataR2021$Structure2[which(dataR2021$Site=="Fe" | dataR2021$Date_courte=="2021-11")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Novembre 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# ########2022########
+# par(mfrow=c(2,2))
+# plot(dataR2022$S[which(dataR2022$Site=="Fe" | dataR2022$Date_courte=="2022-01")]~dataR2022$Structure2[which(dataR2022$Site=="Fe" | dataR2022$Date_courte=="2022-01")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Janvier 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2022$S[which(dataR2022$Site=="Fe" | dataR2022$Date_courte=="2022-04")]~dataR2022$Structure2[which(dataR2022$Site=="Fe" | dataR2022$Date_courte=="2022-04")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Avril 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2022$S[which(dataR2022$Site=="Fe" | dataR2022$Date_courte=="2022-07")]~dataR2022$Structure2[which(dataR2022$Site=="Fe" | dataR2022$Date_courte=="2022-07")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Juillet 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2022$S[which(dataR2022$Site=="Fe" | dataR2022$Date_courte=="2022-11")]~dataR2022$Structure2[which(dataR2022$Site=="Fe" | dataR2022$Date_courte=="2022-11")],ylab="Richesse taxonomique",las=2,xlab="",main="Site Fe - Novembre 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# 
+# ####################
+# #      Site VB     #
+# ####################
+# ########2021########
+# par(mfrow=c(3,2))
+# plot(dataR2021$S[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-01")]~dataR2021$Structure2[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-01")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Janvier 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-04")]~dataR2021$Structure2[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-04")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Avril 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-07")]~dataR2021$Structure2[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-07")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Juillet 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-10")]~dataR2021$Structure2[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-10")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Octobre 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2021$S[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-11")]~dataR2021$Structure2[which(dataR2021$Site=="VB" | dataR2021$Date_courte=="2021-11")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Novembre 2021",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# ########2022########
+# par(mfrow=c(2,2))
+# plot(dataR2022$S[which(dataR2022$Site=="VB" | dataR2022$Date_courte=="2022-01")]~dataR2022$Structure2[which(dataR2022$Site=="VB" | dataR2022$Date_courte=="2022-01")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Janvier 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2022$S[which(dataR2022$Site=="VB" | dataR2022$Date_courte=="2022-04")]~dataR2022$Structure2[which(dataR2022$Site=="VB" | dataR2022$Date_courte=="2022-04")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Avril 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2022$S[which(dataR2022$Site=="VB" | dataR2022$Date_courte=="2022-07")]~dataR2022$Structure2[which(dataR2022$Site=="VB" | dataR2022$Date_courte=="2022-07")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Juillet 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
+# 
+# plot(dataR2022$S[which(dataR2022$Site=="VB" | dataR2022$Date_courte=="2022-11")]~dataR2022$Structure2[which(dataR2022$Site=="VB" | dataR2022$Date_courte=="2022-11")],ylab="Richesse taxonomique",las=2,xlab="",main="Site VB - Novembre 2022",ylim=c(0,20))#las permet de changer l'orientation des labels
 
 ```
 
@@ -520,221 +490,48 @@ leveneTest(S~Structure2,data=dataR2021)#Si p value supérieur à 0,05 alors vari
 test_anova<-aov(S~factor(Site)*factor(Date_courte),data=dataR2022)#anova en prenant la date ainsi que les structures comme facteur
 summary(test_anova)
 
+```
 
+# Comparaison intersite (microhabitats confondus) temporelle
+```{r}
+
+dataR<-dataR1[,-c(1,6:7,15:18,20:23)]
+dataR<-na.omit(dataR)
+seq1<-rep(0,times=5701)
+dataR3<-cbind(dataR,seq1)
+dataR<-dataR3
+dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
+  filter(!Structure2 == "Holes")%>% 
+  filter(!Date_courte=="2021-01") %>%
+  select(spp,Site,Date_courte) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte) %>% #filtre selon le site, date et structure
+  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+
+
+
+ggplot(dataR2, aes(Date_courte,S, col=Site))+
+  xlab("Date")+
+  ylab("Richesse taxonomique")+
+  geom_point()+
+  geom_line( aes(group=Site))+
+  # facet_wrap(.~Site)+ # <- cette fonction permet de réaliser les geoms précedents mais pour différentes catégories (ici j'ai choisi les micro habitat, mais on aurait pu le faire pour les sites par exemples)
+  theme_bw()+
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # <- rotation des dates pour qu'elles soient lisibles
 
 ```
 
-# Comparaison intersite et temporelle
+#Comparaison intersite des microhabitats - temporelle
 ```{r}
-# load(file="dataR.Rdata")
-# dataR%>%filter(!spp=="NI")
-# dataRBi<-dataR[which(dataR$Site=="Bi"),]
-# dataRBu<-dataR[which(dataR$Site=="Bu"),]
-# dataRVb<-dataR[which(dataR$Site=="VB"),]
-# dataRFe<-dataR[which(dataR$Site=="Fe"),]
-# 
-# 
-# ##### 01-2021 #####
-# dataR2021_01<-dataR[which(dataR$Date_courte=="2021-01"),]
-# 
-# filtered_dataI <- dataR2021_01 %>% 
-#   filter(dataR2021_01$Site == "Bi")
-# filtered_dataJ <- dataR2021_01 %>% 
-#   filter(dataR2021_01$Site == "Bu")
-# filtered_dataK <- dataR2021_01 %>% 
-#   filter(dataR2021_01$Site == "VB")
-# filtered_dataL <- dataR2021_01 %>% 
-#   filter(dataR2021_01$Site == "Fe")
-# 
-# I <- length(unique(unlist(filtered_dataI[,1])))#colonne où les variables doivent être différentes
-# J <- length(unique(unlist(filtered_dataJ[,1])))#colonne où les variables doivent être différentes
-# K <- length(unique(unlist(filtered_dataK[,1])))#colonne où les variables doivent être différentes
-# L <- length(unique(unlist(filtered_dataL[,1])))#colonne où les variables doivent être différentes
-# 
-# 
-# Table2021_01<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-#                      Jan2021=rbind(I,J,K,L))
-# 
-# ##### 04-2021 #####
-# dataR2021_04<-dataR[which(dataR$Date_courte=="2021-04"),]
-# 
-# filtered_dataM <- dataR2021_04 %>% 
-#   filter(dataR2021_04$Site == "Bi")
-# filtered_dataN <- dataR2021_04 %>% 
-#   filter(dataR2021_04$Site == "Bu")
-# filtered_dataO <- dataR2021_04 %>% 
-#   filter(dataR2021_04$Site == "VB")
-# filtered_dataP <- dataR2021_04 %>% 
-#   filter(dataR2021_04$Site == "Fe")
-# 
-# M <- length(unique(unlist(filtered_dataM[,1])))#colonne où les variables doivent être différentes
-# N <- length(unique(unlist(filtered_dataN[,1])))#colonne où les variables doivent être différentes
-# O <- length(unique(unlist(filtered_dataO[,1])))#colonne où les variables doivent être différentes
-# P <- length(unique(unlist(filtered_dataP[,1])))#colonne où les variables doivent être différentes
-# 
-# 
-# Table2021_04<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-#                      Jan2021=rbind(M,N,O,P))
-# 
-# ##### 07-2021 #####
-# dataR2021_07<-dataR[which(dataR$Date_courte=="2021-07"),]
-# 
-# filtered_dataQ <- dataR2021_07 %>% 
-#   filter(dataR2021_07$Site == "Bi")
-# filtered_dataR <- dataR2021_07 %>% 
-#   filter(dataR2021_07$Site == "Bu")
-# filtered_dataS <- dataR2021_07 %>% 
-#   filter(dataR2021_07$Site == "VB")
-# filtered_dataT <- dataR2021_07 %>% 
-#   filter(dataR2021_07$Site == "Fe")
-# 
-# Q <- length(unique(unlist(filtered_dataQ[,1])))#colonne où les variables doivent être différentes
-# R <- length(unique(unlist(filtered_dataR[,1])))#colonne où les variables doivent être différentes
-# S <- length(unique(unlist(filtered_dataS[,1])))#colonne où les variables doivent être différentes
-# T <- length(unique(unlist(filtered_dataT[,1])))#colonne où les variables doivent être différentes
-# 
-# Table2021_07<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-#                      Jan2021=rbind(Q,R,S,T))
-# 
-# ##### 10-2021 #####
-# dataR2021_10<-dataR[which(dataR$Date_courte=="2021-10"),]
-# 
-# filtered_dataU <- dataR2021_10 %>% 
-#   filter(dataR2021_10$Site == "Bi")
-# filtered_dataV <- dataR2021_10 %>% 
-#   filter(dataR2021_10$Site == "Bu")
-# filtered_dataW <- dataR2021_10 %>% 
-#   filter(dataR2021_10$Site == "VB")
-# filtered_dataX <- dataR2021_10 %>% 
-#   filter(dataR2021_10$Site == "Fe")
-# 
-# U <- length(unique(unlist(filtered_dataU[,1])))#colonne où les variables doivent être différentes
-# V <- length(unique(unlist(filtered_dataV[,1])))#colonne où les variables doivent être différentes
-# W <- length(unique(unlist(filtered_dataW[,1])))#colonne où les variables doivent être différentes
-# X <- length(unique(unlist(filtered_dataX[,1])))#colonne où les variables doivent être différentes
-# 
-# Table2021_10<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-#                      Jan2021=rbind(U,V,W,X))
-# 
-# ##### 11-2021 #####
-# dataR2021_11<-dataR[which(dataR$Date_courte=="2021-11"),]
-# 
-# filtered_dataA <- dataR2021_11 %>% 
-#   filter(dataR2021_11$Site == "Bi")
-# filtered_dataB <- dataR2021_11 %>% 
-#   filter(dataR2021_11$Site == "Bu")
-# filtered_dataC <- dataR2021_11 %>% 
-#   filter(dataR2021_11$Site == "VB")
-# filtered_dataC <- dataR2021_11 %>% 
-#   filter(dataR2021_11$Site == "Fe")
-# 
-# A <- length(unique(unlist(filtered_dataA[,1])))#colonne où les variables doivent être différentes
-# B <- length(unique(unlist(filtered_dataB[,1])))#colonne où les variables doivent être différentes
-# C <- length(unique(unlist(filtered_dataC[,1])))#colonne où les variables doivent être différentes
-# D <- length(unique(unlist(filtered_dataD[,1])))#colonne où les variables doivent être différentes
-# 
-# Table2021_11<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-#                      Nov2021=rbind(A,B,C,D))
-# 
-# ##### 01-2022 #####
-# dataR2022_01<-dataR[which(dataR$Date_courte=="2022-01"),]
-# 
-# filtered_dataAA <- dataR2022_01 %>% 
-#   filter(dataR2022_01$Site == "Bi")
-# filtered_dataBB <- dataR2022_01 %>% 
-#   filter(dataR2022_01$Site == "Bu")
-# filtered_dataCC <- dataR2022_01 %>% 
-#   filter(dataR2022_01$Site == "VB")
-# filtered_dataDD <- dataR2022_01 %>% 
-#   filter(dataR2022_01$Site == "Fe")
-# 
-# AA <- length(unique(unlist(filtered_dataAA[,1])))#colonne où les variables doivent être différentes
-# BB <- length(unique(unlist(filtered_dataBB[,1])))#colonne où les variables doivent être différentes
-# CC <- length(unique(unlist(filtered_dataCC[,1])))#colonne où les variables doivent être différentes
-# DD <- length(unique(unlist(filtered_dataDD[,1])))#colonne où les variables doivent être différentes
-# 
-# dataR2022_01<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-#                      Jan2021=rbind(AA,BB,CC,DD))
-# 
-# ##### 04-2022 #####
-# dataR2022_04<-dataR[which(dataR$Date_courte=="2022-04"),]
-# 
-# filtered_dataEE <- dataR2022_04 %>% 
-#   filter(dataR2022_04$Site == "Bi")
-# filtered_dataFF <- dataR2022_04 %>% 
-#   filter(dataR2022_04$Site == "Bu")
-# filtered_dataGG <- dataR2022_04 %>% 
-#   filter(dataR2022_04$Site == "VB")
-# filtered_dataHH <- dataR2022_04 %>% 
-#   filter(dataR2022_04$Site == "Fe")
-# 
-# EE <- length(unique(unlist(filtered_dataEE[,1])))#colonne où les variables doivent être différentes
-# FF <- length(unique(unlist(filtered_dataFF[,1])))#colonne où les variables doivent être différentes
-# GG <- length(unique(unlist(filtered_dataGG[,1])))#colonne où les variables doivent être différentes
-# HH <- length(unique(unlist(filtered_dataHH[,1])))#colonne où les variables doivent être différentes
-# 
-# dataR2022_04<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-#                      Jan2021=rbind(EE,FF,GG,HH))
-# 
-# ##### 07-2022 #####
-# dataR2022_07<-dataR[which(dataR$Date_courte=="2022-07"),]
-# 
-# filtered_dataII <- dataR2022_07 %>% 
-#   filter(dataR2022_07$Site == "Bi")
-# filtered_dataJJ <- dataR2022_07 %>% 
-#   filter(dataR2022_07$Site == "Bu")
-# filtered_dataKK <- dataR2022_07 %>% 
-#   filter(dataR2022_07$Site == "VB")
-# filtered_dataLL <- dataR2022_07 %>% 
-#   filter(dataR2022_07$Site == "Fe")
-# 
-# II <- length(unique(unlist(filtered_dataII[,1])))#colonne où les variables doivent être différentes
-# JJ <- length(unique(unlist(filtered_dataJJ[,1])))#colonne où les variables doivent être différentes
-# KK <- length(unique(unlist(filtered_dataKK[,1])))#colonne où les variables doivent être différentes
-# LL <- length(unique(unlist(filtered_dataLL[,1])))#colonne où les variables doivent être différentes
-# 
-# dataR2022_07<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-#                      Jan2021=rbind(II,JJ,KK,LL))
-# 
-# ##### 11-2022 #####
-# dataR2022_11<-dataR[which(dataR$Date_courte=="2022-11"),]
-# 
-# filtered_dataE <- dataR2022_11 %>% 
-#   filter(dataR2022_11$Site == "Bi")
-# filtered_dataF <- dataR2022_11 %>% 
-#   filter(dataR2022_11$Site == "Bu")
-# filtered_dataG <- dataR2022_11 %>% 
-#   filter(dataR2022_11$Site == "VB")
-# filtered_dataH <- dataR2022_11 %>% 
-#   filter(dataR2022_11$Site == "Fe")
-# 
-# E <- length(unique(unlist(filtered_dataE[,1])))#colonne où les variables doivent être différentes
-# F <- length(unique(unlist(filtered_dataF[,1])))#colonne où les variables doivent être différentes
-# G <- length(unique(unlist(filtered_dataG[,1])))#colonne où les variables doivent être différentes
-# H <- length(unique(unlist(filtered_dataH[,1])))#colonne où les variables doivent être différentes
-# 
-# Table2022_11<-data.frame(Micro=rep(c("Bi","Bu","VB","Fe"),each=1),
-#                      Nov2022=rbind(E,F,G,H))
-# 
-# 
-# 
-# ########## Graphique ##########
-# TableCompRec<-cbind(Table2021_01,Table2021_04[,-1],Table2021_07[,-1],Table2021_10[,-1],Table2021_11[,-1],dataR2022_01[,-1],dataR2022_04[,-1]
-#                     ,dataR2022_07[,-1],Table2022_11[,-1])
-# TableCompRec[TableCompRec==0]<-NA
-# colnames(TableCompRec)<-c("Site","Jan_2021","Avr_2021","Juil_2021","Oct_2021","Nov_2021","Jan_2022","Avr_2022","Juil_2022","Nov_2022")
-# ggplot(data=TableCompRec)+
-#   geom_point(aes(x=Site,y=Jan_2021),col="red",size=3)+
-#   geom_point(aes(x=Site,y=Avr_2021),col="blue",size=3)+
-#   geom_point(aes(x=Site,y=Juil_2021),col="green",size=3)+
-#   geom_point(aes(x=Site,y=Oct_2021),col="black",size=3)+
-#   geom_point(aes(x=Site,y=Nov_2021),col="pink",size=3)+
-#   geom_point(aes(x=Site,y=Jan_2022),col="purple",size=3)+
-#   geom_point(aes(x=Site,y=Avr_2022),col="yellow",size=3)+
-#   geom_point(aes(x=Site,y=Juil_2022),col="orange",size=3)+
-#   geom_point(aes(x=Site,y=Nov_2022),col="darkgreen",size=3)+
-#   theme_classic()+ ylab("Diversité taxonomique")
 
+ggplot(dataR2 %>%  filter(!Structure2 %in% c("Holes","Dome","Upper_slots")) %>% filter(!Date_courte=="2021-01"), aes(Date_courte,S, col=Site))+
+  xlab("Date")+
+  ylab("Richesse taxonomique")+
+  geom_point()+
+  geom_line( aes(group=Site))+
+  facet_wrap(.~Structure2)+ # <- cette fonction permet de réaliser les geoms précegents mais pour différentes catégories (ici j'ai choisi les micro habitat, mais on aurait pu le faire pour les sites par exemples)
+  theme_bw()+
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # <- rotation des dates pour qu'elles soient lisibles
 
 ```
 
@@ -749,102 +546,141 @@ dataR<-na.omit(dataR)
 library(ggradar)
 
 ##### Bottom disc #####
-resultat3<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+lcol<-c("blue","red","orange","black")
+
+# Bi
+resultat4Bi<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
   filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
   filter(!Date_courte == ("2021-01"))%>%
+  filter(Site == ("Bi"))%>%
   filter(Micro %in% c("C1B1","C1B2","C1B3","C1B4","C1B5","C1B6","C1B7","C1B8"))%>%
   select(spp,Site,Date_courte,Micro) %>% 
   distinct() %>% 
   group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
   summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+resultat4Bi[is.na(resultat4Bi)]<-0
+
+ggradar(resultat4Bi[,-2],grid.min = 1,grid.max =15,values.radar = c(0,7, 15),group.colours = "blue",legend.title="Site")
 
 
-
-lcol<-c("blue","red","orange","black")
-
-ggradar(resultat3[,-2],grid.min = 1,grid.max =15,values.radar = c(0,7, 15),group.colours = lcol,legend.title="Site")
-
-
-##### Columns #####
-resultat3<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+# Bu
+resultat4Bu<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
   filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
   filter(!Date_courte == ("2021-01"))%>%
+  filter(Site == ("Bu"))%>%
+  filter(Micro %in% c("C1B1","C1B2","C1B3","C1B4","C1B5","C1B6","C1B7","C1B8"))%>%
+  select(spp,Site,Date_courte,Micro) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
+  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+resultat4Bu[is.na(resultat4Bu)]<-0
+
+ggradar(resultat4Bu[,-2],grid.min = 1,grid.max =15,values.radar = c(0,7, 15),group.colours = "red",legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+
+# Fe
+resultat4Fe<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
+  filter(!Date_courte == ("2021-01"))%>%
+  filter(Site == ("Fe"))%>%
+  filter(Micro %in% c("C1B1","C1B2","C1B3","C1B4","C1B5","C1B6","C1B7","C1B8"))%>%
+  select(spp,Site,Date_courte,Micro) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
+  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+resultat4Fe[is.na(resultat4Fe)]<-0
+
+ggradar(resultat4Fe[,-2],grid.min = 1,grid.max =15,values.radar = c(0,7, 15),group.colours = "red",legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+
+
+# VB
+resultat4VB<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
+  filter(!Date_courte == ("2021-01"))%>%
+  filter(Site == ("VB"))%>%
+  filter(Micro %in% c("C1B1","C1B2","C1B3","C1B4","C1B5","C1B6","C1B7","C1B8"))%>%
+  select(spp,Site,Date_courte,Micro) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
+  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+resultat4VB[is.na(resultat4VB)]<-0
+
+ggradar(resultat4VB[,-2],grid.min = 1,grid.max =15,values.radar = c(0,7, 15),group.colours = "red",legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+
+##### Columns #####
+#Bi
+resultat3Bi<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
+  filter(!Date_courte == ("2021-01"))%>%
+  filter(Site == ("Bi"))%>%
   filter(Micro %in% c("C2P1","C2P2","C2P3","C2P4","C2P5","C2P6","C2P7","C2P8"))%>%
   select(spp,Site,Date_courte,Micro) %>% 
   distinct() %>% 
   group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
   summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
-resultat3[is.na(resultat3)]<-0
+resultat3Bi[is.na(resultat3Bi)]<-0
 
-ggradar(resultat3[,-2],grid.min = 1,grid.max =10,grid.mid=5,values.radar = c(0,5,10),group.colours = lcol,legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
-
-
-##### Upper_slots #####
-resultat4<- spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
-  filter(!Structure2 %in% c("Dome","Holes")) %>%
-  # filter(!Date_courte == ("2021-01"))%>%
-  filter(Micro %in% c("CGF1","CGF2","CGF3","CGF4"))%>%
-  select(spp,Site,Date_courte,Micro) %>% 
-  distinct() %>% 
-  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
-  summarize(S=n())),key=Micro,value=S) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
-resultat4[is.na(resultat4)]<-0
-
-ggradar(resultat4[,-2],grid.min = 1,grid.max =13,grid.mid=5,values.radar = c(0,5,13),group.colours = lcol,legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+ggradar(resultat3Bi[,-2],grid.min = 1,grid.max =10,grid.mid=5,values.radar = c(0,10,20),group.colours = "blue",legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
 
 
-##### Pieds #####
-resultat5<- spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
-  filter(!Structure2 %in% c("Dome","Holes")) %>%
-  # filter(!Date_courte == ("2021-01"))%>%
-  filter(Micro %in% c("P1","P2","P3"))%>%
-  select(spp,Site,Date_courte,Micro) %>% 
-  distinct() %>% 
-  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
-  summarize(S=n())),key=Micro,value=S) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
-resultat5[is.na(resultat5)]<-0
-
-ggradar(resultat5[,-2],grid.min = 1,grid.max =14,grid.mid=5,values.radar = c(0,5,14),group.colours = lcol,legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
-
-
-##### Dome #####
-resultat6<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
-  filter(!Structure2 %in% c("Upper_slots","Holes")) %>%
+#Bu
+resultat3Bu<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
   filter(!Date_courte == ("2021-01"))%>%
-  filter(Micro %in% c("CHB1","CHB2","CHB3","CHB4","CHB5","CHB6","CHB7","CHB8"))%>%
+  filter(Site == ("Bu"))%>%
+  filter(Micro %in% c("C2P1","C2P2","C2P3","C2P4","C2P5","C2P6","C2P7","C2P8"))%>%
   select(spp,Site,Date_courte,Micro) %>% 
   distinct() %>% 
   group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
-  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
-resultat6[is.na(resultat6)]<-0
+  summarize(S=n())),key=Micro,value=S))
+resultat3Bu[is.na(resultat3Bu)]<-0
 
-ggradar(resultat6[,-2],grid.min = 1,grid.max =9,values.radar = c(0,5,9),group.colours = lcol,legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+ggradar(resultat3Bu[,-2],grid.min = 1,grid.max =10,grid.mid=5,values.radar = c(0,10,20),group.colours = "red",legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
 
 
-##### Inner_slots #####
-resultat7<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+#Fe
+resultat3Fe<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
   filter(!Date_courte == ("2021-01"))%>%
-  filter(Micro %in% c("DGF1","DGF2","DGF3","DGF4"))%>%
+  filter(Site == ("Fe"))%>%
+  filter(Micro %in% c("C2P1","C2P2","C2P3","C2P4","C2P5","C2P6","C2P7","C2P8"))%>%
   select(spp,Site,Date_courte,Micro) %>% 
   distinct() %>% 
   group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
-  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
-resultat7[is.na(resultat7)]<-0
+  summarize(S=n())),key=Micro,value=S))
+resultat3Fe[is.na(resultat3Fe)]<-0
 
-ggradar(resultat7[,-2],grid.min = 1,grid.max =8,values.radar = c(0,3,7),group.colours = lcol,legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+ggradar(resultat3Fe[,-2],grid.min = 1,grid.max =10,grid.mid=5,values.radar = c(0,10,20),group.colours = "green",legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
 
 
-##### Inner_slots #####
-resultat8<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+#VB
+resultat3VB<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
   filter(!Date_courte == ("2021-01"))%>%
-  filter(Micro %in% c("DPF1","DPF2","DPF3","DPF4"))%>%
+  filter(Site == ("VB"))%>%
+  filter(Micro %in% c("C2P1","C2P2","C2P3","C2P4","C2P5","C2P6","C2P7","C2P8"))%>%
   select(spp,Site,Date_courte,Micro) %>% 
   distinct() %>% 
   group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
-  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
-resultat8[is.na(resultat8)]<-0
+  summarize(S=n())),key=Micro,value=S))
+resultat3VB[is.na(resultat3VB)]<-0
 
-ggradar(resultat8[,-2],grid.min = 1,grid.max =6,values.radar = c(0,3,6),group.colours = lcol,legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+ggradar(resultat3VB[,-2],grid.min = 1,grid.max =10,grid.mid=5,values.radar = c(0,10,20),group.colours = "orange",legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
 
+
+
+library(fmsb)
+resultat3VB<-colMeans(resultat3VB[,-c(1:2)])
+resultat3VB<-rbind(rep(15,8),rep(0,8),resultat3VB)
+resultat3VB<-cbind(rep("Fe",1),resultat3VB)
+radarchart(resultat3VB[,-1])
+resultat3VB<-as.data.frame(resultat3VB)
+
+```
+
+
+#Indice Beta
+## ACP
+```{r}
+wbeta
 
 ```
