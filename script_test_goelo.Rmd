@@ -16,7 +16,9 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(here)
-
+library(stringr)
+library(vegan)
+library(scales)
 
 ```
 
@@ -37,7 +39,7 @@ MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
 ## Chargement data
 Boucle de chargement des fichiers csv 
 ```{r}
-setwd('F:/Hugo/Recif_Goelo') # à modifier avec nom de ton DD
+setwd('D:/Hugo/Recif_Goelo') # à modifier avec nom de ton DD
 
 data_list=list.files(pattern =".csv", recursive=T)
 
@@ -100,7 +102,7 @@ data_PQ=do.call(rbind,L) %>%
   # test2=substr(Name_file, start = 1, stop = 6))%>%
   # test3=sub("^([^_]*_[^_]*).*", "\\2", Name_file),
   separate(col = Name_file, into = c('Date','Micro','Quad'), sep = '_') %>%
-  mutate(Micro=stringr::str_replace_all(Micro, ".rndpts.csv", ""),
+  mutate(Micro=stringr::str_replace_all(Micro, ".rndpts.csv", ""), 
     Quad2=substr(Quad, start = 1, stop = 1),
          
           Month_str=gsub("-.*", "", Date,perl=TRUE),
@@ -153,23 +155,80 @@ rename('spp'='spp.Name',
 knitr::kable(data_PQ_light %>% select(spp,abb)%>% unique())
 corresp=data_PQ_light %>% select(spp,abb)%>% unique()
 ```
-
+# Modification des données 
 ```{r}
-dataR2<-data_PQ_light
-dataR2<-dataR2[,-c(1,6,7,15:23)]
-dataR2<-na.omit(dataR2)
+dataR1<-data_PQ_light
+dataR<-dataR1[,-c(1,6,7,11,15:23)]
+dataR<-na.omit(dataR)
 
-dataR$spp.Name<-as.factor(dataR$spp.Name)
+dataR$spp<-as.factor(dataR$spp)
 dataR$spp.ID<-as.factor(dataR$spp.ID)
-dataR$N.pts.per.species<-as.numeric(dataR$N.pts.per.species)
 dataR$Site<-as.factor(dataR$Site)
 dataR$Micro<-as.factor(dataR$Micro)
-dataR$Quad2<-as.factor(dataR$Quad2)
-dataR$Date<-as.factor(dataR$Date)
+dataR$Count<-as.numeric(dataR$Count)
 dataR$Month_str<-as.factor(dataR$Month_str)
-dataR$YY<-as.factor(dataR$YY)
 dataR$Month<-as.factor(dataR$Month)
 dataR$Date_ok<-as.factor(dataR$Date_ok)
 dataR$Date_courte<-as.factor(dataR$Date_courte)
 dataR$Week<-as.factor(dataR$Week)
 ```
+
+
+#Indice Gamma
+```{r}
+# Quel est la richesse taxonomique global (Indice Gamma) d'un site et de la zone d'étude en général
+
+dataR<-dataR1[,-c(1,6:7,15:18,20:23)]
+dataR<-na.omit(dataR)
+seq1<-rep(0,times=length(dataR))
+dataR3<-cbind(dataR,seq1)
+dataR<-dataR3
+
+# Indice gamma par site 
+dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
+  select(spp,Site) %>% 
+  distinct() %>% 
+  group_by(Site) %>% #filtre selon le site, date et structure
+  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+dataR2
+
+# Indice gamma global
+dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
+  select(spp,seq1) %>% 
+  distinct() %>% 
+  group_by(seq1) %>% #filtre selon le site, date et structure
+  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+print(dataR2)
+      #ou
+
+length(unique(dataR1$spp))#permet de savoir le nombre de variable différente dans la colonne spp (mais ne prend pas en compte la suppression des N)
+```
+
+
+# Comparaison intersite (microhabitats confondus) temporelle
+```{r}
+
+dataR<-dataR1[,-c(1,6:7,15:18,20:23)]
+dataR<-na.omit(dataR)
+dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
+  filter(!Structure2 == "Holes")%>% 
+  select(Site,spp,Date_courte,Structure2)%>%
+  distinct() %>% 
+  group_by(Site,Date_courte,Structure2)%>%
+  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+
+
+
+ggplot(dataR2, aes(Date_courte,S, col=Site))+
+  xlab("Date")+
+  ylab("Richesse taxonomique")+
+  geom_point()+
+  geom_line( aes(group=Site))+
+  # facet_wrap(.~Site)+ # <- cette fonction permet de réaliser les geoms précedents mais pour différentes catégories (ici j'ai choisi les micro habitat, mais on aurait pu le faire pour les sites par exemples)
+  theme_bw()+
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # <- rotation des dates pour qu'elles soient lisibles
+
+```
+
+
+
