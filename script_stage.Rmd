@@ -37,7 +37,9 @@ MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
 ```
 
 ## Chargement data
-Boucle de chargement des fichiers csv 
+
+Boucle de chargement des fichiers .csv 
+
 ```{r}
 setwd('E:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
 # setwd('E:/Marineff/suivi_scientifique')
