@@ -3,6 +3,8 @@ title: "script_stage test ouverture données Goêlo"
 author: "Hugo Gallier"
 date: "2024-01-24"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 
@@ -16,7 +18,10 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(here)
-
+library(stringr)
+library(vegan)
+library(scales)
+library(car)
 
 ```
 
@@ -37,17 +42,30 @@ MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
 ## Chargement data
 Boucle de chargement des fichiers csv 
 ```{r}
-setwd('F:/Hugo/Recif_Goelo') # à modifier avec nom de ton DD
+
+setwd('D:/Hugo/Recif_Goelo/') # à modifier avec nom de ton DD
+
+
 
 data_list=list.files(pattern =".csv", recursive=T)
 
 L=list()
 for( i in 1: length(data_list)){
   
+  Nome_tot=data_list[i]
+  
+  str_split(Nome_tot,"/")
     Name_file=basename(data_list[i])
-
+    
 data=read.csv(data_list[i], sep=',', header=T, fileEncoding="latin1") %>%
-  mutate(Name_file=rep(basename(data_list[i]), n()))
+  mutate(Name_file=rep(basename(data_list[i]), n()),
+         recif=str_split(Nome_tot,"/")[[1]][4],
+         recif=case_when(recif == 'Récif 01-12'~ 'recif1',
+                         recif == 'Récif 13-24'~ 'recif2',
+                         recif == 'Récif 25-36'~ 'recif3',
+                         TRUE~NA)) 
+  
+
 
 L[[i]]<-data
 
@@ -95,6 +113,15 @@ Mise en forme des fichiers chargés:
 
 ## ajout de categories à partir du nom de fichier
 
+# data_PQ=do.call(rbind,L) %>%
+#   mutate(Site=substr(Name_file, start = 1, stop = 2)) %>%
+#   # test2=substr(Name_file, start = 1, stop = 6))%>%
+#   # test3=sub("^([^_]*_[^_]*).*", "\\2", Name_file),
+#   separate(col = Name_file, into = c('Date','Micro','Quad','Recif'), sep = '_') %>%
+#   mutate(Micro=stringr::str_replace_all(Micro, ".rndpts.csv", ""), 
+#     Quad2=substr(Quad, start = 1, stop = 1),
+#     
+    
 data_PQ=do.call(rbind,L) %>%
   mutate(Site=substr(Name_file, start = 1, stop = 2)) %>%
   # test2=substr(Name_file, start = 1, stop = 6))%>%
@@ -124,7 +151,7 @@ data_PQ=do.call(rbind,L) %>%
 
 data_PQ_light=data_PQ %>% dplyr::select(Image, spp.Name,spp.ID,N.pts.per.species,Cov..per.species,
                N.pts.ALL.species,Cov..ALL.species, Site,Date_ok,Micro,Quad2,
-               Week,Date_courte,Month_str )%>%
+               Week,Date_courte,Month_str,recif )%>%
 rename('spp'='spp.Name',
        'Count'='N.pts.per.species',
        'Cov'='Cov..per.species',
@@ -153,23 +180,231 @@ rename('spp'='spp.Name',
 knitr::kable(data_PQ_light %>% select(spp,abb)%>% unique())
 corresp=data_PQ_light %>% select(spp,abb)%>% unique()
 ```
-
+# Modification des données 
 ```{r}
-dataR2<-data_PQ_light
-dataR2<-dataR2[,-c(1,6,7,15:23)]
-dataR2<-na.omit(dataR2)
+dataR1<-data_PQ_light
+dataR<-dataR1[,-c(1,6:8,11,16:19,21:24)]
+dataR<-na.omit(dataR)
 
-dataR$spp.Name<-as.factor(dataR$spp.Name)
+dataR$spp<-as.factor(dataR$spp)
 dataR$spp.ID<-as.factor(dataR$spp.ID)
-dataR$N.pts.per.species<-as.numeric(dataR$N.pts.per.species)
-dataR$Site<-as.factor(dataR$Site)
+dataR$recif<-as.factor(dataR$recif)
 dataR$Micro<-as.factor(dataR$Micro)
-dataR$Quad2<-as.factor(dataR$Quad2)
-dataR$Date<-as.factor(dataR$Date)
+dataR$Count<-as.numeric(dataR$Count)
 dataR$Month_str<-as.factor(dataR$Month_str)
-dataR$YY<-as.factor(dataR$YY)
 dataR$Month<-as.factor(dataR$Month)
 dataR$Date_ok<-as.factor(dataR$Date_ok)
 dataR$Date_courte<-as.factor(dataR$Date_courte)
 dataR$Week<-as.factor(dataR$Week)
+dataR$Structure2<-as.factor(dataR$Structure2)
+
+dataR<-dataR[,-12]
+colnames(dataR)[10]<-c("Site")
+```
+
+
+#Indice Gamma
+```{r}
+# Quel est la richesse taxonomique global (Indice Gamma) d'un site et de la zone d'étude en général
+
+dataR<-dataR1[,-c(1,6:8,11,16:19,21:24)]
+dataR<-na.omit(dataR)
+seq1<-rep(0,times=1005)
+dataR3<-cbind(dataR,seq1)
+dataR<-dataR3
+
+# Indice gamma par site 
+dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
+  select(spp,Site) %>% 
+  distinct() %>% 
+  group_by(Site) %>% #filtre selon le site, date et structure
+  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+dataR2
+
+# Indice gamma selon date
+dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
+  # filter (!Site %in% c("Bi","Bu","VB")) %>%
+  select(spp,Site,Date_courte) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte) %>% #filtre selon le site, date et structure
+  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+length(unique(dataR2$spp))
+
+
+
+# Indice gamma global
+dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
+  select(spp,seq1) %>% 
+  distinct() %>% 
+  group_by(seq1) %>% #filtre selon le site, date et structure
+  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+print(dataR2)
+
+```
+
+
+# Comparaison intersite (microhabitats confondus) temporelle
+```{r}
+
+dataR
+dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
+  filter(!Structure2 %in% c ("Holes","Inner_slots","Upper_slots"))%>% 
+  select(spp,Site,Date_courte) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte) %>% #filtre selon le site, date et structure
+  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+
+
+ggplot(dataR2, aes(Date_courte,S, col=Site))+
+  xlab("Date")+
+  ylab("Richesse taxonomique")+
+  geom_point()+
+  geom_line( aes(group=Site))+
+  # facet_wrap(.~Site)+ # <- cette fonction permet de réaliser les geoms précedents mais pour différentes catégories (ici j'ai choisi les micro habitat, mais on aurait pu le faire pour les sites par exemples)
+  theme_bw()+
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # <- rotation des dates pour qu'elles soient lisibles
+
+```
+
+#Comparaison intersite des Micro habitats
+```{r}
+
+dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
+  filter(!Structure2  %in% c("Holes","Dome","Inner_slots","Upper_slots"))%>% 
+  select(Site,spp,Date_courte,Structure2)%>%
+  distinct() %>% 
+  group_by(Site,Date_courte,Structure2)%>%
+  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+
+
+ggplot(dataR2, aes(Structure2,S, fill=Site))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
+  xlab("Structure")+
+  ylab("Richesse taxonomique")+
+  geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
+  geom_boxplot()+
+  theme_bw()
+
+
+
+dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
+  filter(!Structure2  %in% c("Holes","Dome","Inner_slots","Upper_slots"))%>% 
+  select(Site,spp,Date_courte,Structure2)%>%
+  distinct() %>% 
+  group_by(Site,Date_courte,Structure2)%>%
+  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+
+ggplot(dataR2, aes(Site,S, fill=Structure2))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
+  xlab("Structure")+
+  ylab("Richesse taxonomique")+
+  geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
+  geom_boxplot()+
+  theme_bw()
+```
+
+
+###Test Shapiro/Levene/Anova
+```{r}
+library(rstatix)
+
+model1<-lm(S~Structure2,data=dataR2021)
+shapiro_test(residuals(model1))#si pvalue supérieure à 0,05 alors permet de dire que les résidus sont normalements distribuées
+
+leveneTest(S~Structure2,data=dataR2)#Si p value supérieur à 0,05 alors variance entre les groupes est égale
+
+test_anova<-aov(S~factor(Site)*factor(Date_courte),data=dataR2)#anova en prenant la date ainsi que les structures comme facteur
+test_anova<-aov(S~factor(Site)*factor(Micro),data=dataR2)#anova en prenant la date ainsi que les micro comme facteur
+test_anova<-aov(S~factor(Site),data=dataR2)#anova en prenant la date ainsi que les micro comme facteur
+test_anova<-aov(S~factor(Micro),data=dataR2)#anova en prenant la date ainsi que les micro comme facteur
+
+summary(test_anova)
+```
+
+# Linear mixed model
+```{r}
+library(lme4)
+library(Matrix)
+library(sjPlot)
+
+dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
+  filter(!Structure2  %in% c("Holes","Dome","Inner_slots","Upper_slots"))%>% 
+  filter(!Date_courte=="2021-01") %>%
+  select(spp,Site,Date_courte,Micro) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
+  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+
+mixed.lmer <- lmer(S ~ Site + (1|Micro/Date_courte), data = dataR2) #compare les données de richesse taxo avec les variables aléatoires qui sont Micro et date courte
+summary(mixed.lmer)
+plot_model(mixed.lmer,show.values = T,show.p = T)#montre que par rapport à un site de réference (ici Bi), les autres sites sont différents. Ici Fetlar a plutot une diversité moindre que Bi mais est le plus proche. 
+tab_model(mixed.lmer)
+
+
+```
+
+
+
+#radar plot
+```{r}
+dataR<-dataR1[,-c(1,6:7,15:18,20:23)]
+dataR<-dataR[,-c(2,4,6,8:9,11)]
+dataR<-na.omit(dataR)
+
+library(ggradar)
+
+##### Bottom disc #####
+lcol<-c("blue","red","orange","black")
+
+### C1 
+# Se
+resultat1<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Structure2 %in% c("Dome","Holes")) %>%
+  filter(Site == ("Se"))%>%
+  filter(Micro %in% c("C1B1","C1B2","C1B3","C1B4","C1B5","C1B6","C1B7","C1B8"))%>%
+  select(spp,Site,Date_courte,Micro) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
+  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+resultat1[is.na(resultat1)]<-0
+
+ggradar(resultat1[,-2],grid.min = 1,grid.max =10,values.radar = c(0,5,10),group.colours = "blue",legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+
+# Ju
+resultat2<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Structure2 %in% c("Dome","Holes")) %>%
+  filter(Site == ("Ju"))%>%
+  filter(Micro %in% c("C1B1","C1B2","C1B3","C1B4","C1B5","C1B6","C1B7","C1B8"))%>%
+  select(spp,Site,Date_courte,Micro) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
+  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+resultat2[is.na(resultat2)]<-0
+
+ggradar(resultat2[,-2],grid.min = 1,grid.max =10,values.radar = c(0,5,10),group.colours = "red",legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+
+### C2
+# Se
+resultat3<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Structure2 %in% c("Dome","Holes")) %>%
+  filter(Site == ("Se"))%>%
+  filter(Micro %in% c("C2P1","C2P2","C2P3","C2P4","C2P5","C2P6","C2P7","C2P8"))%>%
+  select(spp,Site,Date_courte,Micro) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
+  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+resultat3[is.na(resultat3)]<-0
+
+ggradar(resultat3[,-2],grid.min = 1,grid.max =10,values.radar = c(0,5,10),group.colours = "blue",legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+
+# Ju
+resultat4<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
+  filter(!Structure2 %in% c("Dome","Holes")) %>%
+  filter(Site == ("Ju"))%>%
+  filter(Micro %in% c("C2P1","C2P2","C2P3","C2P4","C2P5","C2P6","C2P7","C2P8"))%>%
+  select(spp,Site,Date_courte,Micro) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
+  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+resultat4[is.na(resultat4)]<-0
+
+ggradar(resultat4[,-2],grid.min = 1,grid.max =10,values.radar = c(0,5,10),group.colours = "red",legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
 ```
