@@ -41,8 +41,8 @@ MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
 Boucle de chargement des fichiers .csv 
 
 ```{r}
-setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
-# setwd('E:/Marineff/suivi_scientifique')
+# setwd('E:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
+setwd('E:/Marineff/suivi_scientifique')
 
 data_list=list.files(pattern =".csv", recursive=T)
 
@@ -160,6 +160,9 @@ corresp=data_PQ_light %>% select(spp,abb)%>% unique()
 
 Vérification que la colonne "strcut_groups" est correctement informée
 
+
+# ######################
+# ######################
 
 # Partie Hugo
 ##Réduction des colonnes et transformation des valeurs
@@ -678,6 +681,44 @@ bci_sub_e<-vegan::diversity(dataR3,index="simpson")
 #Matrice de distance
 ```{r}
 load(file="dataR.Rdata")
+
+
+# Exemple construction de la matrice de composition
+
+data_comp=data_PQ_light %>% 
+  select(spp,Cov,Site,Micro,Date_courte, Quad2) %>% 
+  filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
+  group_by(spp,Site,Micro,Date_courte, Quad2) %>% 
+  summarize(Mcov=mean(Cov)) %>% 
+  distinct() %>% drop_na() %>% 
+  
+  #  dplyr::group_by(Site, Micro, Date, Quad2, spp.Name) %>%
+  # dplyr::summarise(n = dplyr::n(), .groups = "drop")
+  pivot_wider(names_from=spp,values_from=Mcov, values_fill = NA) %>% ungroup() %>% 
+    mutate(across(everything(.), ~replace_na(., 0)))
+
+# Meta data
+Meta_data=data_comp %>% select(Site,Micro,Date_courte, Quad2)
+  
+# Matrice de compo
+Comp_mat=data_comp %>% select(-c(Site,Micro,Date_courte, Quad2)) %>% as.matrix()
+
+
+
+########################################
+#################################
+
+
+
+
+
+
+
+
+
+
+
+
 dataR2<-(dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
   filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
   filter(!Date_courte == ("2021-01")))%>%
