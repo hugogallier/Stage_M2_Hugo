@@ -135,6 +135,8 @@ rename('spp'='spp.Name',
        'Count_all'='N.pts.ALL.species',
        'Cov_all'='Cov..ALL.species')%>%
   mutate(abb=abbreviate(spp))%>%
+   group_by(spp,abb,Site,Micro,Date_courte,Date_ok) %>% 
+  summarize(Mcov=mean(Cov)) %>% 
   left_join(MPhoto, by=c('Micro')) %>%
   mutate(Structure2=recode_factor(Structure,
    "Bandes"="Dome",
@@ -152,6 +154,7 @@ rename('spp'='spp.Name',
   mutate(M_ensemble=ifelse(Micro %in% c("P1","P2","P3","T1","T2","T3","T4"),substr(Micro, start = 1, stop = 1),substr(Micro, start = 1, stop = 3)),
          M_ensemble2=ifelse(M_ensemble == 'DPF','DGF',M_ensemble))%>%
   left_join(Immer_site, by='Site') 
+ 
 
 
 knitr::kable(data_PQ_light %>% select(spp,abb)%>% unique())
@@ -707,11 +710,6 @@ Comp_mat=data_comp %>% select(-c(Site,Micro,Date_courte, Quad2)) %>% as.matrix()
 
 ########################################
 #################################
-
-
-
-
-
 
 
 
