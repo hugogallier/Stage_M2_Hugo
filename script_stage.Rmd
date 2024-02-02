@@ -21,6 +21,9 @@ library(here)
 library(vegan)
 library(scales)
 library(fmsb)
+library(FactoMineR)
+library(ecodist)
+library(ade4)
 
 ```
 
@@ -41,8 +44,8 @@ MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
 Boucle de chargement des fichiers .csv 
 
 ```{r}
-# setwd('E:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
-setwd('E:/Marineff/suivi_scientifique')
+setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
+# setwd('E:/Marineff/suivi_scientifique')
 
 data_list=list.files(pattern =".csv", recursive=T)
 
@@ -171,21 +174,21 @@ Vérification que la colonne "strcut_groups" est correctement informée
 ##Réduction des colonnes et transformation des valeurs
 ```{r}
 dataR1<-data_PQ_light
-dataR<-dataR1[,-c(1,6:7,15:18,20:23)]
+dataR<-dataR1[,-c(6,8:10,12:15)]
 dataR<-na.omit(dataR)#enlève les lignes ayant du NA (correspondant aux zones sans faune et flore béton)
 
 
 dataR$spp<-as.factor(dataR$spp)
-dataR$spp.ID<-as.factor(dataR$spp.ID)
+dataR$abb<-as.factor(dataR$abb)
 dataR$Site<-as.factor(dataR$Site)
 dataR$Micro<-as.factor(dataR$Micro)
-dataR$Count<-as.numeric(dataR$Count)
-dataR$Month_str<-as.factor(dataR$Month_str)
-dataR$Month<-as.factor(dataR$Month)
-dataR$Date_ok<-as.factor(dataR$Date_ok)
+dataR$Mcov<-as.numeric(dataR$Mcov)
+dataR$Structure2<-as.factor(dataR$Structure2)
+# dataR$Month<-as.factor(dataR$Month)
+# dataR$Date_ok<-as.factor(dataR$Date_ok)
 dataR$Date_courte<-as.factor(dataR$Date_courte)
-dataR$Week<-as.factor(dataR$Week)
-dataR$Quad2<-as.factor(dataR$Quad2)
+# dataR$Week<-as.factor(dataR$Week)
+# dataR$Quad2<-as.factor(dataR$Quad2)
 # save(dataR,file="dataR.Rdata")
 str(dataR)
 ```
@@ -685,61 +688,74 @@ bci_sub_e<-vegan::diversity(dataR3,index="simpson")
 ```{r}
 load(file="dataR.Rdata")
 
-
 # Exemple construction de la matrice de composition
 
-data_comp=data_PQ_light %>% 
-  select(spp,Cov,Site,Micro,Date_courte, Quad2) %>% 
+data_comp2=dataR %>% 
+  select(spp,Mcov,Site,Micro,Date_courte,Structure2) %>% 
   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
-  group_by(spp,Site,Micro,Date_courte, Quad2) %>% 
-  summarize(Mcov=mean(Cov)) %>% 
+  group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
   distinct() %>% drop_na() %>% 
-  
-  #  dplyr::group_by(Site, Micro, Date, Quad2, spp.Name) %>%
+
+  #  dplyr::group_by(Site, Micro, Date_courte, spp) %>%
   # dplyr::summarise(n = dplyr::n(), .groups = "drop")
+
   pivot_wider(names_from=spp,values_from=Mcov, values_fill = NA) %>% ungroup() %>% 
     mutate(across(everything(.), ~replace_na(., 0)))
 
+
+
 # Meta data
-Meta_data=data_comp %>% select(Site,Micro,Date_courte, Quad2)
-  
+Meta_data=data_comp %>% select(Site,Micro,Date_courte) #créer jeu de données avec les méta données
+Meta_data2=data_comp2 %>% select(Site,Micro,Date_courte,Structure2)%>% #créer jeu de données avec les méta données
+  # mutate(typestructure= case_when(
+  #   (Structure2=="Disc")~"Extérieur"
+  # ))
+  # mutate(ifelse(data_comp2$Structure2=="Disc"|"Pillars"|"Columns"|"Dome","Externe","Interne"))
+  # mutate(typestructure=if_else(as.character(Structure2)=="Disc"|"Pillars"|"Columns"|"Dome","Externe","Interne"))
+  # typestructure<-if_else(data_comp2$Structure2=="Disc"|"Pillars"|"Columns"|"Dome","Externe","Interne")%>%
+  # mutate(typestructure)
+
 # Matrice de compo
-Comp_mat=data_comp %>% select(-c(Site,Micro,Date_courte, Quad2)) %>% as.matrix()
+Comp_mat=data_comp %>% select(-c(abb,Site,Micro,Date_courte)) %>% as.matrix() #enlève les méta données du jeu qui va être utilisée pour la matrice
+# Comp_mat22=data_comp2 %>% select(-c(abb,Site,Micro,Date_courte,Structure2)) %>% as.matrix() #enlève les méta données du jeu qui va être utilisée pour la matrice
 
 
+Comp_mat2=as.data.frame(Comp_mat) %>% as.matrix()
+# Comp_mat2=as.data.frame(Comp_mat2) %>% as.matrix()
 
-########################################
-#################################
+# Comp_mat2<-as.data.frame(Comp_mat) %>%  select(-abb) 
 
+distdataR<-vegdist(Comp_mat2) #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme                                   plus efficace pour les données écologiques
+distdataR2<-as.matrix(distdataR)[c(1:100),c(1:100)]#sélectionne un nombre de lignes et colonnes particulier
+distdataR3<-cbind(Meta_data[c(1:100),],distdataR2)
+# distdataR3<-cbind(Meta_data2[c(1:100),],distdataR2)
 
+##### PCoA
+pcoa<-cmdscale(distdataR2,eig=T)
 
+pcoa<-cmdscale(distdataR3[,-c(1:3)],eig=T)
 
+ordiplot(pcoa)
+barplot(pcoa$eig[c(1:65)])
 
+##### NMDS
+NMDS<-metaMDS(distdataR2)
+ordiplot(NMDS$points)
 
-
-dataR2<-(dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
-  filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
-  filter(!Date_courte == ("2021-01")))%>%
-  select(spp,Count) %>% 
-  distinct() %>% 
-  group_by(spp)
-
-# dataR<-dataR2[,-c(2,5:13)]
-dataR3=dataR%>%
-  mutate(Name=paste0(Site,'_',Date_ok,'_',Micro)) %>% 
-  select(spp,Count,Name)%>%
-  pivot_wider(spp,Count,name=Name)
-
-distdataR<-vegdist(dataR[,c(1:2,12)])
-distdataR<-as.matrix(distdataR)
-
-distdataR<-cbind(namedata,distdataR)
-namedata<-dataR[,2]
-namedata<-rep(1,times=10)
-
-dim(distdataR)
-distdataR<-cbind(namedata,distdataR)
-
-acp<-PCA(distdataR)
+##### PCA
+biplot(distdataR2)
+acp<-PCA(distdataR2)
 plot(acp,labels="var")
+
+##### Permanova 
+#permet de voir les différences selon des paramètres
+
+# grouper les micro habitats par 2 structures (internes et externes)!!!!!
+
+adonis2(distdataR2~Micro,data=distdataR3,permutations=999)
+adonis2(distdataR2~Site,data=distdataR3,permutations=999)
+adonis2(distdataR2~Structure2,data=distdataR3,permutations=999)
+
+# adonis2(dune~Management*A1,data=dune.env,permutations=999)#test avec jeu de données exemple
+dispersion<-betadisper(distdataR3,group=distdata3$Site)
 ```
