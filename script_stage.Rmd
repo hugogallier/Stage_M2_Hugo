@@ -44,8 +44,8 @@ MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
 Boucle de chargement des fichiers .csv 
 
 ```{r}
-setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
-# setwd('E:/Marineff/suivi_scientifique')
+# setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
+setwd('E:/Marineff/suivi_scientifique')
 
 data_list=list.files(pattern =".csv", recursive=T)
 
@@ -685,8 +685,69 @@ bci_sub_e<-vegan::diversity(dataR3,index="simpson")
 ```
 
 #Matrice de distance
+
+# Bruno: Je test avec le tableau de donnée de base
+On obtient un résultat qui correspond davantage aux attentes, mais j'ai quelques doutes concernant sa pertinence. Je vais vérifier avec mes anciennes figures 
 ```{r}
-load(file="dataR.Rdata")
+
+data_PQ_light
+
+
+data_comp2=data_PQ_light %>% ungroup %>% 
+  select(spp,Mcov,Site,Micro,Date_courte,Structure2) %>% 
+  filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
+  filter(!Structure2 %in% c('Dome','Holes')) %>% 
+  group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
+  distinct() %>% drop_na() %>% 
+    spread(spp,Mcov) %>% ungroup() %>% 
+      mutate(across(everything(.), ~replace_na(., 0))) 
+
+
+Comp_mat=data_comp2 %>% select(-c(Site,Micro,Structure2,Date_courte)) %>% as.matrix() 
+Meta_data=data_comp2 %>% select(Site,Micro,Structure2,Date_courte) #créer jeu de données avec les méta données
+
+
+distdataR<-vegdist(Comp_mat, method='bray') #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme plus efficace pour les données écologiques
+
+
+
+pcoa_tot_SS<- cmdscale(d = as.matrix(distdataR),k=10, eig = T) # vegan package
+x=pcoa_tot_SS$points[,1]
+y=pcoa_tot_SS$points[,2]
+
+plot(x,y) # <- ça fonctionne
+
+
+
+
+# Pour mieux explorer le nuage de point on va passer par ggplot2.
+# Data frame pour rassembler les coordonnées de la PCOA + les metadata
+PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
+           Struc=Meta_data$Structure2,
+           Site=Meta_data$Site,
+           Date=Meta_data$Date_courte)
+
+
+
+ ggplot(data=PCOA_df,aes(x,y, col=Site))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
+   # geom_point(aes(col=Site), size=1, alpha=.6)+
+    geom_point()+
+ geom_hline(yintercept=0)+
+   geom_vline(xintercept=0)+
+   theme_bw()
+
+
+```
+
+
+### Version Hugo
+
+Le problème vient de ton fichier dataR.RData qui ne correspond plus aux quadrats
+```{r}
+load(file="dataR.Rdata") #<- probleme avec ce tableau de data
+
+
+
 
 # Exemple construction de la matrice de composition
 
@@ -695,18 +756,24 @@ data_comp2=dataR %>%
   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
   group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
   distinct() %>% drop_na() %>% 
+    spread(spp,Mcov) %>% 
 
+  
+  
+  
   #  dplyr::group_by(Site, Micro, Date_courte, spp) %>%
   # dplyr::summarise(n = dplyr::n(), .groups = "drop")
 
-  pivot_wider(names_from=spp,values_from=Mcov, values_fill = NA) %>% ungroup() %>% 
+  # pivot_wider(names_from=spp,values_from=Mcov, values_fill = NA) %>% ungroup() %>% 
     mutate(across(everything(.), ~replace_na(., 0)))
 
 
 
 # Meta data
-Meta_data=data_comp %>% select(Site,Micro,Date_courte) #créer jeu de données avec les méta données
-Meta_data2=data_comp2 %>% select(Site,Micro,Date_courte,Structure2)%>% #créer jeu de données avec les méta données
+Meta_data=data_comp2 %>% select(Site,Micro,Structure2,Date_courte) #créer jeu de données avec les méta données
+Meta_data2=data_comp2 %>% select(Site,Micro,Date_courte,Structure2) #créer jeu de données avec les méta données
+
+
   # mutate(typestructure= case_when(
   #   (Structure2=="Disc")~"Extérieur"
   # ))
@@ -716,16 +783,35 @@ Meta_data2=data_comp2 %>% select(Site,Micro,Date_courte,Structure2)%>% #créer j
   # mutate(typestructure)
 
 # Matrice de compo
-Comp_mat=data_comp %>% select(-c(abb,Site,Micro,Date_courte)) %>% as.matrix() #enlève les méta données du jeu qui va être utilisée pour la matrice
+Comp_mat=data_comp2 %>% select(-c(abb,Site,Micro,Structure2,Date_courte)) %>% as.matrix() #enlève les méta données du jeu qui va être utilisée pour la matrice
 # Comp_mat22=data_comp2 %>% select(-c(abb,Site,Micro,Date_courte,Structure2)) %>% as.matrix() #enlève les méta données du jeu qui va être utilisée pour la matrice
 
-
-Comp_mat2=as.data.frame(Comp_mat) %>% as.matrix()
+# Comp_mat2=as.matrix(Comp_mat)
+# Comp_mat2=as.data.frame(Comp_mat) %>% as.matrix()
 # Comp_mat2=as.data.frame(Comp_mat2) %>% as.matrix()
 
 # Comp_mat2<-as.data.frame(Comp_mat) %>%  select(-abb) 
 
-distdataR<-vegdist(Comp_mat2) #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme                                   plus efficace pour les données écologiques
+Comp_mat[1:10,1:10]
+
+distdataR<-vegdist(Comp_mat2, method='bray') #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme plus efficace pour les données écologiques
+
+
+
+pcoa_tot_SS<- cmdscale(d = as.matrix(distdataR),k=10, eig = T) # vegan package
+x=pcoa_tot_SS$points[,1]
+y=pcoa_tot_SS$points[,2]
+
+plot(x,y)
+
+
+
+
+##############################
+#############################
+
+
+
 distdataR2<-as.matrix(distdataR)[c(1:100),c(1:100)]#sélectionne un nombre de lignes et colonnes particulier
 distdataR3<-cbind(Meta_data[c(1:100),],distdataR2)
 # distdataR3<-cbind(Meta_data2[c(1:100),],distdataR2)
