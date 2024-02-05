@@ -134,6 +134,7 @@ data_PQ=do.call(rbind,L) %>%
                           'NI',spp.Name))
   
 
+
 # Version synthétique du df
 
 data_PQ_light=data_PQ %>% dplyr::select(Image, spp.Name,spp.ID,N.pts.per.species,Cov..per.species,
