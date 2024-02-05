@@ -61,6 +61,10 @@ L[[i]]<-data
 
 }
 
+
+test_data_list=data_list[grepl('DSC',data_list)]
+
+
 # fileEncoding="latin1"
 ```
 
@@ -103,6 +107,9 @@ Mise en forme des fichiers chargés:
 
 ## ajout de categories à partir du nom de fichier
 
+
+# test_dataPQ=data_PQ[grepl('DSC',data_PQ$Name_file),]
+
 data_PQ=do.call(rbind,L) %>%
   mutate(Site=substr(Name_file, start = 1, stop = 2)) %>%
   # test2=substr(Name_file, start = 1, stop = 6))%>%
@@ -138,8 +145,8 @@ rename('spp'='spp.Name',
        'Count_all'='N.pts.ALL.species',
        'Cov_all'='Cov..ALL.species')%>%
   mutate(abb=abbreviate(spp))%>%
-   group_by(spp,abb,Site,Micro,Date_courte,Date_ok) %>% 
-  summarize(Mcov=mean(Cov)) %>% 
+  #  group_by(spp,abb,Site,Micro,Date_courte,Date_ok) %>% 
+  # summarize(Mcov=mean(Cov)) %>% 
   left_join(MPhoto, by=c('Micro')) %>%
   mutate(Structure2=recode_factor(Structure,
    "Bandes"="Dome",
@@ -156,7 +163,8 @@ rename('spp'='spp.Name',
  TRUE ~ 'NA')) %>%
   mutate(M_ensemble=ifelse(Micro %in% c("P1","P2","P3","T1","T2","T3","T4"),substr(Micro, start = 1, stop = 1),substr(Micro, start = 1, stop = 3)),
          M_ensemble2=ifelse(M_ensemble == 'DPF','DGF',M_ensemble))%>%
-  left_join(Immer_site, by='Site') 
+  left_join(Immer_site, by='Site') %>% 
+    mutate(spp=replace_na(spp,"None"))
  
 
 
@@ -693,18 +701,43 @@ On obtient un résultat qui correspond davantage aux attentes, mais j'ai quelque
 data_PQ_light
 
 
+levels(factor(data_PQ$Site))
+test=data_PQ_light %>% filter(Site=='DSC')
+
+
+
+
+
+
 data_comp2=data_PQ_light %>% ungroup %>% 
-  select(spp,Mcov,Site,Micro,Date_courte,Structure2) %>% 
+  select(spp,Cov,Site,Micro,Date_courte,Structure2,Strcut_groups, Quad2) %>% 
   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
-  filter(!Structure2 %in% c('Dome','Holes')) %>% 
-  group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
+  filter(!Structure2 %in% c('Dome','Upper_slots' )) %>% 
+    filter(!Site %in% c('Fe','DSC' )) %>% 
+  mutate(Sample=paste0(Site,'_',Date_courte,'_',
+                       Micro,'_',Quad2)) %>% 
+  group_by(Sample,Site,spp, Micro,Structure2,Strcut_groups, Date_courte) %>% 
+  dplyr::summarize(Mcov=mean(Cov)) %>% 
+
+  group_by(Sample,Site,Micro,Date_courte,Structure2) %>% 
   distinct() %>% drop_na() %>% 
     spread(spp,Mcov) %>% ungroup() %>% 
       mutate(across(everything(.), ~replace_na(., 0))) 
 
 
-Comp_mat=data_comp2 %>% select(-c(Site,Micro,Structure2,Date_courte)) %>% as.matrix() 
-Meta_data=data_comp2 %>% select(Site,Micro,Structure2,Date_courte) #créer jeu de données avec les méta données
+
+
+test=data_comp2 %>% filter(Site == 'VB',
+                            Date_courte=='2021-07' )
+
+
+data_comp2=data_comp2[rowSums(data_comp2)>0,]
+
+
+Comp_mat=data_comp2 %>% select(-c(Site,Sample,Micro,Structure2,Strcut_groups,Date_courte)) %>% as.matrix() 
+
+
+Meta_data=data_comp2 %>% select(Site,Sample,Micro,Structure2,Strcut_groups,Date_courte) #créer jeu de données avec les méta données
 
 
 distdataR<-vegdist(Comp_mat, method='bray') #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme plus efficace pour les données écologiques
@@ -717,24 +750,31 @@ y=pcoa_tot_SS$points[,2]
 
 plot(x,y) # <- ça fonctionne
 
-
-
+ Eig=pcoa_tot_SS$eig[1:2]/sum(pcoa_tot_SS$eig)
 
 # Pour mieux explorer le nuage de point on va passer par ggplot2.
 # Data frame pour rassembler les coordonnées de la PCOA + les metadata
 PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
            Struc=Meta_data$Structure2,
+           Struc_group=Meta_data$Strcut_groups,
            Site=Meta_data$Site,
            Date=Meta_data$Date_courte)
 
 
 
- ggplot(data=PCOA_df,aes(x,y, col=Site))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
-   # geom_point(aes(col=Site), size=1, alpha=.6)+
-    geom_point()+
- geom_hline(yintercept=0)+
-   geom_vline(xintercept=0)+
-   theme_bw()
+PCOA_df_mean=PCOA_df %>% group_by(Struc_group) %>% 
+  summarize(Mx=mean(x),
+            My=mean(y))
+
+
+
+ggplot(data=PCOA_df,aes(x,y, col=Struc_group))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
+  # geom_point(aes(col=Site), size=1, alpha=.6)+
+  geom_point()+
+  geom_point(data=PCOA_df_mean,aes(Mx,My), size=5)+
+  geom_hline(yintercept=0)+
+  geom_vline(xintercept=0)+
+  theme_bw()
 
 
 ```
