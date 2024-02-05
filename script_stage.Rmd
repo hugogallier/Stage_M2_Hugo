@@ -33,8 +33,9 @@ library(RColorBrewer)
 
 #################### Importation du data et chargement ###################
 
-Identification des fichiers à charger
 ```{r}
+#Chargement des photos associées à chaque cadrats
+
 setwd(here::here())
 
 MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
@@ -45,9 +46,9 @@ MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
 
 ## Chargement data
 
-Boucle de chargement des fichiers .csv 
-
 ```{r}
+#Chargement des jeux de données
+
 setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
 # setwd('E:/Marineff/suivi_scientifique')
 
@@ -69,8 +70,10 @@ L[[i]]<-data
 ```
 
 ## Date d'immersion
-Ajout des dates d'immersion des différents récifs
+
 ```{r}
+# Ajout des dates d'immersion des différents récifs
+
 Immer_site=data.frame(Site=c('Bi','Bu','VB','Fe'), Date=c(as.Date('2020-10-30'),as.Date('2020-11-26'),as.Date('2020-11-27'),as.Date('2020-11-30'))) %>%
        mutate( Date_imm_ok=format(as.POSIXlt(Date,  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT")) %>% select(Site, Date_imm_ok)
          
@@ -78,9 +81,8 @@ Immer_site=data.frame(Site=c('Bi','Bu','VB','Fe'), Date=c(as.Date('2020-10-30'),
 
 ## Saison - date
 
-Data frame d'identification des saisons
 ```{r}
-
+# Ajout de dates correspondant aux différentes saisons
 Date_sais=data.frame(
            start=c(
              format(as.POSIXlt(as.Date('2021-03-20'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
@@ -95,16 +97,11 @@ Date_sais=data.frame(
 
 ## Mise en forme des données
 
-Mise en forme des fichiers chargés:
-
--Ajout de métadata à partir du nom du fichier: site, date , micro env., Num quadrat ...
-- Transformation format Date
-- Correction nom taxon érroné
-- Changements de noms des micro env.
-- Regroupement des micro env dans structure internes vs externes
 ```{r}
-
-## ajout de categories à partir du nom de fichier
+# Ajout de méta données à partir du nom de fichier (site,data,micro,n° de quadrat)
+# Correction et abbréviation des noms de taxons
+# Changements des noms des microhabitats
+# Changements du format des dates
 
 data_PQ=do.call(rbind,L) %>%
   mutate(Site=substr(Name_file, start = 1, stop = 2)) %>%
@@ -117,6 +114,7 @@ data_PQ=do.call(rbind,L) %>%
           Month_str=gsub("-.*", "", Date,perl=TRUE),
           YY=gsub(".*-", "", Date,perl=TRUE),
           Month=case_when( Month_str=='Avri'~'04',
+                           Month_str=='avri'~'04',
                            Month_str=="Janv"~'01',
                            Month_str=='Juil'~'07',
                            Month_str=='Oct'~'10',
@@ -129,6 +127,11 @@ data_PQ=do.call(rbind,L) %>%
          spp.Name=ifelse(spp.Name == 'Unidentified',
                           'NI',spp.Name))
   
+
+# test=data_PQ[is.na(data_PQ$Date_courte),]
+# 
+# test=data_PQ %>% filter(Site =='Fe',
+#                         Date =="Nov-21")
 
 # Version synthétique du df
 
@@ -176,8 +179,18 @@ corresp=data_PQ_light %>% select(spp,abb)%>% unique()
 # Formatage du jeu de données 
 ```{r}
 dataR1<-data_PQ_light
-dataR<-dataR1[,-c(6,8:10,12:15)]
+dataR=dataR1 %>% filter(!spp %in% c("Ni","Unassigned","ponte","Ponte")) %>%
+  filter(Site == ("Fe"))%>%
+  select (spp,abb,Site,Micro,Date_courte,Mcov,Structure2)
+
+dataR=data_PQ_light %>% filter(!spp %in% c("Ni","Unassigned","ponte","Ponte")) %>%
+  filter(Site == ("Fe"))%>%
+  filter(Micro == ("C2P5"),
+Date_courte =="2022-07") %>%   select (spp,abb,Site,Micro,Date_courte,Mcov,Structure2)
+# dataR<-dataR1[,-c(6,8:10,12:15)]
 dataR<-na.omit(dataR)#enlève les lignes ayant du NA (correspondant aux zones sans faune et flore béton)
+
+test=dataR[is.na(dataR$Date_courte),]
 
 
 dataR$spp<-as.factor(dataR$spp)
@@ -186,9 +199,7 @@ dataR$Site<-as.factor(dataR$Site)
 dataR$Micro<-as.factor(dataR$Micro)
 dataR$Mcov<-as.numeric(dataR$Mcov)
 dataR$Structure2<-as.factor(dataR$Structure2)
-
 dataR$Date_courte<-as.factor(dataR$Date_courte)
-
 # save(dataR,file="dataR.Rdata")
 
 ```
@@ -199,7 +210,7 @@ dataR$Date_courte<-as.factor(dataR$Date_courte)
 
 dataR<-dataR1[,-c(1,6,15:18,20:23)]
 dataR<-na.omit(dataR)
-seq1<-rep(0,times=5701)
+seq1<-rep(0,times=5701) #permet de faire la richesse gamma sur tous les sites
 dataR3<-cbind(dataR,seq1)
 dataR<-dataR3
 
@@ -362,7 +373,7 @@ lcol2<-brewer.pal(8,"Reds")
 lcol2<-c('#FEE0D2','#FCBBA1','#FC9272','#FB6A4A','#EF3B2C','#CB181D','#99000D','#59040c')
 
 # Bi
-resultat4Bi<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%
+resultat4Bi<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte")) %>%
   filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
   filter(!Date_courte == ("2021-01"))%>%
   filter(Site == ("Bi"))%>%
@@ -373,11 +384,11 @@ resultat4Bi<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassign
   summarize(S=n())),key=Micro,value=S)) 
 resultat4Bi[is.na(resultat4Bi)]<-0
 
-ggradar(resultat4Bi[,-1],grid.min = 1,grid.mid=7,grid.max =15,values.radar = c(0,7,15),group.colours = lcol2[c(1,2,4:8)],legend.title="Site Bi",gridline.max.linetype = 1,gridline.max.colour = "black",gridline.min.linetype = 1,gridline.min.colour="black",gridline.mid.linetype = 1,gridline.mid.colour="black",background.circle.colour = "lightblue")
+ggradar(resultat4Bi[,-1],grid.min = 0,grid.mid=7,grid.max =15,values.radar = c(0,7,15),group.colours = lcol2[c(1,2,4:8)],legend.title="Site Bi",gridline.max.linetype = 1,gridline.max.colour = "black",gridline.min.linetype = 1,gridline.min.colour="black",gridline.mid.linetype = 1,gridline.mid.colour="black",background.circle.colour = "lightblue")
 
 
 # Bu
-resultat4Bu<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%
+resultat4Bu<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte")) %>%
   filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
   filter(!Date_courte == ("2021-01"))%>%
   filter(Site == ("Bu"))%>%
@@ -388,10 +399,10 @@ resultat4Bu<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassign
   summarize(S=n())),key=Micro,value=S)) 
 resultat4Bu[is.na(resultat4Bu)]<-0
 
-ggradar(resultat4Bu[,-1],grid.min = 1,grid.mid=7, grid.max =15,values.radar = c(0,7,15),group.colours = lcol2[c(2,4,6,8)],legend.title="Site Bu",gridline.max.linetype = 1,gridline.max.colour = "black",gridline.min.linetype = 1,gridline.min.colour="black",gridline.mid.linetype = 1,gridline.mid.colour="black",background.circle.colour = "lightblue")
+ggradar(resultat4Bu[,-1],grid.min = 0,grid.mid=7, grid.max =15,values.radar = c(0,7,15),group.colours = lcol2[c(2,4,6,8)],legend.title="Site Bu",gridline.max.linetype = 1,gridline.max.colour = "black",gridline.min.linetype = 1,gridline.min.colour="black",gridline.mid.linetype = 1,gridline.mid.colour="black",background.circle.colour = "lightblue")
 
 # Fe
-resultat4Fe<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%
+resultat4Fe<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte")) %>%
   filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
   filter(!Date_courte == ("2021-01"))%>%
   filter(Site == ("Fe"))%>%
@@ -402,11 +413,11 @@ resultat4Fe<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassign
   summarize(S=n())),key=Micro,value=S)) 
 resultat4Fe[is.na(resultat4Fe)]<-0
 
-ggradar(resultat4Fe[,-1],grid.min = 1,grid.mid=7,grid.max =15,values.radar = c(0,7,15),group.colours = lcol2[c(1,4,5,7)], legend.title="Site Fe",gridline.max.linetype = 1,gridline.max.colour = "black",gridline.min.linetype = 1,gridline.min.colour="black",gridline.mid.linetype = 1,gridline.mid.colour="black",background.circle.colour = "lightblue")
+ggradar(resultat4Fe[,-1],grid.min = 0,grid.mid=7,grid.max =15,values.radar = c(0,7,15),group.colours = lcol2[c(1,4,5,7)], legend.title="Site Fe",gridline.max.linetype = 1,gridline.max.colour = "black",gridline.min.linetype = 1,gridline.min.colour="black",gridline.mid.linetype = 1,gridline.mid.colour="black",background.circle.colour = "lightblue")
 
 
 # VB
-resultat4VB<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%
+resultat4VB<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte")) %>%
   filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
   filter(!Date_courte == ("2021-01"))%>%
   filter(Site == ("VB"))%>%
@@ -422,7 +433,7 @@ ggradar(resultat4VB[,-1],grid.min = 0,grid.mid= 7,grid.max =15,values.radar = c(
 ##### Columns #####
 par(mfrow=c(2,2))
 #Bi
-resultat3Bi<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%
+resultat3Bi<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte")) %>%
   filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
   filter(!Date_courte == ("2021-01"))%>%
   filter(Site == ("Bi"))%>%
@@ -437,7 +448,7 @@ ggradar(resultat3Bi[,-1],grid.min = 0,grid.max =10,grid.mid=5,values.radar = c(0
 
 
 #Bu
-resultat3Bu<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%
+resultat3Bu<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte")) %>%
   filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
   filter(!Date_courte == ("2021-01"))%>%
   filter(Site == ("Bu"))%>%
@@ -452,7 +463,7 @@ ggradar(resultat3Bu[,-1],grid.min = 0,grid.max =10,grid.mid=5,values.radar = c(0
 
 
 #Fe
-resultat3Fe<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%
+resultat3Fe<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte")) %>%
   filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
   filter(!Date_courte == ("2021-01"))%>%
   filter(Site == ("Fe"))%>%
@@ -467,7 +478,7 @@ ggradar(resultat3Fe[,-1],grid.min = 0,grid.max =10,grid.mid=5,values.radar = c(0
 
 
 #VB
-resultat3VB<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%
+resultat3VB<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte")) %>%
   filter(!Structure2 %in% c("Dome","Upper_slots","Holes")) %>%
   filter(!Date_courte == ("2021-01"))%>%
   filter(Site == ("VB"))%>%
@@ -607,7 +618,6 @@ bci_sub_e<-vegan::diversity(dataR3,index="simpson")
 
 ```
 
-# Regroupement des structures
 # Matrice de distance
 ```{r}
 # Permet de calculer la distance entre le recouvrement de chaque espèce et le taux de recouvrement
@@ -645,14 +655,15 @@ plot(x,y) # <- ça fonctionne
 
 # Data frame pour rassembler les coordonnées de la PCOA + les metadata
 PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
-           Struc=Meta_data$Structure2,
+           Structure=Meta_data$Structure2,
            Site=Meta_data$Site,
            Date=Meta_data$Date_courte)
 
 
- ggplot(data=PCOA_df,aes(x,y, col=Struc))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
+ ggplot(data=PCOA_df,aes(x,y, col=Date))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
    # geom_point(aes(col=Site), size=1, alpha=.6)+
     geom_point()+
+   labs(x="Axe 1 (temporalité)",y="Axe 2")+
  geom_hline(yintercept=0)+
    geom_vline(xintercept=0)+
    theme_bw()
@@ -674,6 +685,83 @@ data_comp2=data_PQ_light %>% ungroup %>%
 
 distdataR<-vegdist(Comp_mat, method='bray')
 
-adonis2(distdataR~Structure2,data=data_comp2,permutations=999)
+adonis2(distdataR~Site,data=data_comp2,permutations=999)
 
+```
+
+
+# Courbe d'accumulation
+```{r}
+#Permet de savoir le nombre de taxon retrouvé selon l'effort d'inventaire
+data_comp2=data_PQ_light %>% ungroup %>% 
+  select(spp,Mcov,Site,Micro,Date_courte,Structure2) %>% 
+  filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte'),) %>%
+  filter(Structure2 == "Pillars") %>% 
+  filter(Site == "Bi")%>%
+  filter(Date_courte %in% c("2022-07","2022-04","2022-11","2022-01"))%>%
+  group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
+  distinct() %>% drop_na() %>% 
+    spread(spp,Mcov) %>% ungroup() %>% 
+      mutate(across(everything(.), ~replace_na(., 0))) 
+
+Comp_mat2=data_comp2 %>% select(-c(Site,Micro,Structure2,Date_courte)) %>% as.matrix() 
+
+data_comp3=data_PQ_light %>% ungroup %>% 
+  select(spp,Mcov,Site,Micro,Date_courte,Structure2) %>% 
+  filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
+  filter(Structure2 == "Pillars") %>% 
+  filter(Site == "Bu")%>%
+  filter(Date_courte %in% c("2022-07","2022-04","2022-11","2022-01"))%>%
+  group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
+  distinct() %>% drop_na() %>% 
+    spread(spp,Mcov) %>% ungroup() %>% 
+      mutate(across(everything(.), ~replace_na(., 0))) 
+
+Comp_mat3=data_comp3 %>% select(-c(Site,Micro,Structure2,Date_courte)) %>% as.matrix() 
+
+
+data_comp4=data_PQ_light %>% ungroup %>% 
+  select(spp,Mcov,Site,Micro,Date_courte,Structure2) %>% 
+  filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
+  filter(Structure2 == "Pillars") %>% 
+  filter(Site == "VB")%>%
+  filter(Date_courte %in% c("2022-07","2022-04","2022-11","2022-01"))%>%
+  group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
+  distinct() %>% drop_na() %>% 
+    spread(spp,Mcov) %>% ungroup() %>% 
+      mutate(across(everything(.), ~replace_na(., 0))) 
+
+Comp_mat4=data_comp4 %>% select(-c(Site,Micro,Structure2,Date_courte)) %>% as.matrix() 
+
+
+data_comp5=data_PQ_light %>% ungroup %>% 
+  select(spp,Mcov,Site,Micro,Date_courte,Structure2) %>% 
+  filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
+  filter(Structure2 == "Pillars") %>% 
+  filter(Site == "Fe")%>%
+  filter(Date_courte %in% c("2022-07","2022-04","2022-11","2022-01"))%>%
+  group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
+  distinct() %>% drop_na() %>% 
+    spread(spp,Mcov) %>% ungroup() %>% 
+      mutate(across(everything(.), ~replace_na(., 0))) 
+
+Comp_mat5=data_comp5 %>% select(-c(Site,Micro,Structure2,Date_courte)) %>% as.matrix() 
+
+spBi<-specaccum(Comp_mat2)
+spBu<-specaccum(Comp_mat3)
+spVB<-specaccum(Comp_mat4)
+spFe<-specaccum(Comp_mat5)
+
+plot(spBi,col="blue",ci.type="poly",ci.lty=0,ci.col="lightblue",ylim=c(0,30),xlim=c(0,12),ylab="Nombre d'espèces",xlab="Nombre de mesures",main="Courbe accumulative taxons 2022 pilliers/Site")
+par(new=T)
+plot(spVB,col="darkgreen",ci.type="poly",ci.lty=0,ci.col="lightgreen",ylim=c(0,30),xlim=c(0,12),ylab="",xlab="")
+par(new=T)
+plot(spFe,col="orange",ci.type="poly",ci.lty=0,ci.col="lightyellow",ylim=c(0,30),xlim=c(0,12),ylab="",xlab="")
+par(new=T)
+plot(spBu,col="red",ci.type="poly",ci.lty=0,ci.col="#FCBBA1",ylim=c(0,30),xlim=c(0,12),ylab="",xlab="")
+legend(x = "bottomright", legend = c("Bi","VB","Fe","Bu"),lty = 1, col = c("blue","darkgreen","orange","red"),lwd = 2)
+
+# pool<-specpool(Comp_mat2)
+# poolaccum(Comp_mat,permutation=100)
+# plot(poolaccum(Comp_mat3,permutation=100))
 ```
