@@ -28,7 +28,7 @@ library(lme4)
 library(Matrix)
 library(sjPlot)
 library(RColorBrewer)
-
+library(iNEXT)
 ```
 
 #################### Importation du data et chargement ###################
@@ -122,10 +122,8 @@ data_PQ=do.call(rbind,L) %>%
           Date_ok=format(as.POSIXlt(paste0('01/',Month,'/',YY),  format = "%d/%m/%y"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
           Date_courte=format(as.POSIXlt(paste0('01/',Month,'/',YY),  format = "%d/%m/%y"), format="%Y-%m", tz="GMT"),
           Week=strftime(Date_ok, format = "%V")) %>%
-  mutate(spp.Name= ifelse(spp.Name == 'Tubularia indivisa ',
-                          'Tubularia indivisa',spp.Name),
-         spp.Name=ifelse(spp.Name == 'Unidentified',
-                          'NI',spp.Name))
+  mutate(spp.Name= ifelse(spp.Name == 'Tubularia indivisa ', 'Tubularia indivisa',spp.Name),
+         spp.Name=ifelse(spp.Name == 'Unidentified','NI',spp.Name))
   
 
 # test=data_PQ[is.na(data_PQ$Date_courte),]
@@ -158,8 +156,7 @@ rename('spp'='spp.Name',
   mutate(Strcut_groups=case_when(
   Structure2 %in% c('Dome','Upper_slots')~'Horizontal_section',
  Structure2 %in% c('Disc','Columns','Pillars')~'Vertical_section',
-  Structure2 %in% c('Inner_slots','Holes')~'Inner_section',
- TRUE ~ 'NA')) %>%
+  Structure2 %in% c('Inner_slots','Holes')~'Inner_section', TRUE ~ 'NA')) %>%
   mutate(M_ensemble=ifelse(Micro %in% c("P1","P2","P3","T1","T2","T3","T4"),substr(Micro, start = 1, stop = 1),substr(Micro, start = 1, stop = 3)),
          M_ensemble2=ifelse(M_ensemble == 'DPF','DGF',M_ensemble))%>%
   left_join(Immer_site, by='Site') 
@@ -180,7 +177,7 @@ corresp=data_PQ_light %>% select(spp,abb)%>% unique()
 ```{r}
 dataR1<-data_PQ_light
 dataR=dataR1 %>% filter(!spp %in% c("Ni","Unassigned","ponte","Ponte")) %>%
-  filter(Site == ("Fe"))%>%
+  # filter(Site == ("Fe"))%>%
   select (spp,abb,Site,Micro,Date_courte,Mcov,Structure2)
 
 dataR=data_PQ_light %>% filter(!spp %in% c("Ni","Unassigned","ponte","Ponte")) %>%
@@ -518,6 +515,7 @@ tab_model(mixed.lmer)
 
 # Indices Beta
 ## Indice de Jaccard
+
 ```{r}
 #les sites sont-ils similaires entre eux? 
 #Indice de Jaccard entre 0 (pas de similarité) et 1 (sites identiques)
@@ -622,8 +620,6 @@ bci_sub_e<-vegan::diversity(dataR3,index="simpson")
 ```{r}
 # Permet de calculer la distance entre le recouvrement de chaque espèce et le taux de recouvrement
 
-data_PQ_light
-
 data_comp2=data_PQ_light %>% ungroup %>% 
   select(spp,Mcov,Site,Micro,Date_courte,Structure2) %>% 
   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
@@ -636,7 +632,6 @@ data_comp2=data_PQ_light %>% ungroup %>%
 
 Comp_mat=data_comp2 %>% select(-c(Site,Micro,Structure2,Date_courte)) %>% as.matrix() 
 Meta_data=data_comp2 %>% select(Site,Micro,Structure2,Date_courte) #créer jeu de données avec les méta données
-
 
 distdataR<-vegdist(Comp_mat, method='bray') #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme plus efficace pour les données écologiques
 
@@ -691,8 +686,11 @@ adonis2(distdataR~Site,data=data_comp2,permutations=999)
 
 
 # Courbe d'accumulation
+## Méthode 1 (intrapolation)
 ```{r}
 #Permet de savoir le nombre de taxon retrouvé selon l'effort d'inventaire
+# Courbe d'accumulation package vegan (seulement intrapolation)
+
 data_comp2=data_PQ_light %>% ungroup %>% 
   select(spp,Mcov,Site,Micro,Date_courte,Structure2) %>% 
   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte'),) %>%
@@ -747,21 +745,59 @@ data_comp5=data_PQ_light %>% ungroup %>%
 
 Comp_mat5=data_comp5 %>% select(-c(Site,Micro,Structure2,Date_courte)) %>% as.matrix() 
 
+
 spBi<-specaccum(Comp_mat2)
 spBu<-specaccum(Comp_mat3)
 spVB<-specaccum(Comp_mat4)
 spFe<-specaccum(Comp_mat5)
 
+
 plot(spBi,col="blue",ci.type="poly",ci.lty=0,ci.col="lightblue",ylim=c(0,30),xlim=c(0,12),ylab="Nombre d'espèces",xlab="Nombre de mesures",main="Courbe accumulative taxons 2022 pilliers/Site")
 par(new=T)
-plot(spVB,col="darkgreen",ci.type="poly",ci.lty=0,ci.col="lightgreen",ylim=c(0,30),xlim=c(0,12),ylab="",xlab="")
+plot(spBi2,col="darkgreen",ci.type="poly",ci.lty=0,ci.col="lightgreen",ylim=c(0,30),xlim=c(0,12),ylab="",xlab="")
 par(new=T)
-plot(spFe,col="orange",ci.type="poly",ci.lty=0,ci.col="lightyellow",ylim=c(0,30),xlim=c(0,12),ylab="",xlab="")
+plot(spBi3,col="orange",ci.type="poly",ci.lty=0,ci.col="lightyellow",ylim=c(0,30),xlim=c(0,12),ylab="",xlab="")
 par(new=T)
-plot(spBu,col="red",ci.type="poly",ci.lty=0,ci.col="#FCBBA1",ylim=c(0,30),xlim=c(0,12),ylab="",xlab="")
+plot(spBi4,col="red",ci.type="poly",ci.lty=0,ci.col="#FCBBA1",ylim=c(0,30),xlim=c(0,12),ylab="",xlab="")
+par(new=T)
+plot(spBi5,col="black",ci.type="poly",ci.lty=0,ci.col="grey",ylim=c(0,30),xlim=c(0,12),ylab="",xlab="")
+
 legend(x = "bottomright", legend = c("Bi","VB","Fe","Bu"),lty = 1, col = c("blue","darkgreen","orange","red"),lwd = 2)
 
-# pool<-specpool(Comp_mat2)
-# poolaccum(Comp_mat,permutation=100)
-# plot(poolaccum(Comp_mat3,permutation=100))
+#permet de voir les indices tels que chao/ bootstrap,....
+pool<-specpool(Comp_mat2)
+poolaccum(Comp_mat2,permutation=100)
+plot(poolaccum(Comp_mat3,permutation=100))
+
+estimateR(as.integer(Comp_mat2))
+estimateR(as.integer(Comp_mat3))
+estimateR(as.integer(Comp_mat4))
+estimateR(as.integer(Comp_mat5))
+
+```
+
+## Méthode 2 (intra et extrapolation)
+```{r}
+# Permet de savoir le nombre de taxon retrouvé selon l'effort d'inventaire
+# Courbe d'accumulation package iNEXT (permet intrapolation et extrapolation)
+data_comp5=data_PQ_light %>% ungroup %>% 
+  select(spp,Date_courte,Site,Structure2) %>% 
+  filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
+  filter(Date_courte %in% c('2021-04'))%>%
+  filter(Structure2 == ("Pillars"))%>%
+  distinct()%>% 
+  group_by(spp,Site,Structure2) %>% 
+  summarize(S=n()) %>%
+  na.omit() 
+
+data_comp6<- spread(data_comp5,key=Site,value=S) %>% ungroup() %>% 
+      mutate(across(everything(.), ~replace_na(., 0))) 
+
+data_comp6<-data_comp6[,-c(1:2)]
+
+
+out.raw <- iNEXT(as.data.frame(data_comp6))
+plot(out.raw)
+# ggiNEXT(out.raw)
+
 ```
