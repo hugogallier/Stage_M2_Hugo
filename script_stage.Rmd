@@ -66,6 +66,10 @@ L[[i]]<-data
 
 }
 
+
+test_data_list=data_list[grepl('DSC',data_list)]
+
+
 # fileEncoding="latin1"
 ```
 
@@ -103,6 +107,9 @@ Date_sais=data.frame(
 # Changements des noms des microhabitats
 # Changements du format des dates
 
+
+# test_dataPQ=data_PQ[grepl('DSC',data_PQ$Name_file),]
+
 data_PQ=do.call(rbind,L) %>%
   mutate(Site=substr(Name_file, start = 1, stop = 2)) %>%
   # test2=substr(Name_file, start = 1, stop = 6))%>%
@@ -126,10 +133,13 @@ data_PQ=do.call(rbind,L) %>%
          spp.Name=ifelse(spp.Name == 'Unidentified','NI',spp.Name))
   
 
+# <<<<<<< HEAD
 # test=data_PQ[is.na(data_PQ$Date_courte),]
 # 
 # test=data_PQ %>% filter(Site =='Fe',
 #                         Date =="Nov-21")
+
+# >>>>>>> d7a3076aa8c86cd4609b46ec0f575f800cd1d573
 
 # Version synthétique du df
 
@@ -142,8 +152,8 @@ rename('spp'='spp.Name',
        'Count_all'='N.pts.ALL.species',
        'Cov_all'='Cov..ALL.species')%>%
   mutate(abb=abbreviate(spp))%>%
-   group_by(spp,abb,Site,Micro,Date_courte,Date_ok) %>% 
-  summarize(Mcov=mean(Cov)) %>% 
+   group_by(spp,abb,Site,Micro,Date_courte,Date_ok) %>%
+  summarize(Mcov=mean(Cov)) %>%
   left_join(MPhoto, by=c('Micro')) %>%
   mutate(Structure2=recode_factor(Structure,
    "Bandes"="Dome",
@@ -159,7 +169,8 @@ rename('spp'='spp.Name',
   Structure2 %in% c('Inner_slots','Holes')~'Inner_section', TRUE ~ 'NA')) %>%
   mutate(M_ensemble=ifelse(Micro %in% c("P1","P2","P3","T1","T2","T3","T4"),substr(Micro, start = 1, stop = 1),substr(Micro, start = 1, stop = 3)),
          M_ensemble2=ifelse(M_ensemble == 'DPF','DGF',M_ensemble))%>%
-  left_join(Immer_site, by='Site') 
+  left_join(Immer_site, by='Site') %>% 
+    mutate(spp=replace_na(spp,"None"))
  
 
 
@@ -248,16 +259,28 @@ length(unique(dataR1$spp))#permet de savoir le nombre de variable différente da
 ```{r}
 #Y'a t'il une différence de richesse taxonomique entre les différents micro habitats, et selon les différents sites ainsi que selon les années?
 
-dataR<-dataR1[,-c(1,6:7,15:18,20:23)]
-dataR<-na.omit(dataR)
-seq1<-rep(0,times=5701)
-dataR3<-cbind(dataR,seq1)
-dataR<-dataR3
-dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% 
-  select(spp,Site,Structure2,Date_courte) %>% 
-  distinct() %>% 
-  group_by(Site,Structure2,Date_courte) %>% 
-  summarize(S=n()) 
+# seq1<-rep(0,times=5701)
+# dataR3<-cbind(dataR,seq1)
+dataR3=data_PQ_light %>% ungroup %>% 
+  select(spp,Site,Structure2,Micro) %>% 
+  filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte','None')) %>%
+  filter(Structure2 == "Pillars") %>%
+  # filter(Date_courte %in% c('2021-11'))%>%
+  # filter(Site == "VB") %>%
+  # filter(Micro %in% c('CGF1','CGF2','CGF3','CGF4','CPF1','CPF2','CPF3','CPF4'))%>%
+  distinct()%>% 
+  group_by(Structure2,Site,Micro) %>%
+  summarize(S=n()) %>%
+  na.omit() 
+
+length(unique(dataR3$spp))
+
+ggplot(dataR3, aes(Structure2,S, fill=Site))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
+  xlab("Structure")+
+  ylab("Richesse taxonomique")+
+  geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
+  geom_boxplot()+
+  theme_bw()  # Juste pour retirer le fond gris pas défaut (--> moche !)
 
 ```
 
@@ -620,20 +643,57 @@ bci_sub_e<-vegan::diversity(dataR3,index="simpson")
 ```{r}
 # Permet de calculer la distance entre le recouvrement de chaque espèce et le taux de recouvrement
 
+levels(factor(data_PQ$Site))
+test=data_PQ_light %>% filter(Site=='DSC')
+
+
+# data_comp2=data_PQ_light %>% ungroup %>% 
+#   select(spp,Cov,Site,Micro,Date_courte,Structure2,Strcut_groups, Quad2) %>% 
+#   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
+# <<<<<<< HEAD
+#   filter(!Structure2 %in% c('Dome','Holes','Upper_slots','Inner_slots')) %>% 
+#   group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
+# =======
+#   filter(!Structure2 %in% c('Dome','Upper_slots' )) %>% 
+#     filter(!Site %in% c('Fe','DSC' )) %>% 
+#   mutate(Sample=paste0(Site,'_',Date_courte,'_',
+#                        Micro,'_',Quad2)) %>% 
+#   group_by(Sample,Site,spp, Micro,Structure2,Strcut_groups, Date_courte) %>% 
+#   dplyr::summarize(Mcov=mean(Cov)) %>% 
+# 
+#   group_by(Sample,Site,Micro,Date_courte,Structure2) %>% 
+# >>>>>>> d7a3076aa8c86cd4609b46ec0f575f800cd1d573
+#   distinct() %>% drop_na() %>% 
+#     spread(spp,Mcov) %>% ungroup() %>% 
+#       mutate(across(everything(.), ~replace_na(., 0))) 
+
+
+
 data_comp2=data_PQ_light %>% ungroup %>% 
   select(spp,Mcov,Site,Micro,Date_courte,Structure2) %>% 
   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
   filter(!Structure2 %in% c('Dome','Holes','Upper_slots','Inner_slots')) %>% 
   group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
   distinct() %>% drop_na() %>% 
-    spread(spp,Mcov) %>% ungroup() %>% 
-      mutate(across(everything(.), ~replace_na(., 0))) 
+  spread(spp,Mcov) %>% ungroup() %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) 
 
+
+
+# test=data_comp2 %>% filter(Site == 'VB',
+#                             Date_courte=='2021-07' )
+# data_comp2=data_comp2[rowSums(data_comp2)>0,]
+
+
+# Comp_mat=data_comp2 %>% select(-c(Site,Sample,Micro,Structure2,Strcut_groups,Date_courte)) %>% as.matrix() 
+# Meta_data=data_comp2 %>% select(Site,Sample,Micro,Structure2,Strcut_groups,Date_courte) #créer jeu de données avec les méta données
+# distdataR<-vegdist(Comp_mat, method='bray') #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme plus efficace pour les données écologiques
 
 Comp_mat=data_comp2 %>% select(-c(Site,Micro,Structure2,Date_courte)) %>% as.matrix() 
 Meta_data=data_comp2 %>% select(Site,Micro,Structure2,Date_courte) #créer jeu de données avec les méta données
 
 distdataR<-vegdist(Comp_mat, method='bray') #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme plus efficace pour les données écologiques
+
 
 ```
 
@@ -641,27 +701,77 @@ distdataR<-vegdist(Comp_mat, method='bray') #library vegan - distance de Bray-Cu
 ```{r}
 # Permet de représenter les données dans l'espace et voir les paramètres le plus la variance
 
-pcoa_tot_SS<- cmdscale(d = as.matrix(distdataR),k=10, eig = T) # vegan package
+pcoa_tot_SS<- cmdscale(d = as.matrix(distdataR),k=10, eig = T) 
 x=pcoa_tot_SS$points[,1]
 y=pcoa_tot_SS$points[,2]
 
 plot(x,y) # <- ça fonctionne
 
+# <<<<<<< HEAD
+# 
+# # Data frame pour rassembler les coordonnées de la PCOA + les metadata
+# PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
+#            Structure=Meta_data$Structure2,
+# =======
+#  Eig=pcoa_tot_SS$eig[1:2]/sum(pcoa_tot_SS$eig)
+# 
+# # Pour mieux explorer le nuage de point on va passer par ggplot2.
+# # Data frame pour rassembler les coordonnées de la PCOA + les metadata
+# PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
+#            Struc=Meta_data$Structure2,
+#            Struc_group=Meta_data$Strcut_groups,
+# >>>>>>> d7a3076aa8c86cd4609b46ec0f575f800cd1d573
+#            Site=Meta_data$Site,
+#            Date=Meta_data$Date_courte)
+# 
+# 
+# <<<<<<< HEAD
+#  ggplot(data=PCOA_df,aes(x,y, col=Date))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
+#    # geom_point(aes(col=Site), size=1, alpha=.6)+
+#     geom_point()+
+#    labs(x="Axe 1 (temporalité)",y="Axe 2")+
+#  geom_hline(yintercept=0)+
+#    geom_vline(xintercept=0)+
+#    theme_bw()
+# =======
+# 
+# PCOA_df_mean=PCOA_df %>% group_by(Struc_group) %>% 
+#   summarize(Mx=mean(x),
+#             My=mean(y))
+# 
+# ggplot(data=PCOA_df,aes(x,y, col=Struc_group))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
+#   # geom_point(aes(col=Site), size=1, alpha=.6)+
+#   geom_point()+
+#   geom_point(data=PCOA_df_mean,aes(Mx,My), size=5)+
+#   geom_hline(yintercept=0)+
+#   geom_vline(xintercept=0)+
+#   theme_bw()
 
-# Data frame pour rassembler les coordonnées de la PCOA + les metadata
-PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
-           Structure=Meta_data$Structure2,
-           Site=Meta_data$Site,
-           Date=Meta_data$Date_courte)
+
+ 
+ PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
+                   Structure=Meta_data$Structure2,
+                   Site=Meta_data$Site,
+                   Date=Meta_data$Date_courte)
 
 
- ggplot(data=PCOA_df,aes(x,y, col=Date))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
-   # geom_point(aes(col=Site), size=1, alpha=.6)+
-    geom_point()+
-   labs(x="Axe 1 (temporalité)",y="Axe 2")+
- geom_hline(yintercept=0)+
-   geom_vline(xintercept=0)+
-   theme_bw()
+ggplot(data=PCOA_df,aes(x,y, col=Date))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
+  # geom_point(aes(col=Site), size=1, alpha=.6)+
+  geom_point()+
+  labs(x="Axe 1 (temporalité)",y="Axe 2")+
+  geom_hline(yintercept=0)+
+  geom_vline(xintercept=0)+
+  theme_bw()
+
+summaryPCOA<-data.frame(
+  EIG= pcoa_tot_SS$eig,
+  PCTVAR=100*pcoa_tot_SS$eig/sum(pcoa_tot_SS$eig),
+  CUMPCTVAR = cumsum(100*pcoa_tot_SS$eig/sum(pcoa_tot_SS$eig))
+)
+
+plot(summaryPCOA$PCTVAR[1:30],ylim=c(0,25),
+        xlab="Composantes",ylab="Pourcentage d'inertie (explication de la variance)",
+       )
 
 ```
 
@@ -783,8 +893,8 @@ estimateR(as.integer(Comp_mat5))
 data_comp5=data_PQ_light %>% ungroup %>% 
   select(spp,Date_courte,Site,Structure2) %>% 
   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
-  filter(Date_courte %in% c('2021-04'))%>%
-  filter(Structure2 == ("Pillars"))%>%
+  filter(Date_courte %in% c('2022-11'))%>%
+  filter(Structure2 == ("Disc"))%>%
   distinct()%>% 
   group_by(spp,Site,Structure2) %>% 
   summarize(S=n()) %>%
@@ -796,8 +906,9 @@ data_comp6<- spread(data_comp5,key=Site,value=S) %>% ungroup() %>%
 data_comp6<-data_comp6[,-c(1:2)]
 
 
-out.raw <- iNEXT(as.data.frame(data_comp6))
+out.raw <- iNEXT(as.data.frame(data_comp6),endpoint=60)
 plot(out.raw)
+
 # ggiNEXT(out.raw)
 
 ```
