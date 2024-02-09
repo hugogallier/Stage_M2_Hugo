@@ -18,10 +18,19 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(here)
-library(stringr)
 library(vegan)
 library(scales)
-library(car)
+library(fmsb)
+library(FactoMineR)
+library(ecodist)
+library(ade4)
+library(lme4)
+library(Matrix)
+library(sjPlot)
+library(RColorBrewer)
+library(iNEXT)
+library(rstatix)
+library(ggradar)
 
 ```
 
@@ -30,8 +39,6 @@ library(car)
 Identification des fichiers à charger
 ```{r}
 setwd(here::here())
-
-
 
 MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
   # mutate(Micro=) %>%
@@ -64,8 +71,6 @@ data=read.csv(data_list[i], sep=',', header=T, fileEncoding="latin1") %>%
                          recif == 'Récif 13-24'~ 'recif2',
                          recif == 'Récif 25-36'~ 'recif3',
                          TRUE~NA)) 
-  
-
 
 L[[i]]<-data
 
@@ -150,14 +155,17 @@ data_PQ=do.call(rbind,L) %>%
 # Version synthétique du df
 
 data_PQ_light=data_PQ %>% dplyr::select(Image, spp.Name,spp.ID,N.pts.per.species,Cov..per.species,
-               N.pts.ALL.species,Cov..ALL.species, Site,Date_ok,Micro,Quad2,
-               Week,Date_courte,Month_str,recif )%>%
+               N.pts.ALL.species,Cov..ALL.species,Date_ok,Micro,Quad2,
+               Week,Date_courte,Month_str,recif)%>%
 rename('spp'='spp.Name',
        'Count'='N.pts.per.species',
        'Cov'='Cov..per.species',
        'Count_all'='N.pts.ALL.species',
-       'Cov_all'='Cov..ALL.species')%>%
+       'Cov_all'='Cov..ALL.species',
+       'Site'='recif')%>%
   mutate(abb=abbreviate(spp))%>%
+   group_by(spp,abb,Site,Micro,Date_courte,Date_ok) %>% 
+  summarize(Mcov=mean(Cov)) %>% 
   left_join(MPhoto, by=c('Micro')) %>%
   mutate(Structure2=recode_factor(Structure,
    "Bandes"="Dome",
@@ -180,26 +188,18 @@ rename('spp'='spp.Name',
 knitr::kable(data_PQ_light %>% select(spp,abb)%>% unique())
 corresp=data_PQ_light %>% select(spp,abb)%>% unique()
 ```
-# Modification des données 
+
+# #######################
+
+
+# ###### Partie Hugo ######
+# Formatage du jeu de données 
 ```{r}
 dataR1<-data_PQ_light
-dataR<-dataR1[,-c(1,6:8,11,16:19,21:24)]
-dataR<-na.omit(dataR)
+dataR=dataR1 %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte",'NA','None')) %>%
+    filter(!Structure2 %in% c('Holes','Upper_slots','Inner_slots','Dome')) %>% 
+  select (spp,abb,Site,Micro,Date_courte,Mcov,Structure2)
 
-dataR$spp<-as.factor(dataR$spp)
-dataR$spp.ID<-as.factor(dataR$spp.ID)
-dataR$recif<-as.factor(dataR$recif)
-dataR$Micro<-as.factor(dataR$Micro)
-dataR$Count<-as.numeric(dataR$Count)
-dataR$Month_str<-as.factor(dataR$Month_str)
-dataR$Month<-as.factor(dataR$Month)
-dataR$Date_ok<-as.factor(dataR$Date_ok)
-dataR$Date_courte<-as.factor(dataR$Date_courte)
-dataR$Week<-as.factor(dataR$Week)
-dataR$Structure2<-as.factor(dataR$Structure2)
-
-dataR<-dataR[,-12]
-colnames(dataR)[10]<-c("Site")
 ```
 
 
@@ -207,48 +207,37 @@ colnames(dataR)[10]<-c("Site")
 ```{r}
 # Quel est la richesse taxonomique global (Indice Gamma) d'un site et de la zone d'étude en général
 
-dataR<-dataR1[,-c(1,6:8,11,16:19,21:24)]
-dataR<-na.omit(dataR)
-seq1<-rep(0,times=1005)
-dataR3<-cbind(dataR,seq1)
-dataR<-dataR3
-
 # Indice gamma par site 
-dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
+dataR2=dataR %>% ungroup %>% 
   select(spp,Site) %>% 
-  distinct() %>% 
-  group_by(Site) %>% #filtre selon le site, date et structure
-  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
-dataR2
-
-# Indice gamma selon date
-dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
-  # filter (!Site %in% c("Bi","Bu","VB")) %>%
-  select(spp,Site,Date_courte) %>% 
-  distinct() %>% 
-  group_by(Site,Date_courte) %>% #filtre selon le site, date et structure
-  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+  # filter(Site == 'recif3') %>% 
+  distinct()%>% 
+  group_by(spp) %>% 
+  summarize(S=n()) %>%
+  na.omit()
 length(unique(dataR2$spp))
 
 
-
-# Indice gamma global
-dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
+# Indice gamma Quad2# Indice gamma global
+dataR2=dataR %>% 
   select(spp,seq1) %>% 
   distinct() %>% 
-  group_by(seq1) %>% #filtre selon le site, date et structure
-  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
-print(dataR2)
+  group_by(seq1) %>% 
+  summarize(S=n()) 
+
+
+length(unique(dataR1$spp))#permet de savoir le nombre de variable différente dans la colonne spp (mais ne prend pas en compte la suppression des N)
+
 
 ```
 
+# ### Indice Alpha 
 
 # Comparaison intersite (microhabitats confondus) temporelle
 ```{r}
 
 dataR
-dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
-  filter(!Structure2 %in% c ("Holes","Inner_slots","Upper_slots"))%>% 
+dataR2=dataR %>% 
   select(spp,Site,Date_courte) %>% 
   distinct() %>% 
   group_by(Site,Date_courte) %>% #filtre selon le site, date et structure
@@ -269,13 +258,13 @@ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # <- rotatio
 #Comparaison intersite des Micro habitats
 ```{r}
 
-dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
-  filter(!Structure2  %in% c("Holes","Dome","Inner_slots","Upper_slots"))%>% 
-  select(Site,spp,Date_courte,Structure2)%>%
-  distinct() %>% 
-  group_by(Site,Date_courte,Structure2)%>%
-  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
-
+dataR2=dataR %>% ungroup %>% 
+  select(spp,Site,Structure2,Micro) %>% 
+  # filter(Site == 'recif3') %>% 
+  distinct()%>% 
+  group_by(Site,Structure2,Micro) %>% 
+  summarize(S=n()) %>%
+  na.omit()
 
 ggplot(dataR2, aes(Structure2,S, fill=Site))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
   xlab("Structure")+
@@ -285,15 +274,7 @@ ggplot(dataR2, aes(Structure2,S, fill=Site))+ # Avec "fill" ou "col" du peut ajo
   theme_bw()
 
 
-
-dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
-  filter(!Structure2  %in% c("Holes","Dome","Inner_slots","Upper_slots"))%>% 
-  select(Site,spp,Date_courte,Structure2)%>%
-  distinct() %>% 
-  group_by(Site,Date_courte,Structure2)%>%
-  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
-
-ggplot(dataR2, aes(Site,S, fill=Structure2))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
+ggplot(dataR2, aes(Site,S, fill=Micro))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
   xlab("Structure")+
   ylab("Richesse taxonomique")+
   geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
@@ -304,107 +285,280 @@ ggplot(dataR2, aes(Site,S, fill=Structure2))+ # Avec "fill" ou "col" du peut ajo
 
 ###Test Shapiro/Levene/Anova
 ```{r}
-library(rstatix)
+
+dataR2=dataR %>% ungroup %>% 
+  select(spp,Site,Structure2,Date_courte,Micro) %>% 
+  # filter(Site == 'recif3') %>% 
+  distinct()%>% 
+  group_by(Site,Structure2,Date_courte,Micro) %>% 
+  summarize(S=n()) %>%
+  na.omit()
 
 model1<-lm(S~Structure2,data=dataR2021)
 shapiro_test(residuals(model1))#si pvalue supérieure à 0,05 alors permet de dire que les résidus sont normalements distribuées
 
 leveneTest(S~Structure2,data=dataR2)#Si p value supérieur à 0,05 alors variance entre les groupes est égale
 
-test_anova<-aov(S~factor(Site)*factor(Date_courte),data=dataR2)#anova en prenant la date ainsi que les structures comme facteur
+test_anova<-aov(S~factor(Site)*factor(Date_courte),data=dataR2)#anova en prenant la date ainsi que les sites comme facteur
 test_anova<-aov(S~factor(Site)*factor(Micro),data=dataR2)#anova en prenant la date ainsi que les micro comme facteur
 test_anova<-aov(S~factor(Site),data=dataR2)#anova en prenant la date ainsi que les micro comme facteur
 test_anova<-aov(S~factor(Micro),data=dataR2)#anova en prenant la date ainsi que les micro comme facteur
+test_anova<-aov(S~factor(Structure2),data=dataR2)#anova en prenant la date ainsi que les micro comme facteur
 
 summary(test_anova)
 ```
 
 # Linear mixed model
 ```{r}
-library(lme4)
-library(Matrix)
-library(sjPlot)
 
-dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>% #enlève les NI et unassigned
+dataR2=dataR %>% 
   filter(!Structure2  %in% c("Holes","Dome","Inner_slots","Upper_slots"))%>% 
-  filter(!Date_courte=="2021-01") %>%
   select(spp,Site,Date_courte,Micro) %>% 
   distinct() %>% 
-  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
-  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+  group_by(Site,Date_courte,Micro) %>% 
+  summarize(S=n()) 
 
 mixed.lmer <- lmer(S ~ Site + (1|Micro/Date_courte), data = dataR2) #compare les données de richesse taxo avec les variables aléatoires qui sont Micro et date courte
 summary(mixed.lmer)
 plot_model(mixed.lmer,show.values = T,show.p = T)#montre que par rapport à un site de réference (ici Bi), les autres sites sont différents. Ici Fetlar a plutot une diversité moindre que Bi mais est le plus proche. 
 tab_model(mixed.lmer)
 
-
 ```
 
 
 
-#radar plot
+# Radar plot
 ```{r}
-dataR<-dataR1[,-c(1,6:7,15:18,20:23)]
-dataR<-dataR[,-c(2,4,6,8:9,11)]
-dataR<-na.omit(dataR)
+dataR
+# lcol2<-brewer.pal(8,"Reds")
+lcol2<-c('#FB6A4A','#CB181D','#59040c')
 
-library(ggradar)
 
 ##### Bottom disc #####
-lcol<-c("blue","red","orange","black")
-
-### C1 
-# Se
-resultat1<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
-  filter(!Structure2 %in% c("Dome","Holes")) %>%
-  filter(Site == ("Se"))%>%
+# Récif 1
+resultat1ref1<- spread((dataR2=dataR %>% 
+  filter(Site == ("recif1"))%>%
   filter(Micro %in% c("C1B1","C1B2","C1B3","C1B4","C1B5","C1B6","C1B7","C1B8"))%>%
   select(spp,Site,Date_courte,Micro) %>% 
   distinct() %>% 
-  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
-  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
-resultat1[is.na(resultat1)]<-0
+  group_by(Site,Date_courte,Micro) %>% 
+  summarize(S=n())),key=Micro,value=S) 
+resultat1ref1[is.na(resultat1ref1)]<-0
 
-ggradar(resultat1[,-2],grid.min = 1,grid.max =10,values.radar = c(0,5,10),group.colours = "blue",legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+ggradar(resultat1ref1[,-1],grid.min = 0,grid.mid=3,grid.max =5,values.radar = c(0,3,5),group.colours = lcol2,legend.title="Récif 1",gridline.max.linetype = 1,gridline.max.colour = "black",gridline.min.linetype = 1,gridline.min.colour="black",gridline.mid.linetype = 1,gridline.mid.colour="black",background.circle.colour = "lightblue")
 
-# Ju
-resultat2<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
-  filter(!Structure2 %in% c("Dome","Holes")) %>%
-  filter(Site == ("Ju"))%>%
+
+# Récif 2
+resultatref2<- spread((dataR2=dataR %>% 
+  filter(Site == ("recif2"))%>%
   filter(Micro %in% c("C1B1","C1B2","C1B3","C1B4","C1B5","C1B6","C1B7","C1B8"))%>%
   select(spp,Site,Date_courte,Micro) %>% 
   distinct() %>% 
-  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
-  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
-resultat2[is.na(resultat2)]<-0
+  group_by(Site,Date_courte,Micro) %>% 
+  summarize(S=n())),key=Micro,value=S) 
+resultatref2[is.na(resultatref2)]<-0
 
-ggradar(resultat2[,-2],grid.min = 1,grid.max =10,values.radar = c(0,5,10),group.colours = "red",legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+ggradar(resultatref2[,-1],grid.min = 0,grid.mid=3,grid.max =5,values.radar = c(0,3,5),group.colours = lcol2,legend.title="Récif 2",gridline.max.linetype = 1,gridline.max.colour = "black",gridline.min.linetype = 1,gridline.min.colour="black",gridline.mid.linetype = 1,gridline.mid.colour="black",background.circle.colour = "lightblue")
 
-### C2
-# Se
-resultat3<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
-  filter(!Structure2 %in% c("Dome","Holes")) %>%
-  filter(Site == ("Se"))%>%
+
+# Récif 3
+resultatref3<-spread((dataR2=dataR %>% 
+  filter(Site == ("recif3"))%>%
+  filter(Micro %in% c("C1B1","C1B2","C1B3","C1B4","C1B5","C1B6","C1B7","C1B8"))%>%
+  select(spp,Site,Date_courte,Micro) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Micro) %>% 
+  summarize(S=n())),key=Micro,value=S) 
+resultatref3[is.na(resultatref3)]<-0
+
+ggradar(resultatref3[,-1],grid.min = 0,grid.mid=3,grid.max =6,values.radar = c(0,3,6),group.colours = lcol2,legend.title="Récif 3",gridline.max.linetype = 1,gridline.max.colour = "black",gridline.min.linetype = 1,gridline.min.colour="black",gridline.mid.linetype = 1,gridline.mid.colour="black",background.circle.colour = "lightblue")
+
+
+##### Columns #####
+# Récif 1
+resultat2ref1<- spread((dataR2=dataR %>% 
+  filter(Site == ("recif1"))%>%
   filter(Micro %in% c("C2P1","C2P2","C2P3","C2P4","C2P5","C2P6","C2P7","C2P8"))%>%
   select(spp,Site,Date_courte,Micro) %>% 
   distinct() %>% 
-  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
-  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
-resultat3[is.na(resultat3)]<-0
+  group_by(Site,Date_courte,Micro) %>% 
+  summarize(S=n())),key=Micro,value=S)
+resultat2ref1[is.na(resultat2ref1)]<-0
 
-ggradar(resultat3[,-2],grid.min = 1,grid.max =10,values.radar = c(0,5,10),group.colours = "blue",legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+ggradar(resultat2ref1[,-1],grid.min = 0,grid.mid=3,grid.max =5,values.radar = c(0,3,5),group.colours = lcol2,legend.title="récif 1",gridline.max.linetype = 1,gridline.max.colour = "black",gridline.min.linetype = 1,gridline.min.colour="black",gridline.mid.linetype = 1,gridline.mid.colour="black",background.circle.colour = "lightblue")
 
-# Ju
-resultat4<- na.omit(spread((dataR2=dataR %>% filter(!spp %in% c("NI","Unassigned")) %>%#enlève les NI
-  filter(!Structure2 %in% c("Dome","Holes")) %>%
-  filter(Site == ("Ju"))%>%
+
+# Récif 2
+resultat2ref2<- spread((dataR2=dataR %>% 
+  filter(Site == ("recif2"))%>%
   filter(Micro %in% c("C2P1","C2P2","C2P3","C2P4","C2P5","C2P6","C2P7","C2P8"))%>%
   select(spp,Site,Date_courte,Micro) %>% 
   distinct() %>% 
-  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
-  summarize(S=n())),key=Micro,value=S)) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
-resultat4[is.na(resultat4)]<-0
+  group_by(Site,Date_courte,Micro) %>% 
+  summarize(S=n())),key=Micro,value=S)
+resultat2ref2[is.na(resultat2ref2)]<-0
 
-ggradar(resultat4[,-2],grid.min = 1,grid.max =10,values.radar = c(0,5,10),group.colours = "red",legend.title="Site",gridline.max.linetype = 1,gridline.max.colour = "black",background.circle.colour = "lightblue")
+ggradar(resultat2ref2[,-1],grid.min = 0,grid.mid=3,grid.max =5,values.radar = c(0,3,5),group.colours = lcol2,legend.title="Récif 2",gridline.max.linetype = 1,gridline.max.colour = "black",gridline.min.linetype = 1,gridline.min.colour="black",gridline.mid.linetype = 1,gridline.mid.colour="black",background.circle.colour = "lightblue")
+
+
+# Récif 3
+resultat2ref3<- spread((dataR2=dataR %>% 
+  filter(Site == ("recif3"))%>%
+  filter(Micro %in% c("C2P1","C2P2","C2P3","C2P4","C2P5","C2P6","C2P7","C2P8"))%>%
+  select(spp,Site,Date_courte,Micro) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Micro) %>% 
+  summarize(S=n())),key=Micro,value=S) 
+resultat2ref3[is.na(resultat2ref3)]<-0
+
+ggradar(resultat2ref3[,-1],grid.min = 0,grid.mid=3,grid.max =5,values.radar = c(0,3,5),group.colours = lcol2,legend.title="Récif 3",gridline.max.linetype = 1,gridline.max.colour = "black",gridline.min.linetype = 1,gridline.min.colour="black",gridline.mid.linetype = 1,gridline.mid.colour="black",background.circle.colour = "lightblue")
+
+```
+
+# Matrice de distance
+```{r}
+# Permet de calculer la distance entre le recouvrement de chaque espèce et le taux de recouvrement
+
+levels(factor(dataR$Site))
+# test=data_PQ_light %>% filter(Site=='DSC')
+
+
+# data_comp2=data_PQ_light %>% ungroup %>% 
+#   select(spp,Cov,Site,Micro,Date_courte,Structure2,Strcut_groups, Quad2) %>% 
+#   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
+# <<<<<<< HEAD
+#   filter(!Structure2 %in% c('Dome','Holes','Upper_slots','Inner_slots')) %>% 
+#   group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
+# =======
+#   filter(!Structure2 %in% c('Dome','Upper_slots' )) %>% 
+#     filter(!Site %in% c('Fe','DSC' )) %>% 
+#   mutate(Sample=paste0(Site,'_',Date_courte,'_',
+#                        Micro,'_',Quad2)) %>% 
+#   group_by(Sample,Site,spp, Micro,Structure2,Strcut_groups, Date_courte) %>% 
+#   dplyr::summarize(Mcov=mean(Cov)) %>% 
+# 
+#   group_by(Sample,Site,Micro,Date_courte,Structure2) %>% 
+# >>>>>>> d7a3076aa8c86cd4609b46ec0f575f800cd1d573
+#   distinct() %>% drop_na() %>% 
+#     spread(spp,Mcov) %>% ungroup() %>% 
+#       mutate(across(everything(.), ~replace_na(., 0))) 
+
+
+
+data_comp2=dataR %>% ungroup %>% 
+  select(spp,Mcov,Site,Micro,Date_courte,Structure2) %>% 
+  group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
+  distinct() %>% drop_na() %>% 
+  spread(spp,Mcov) %>% ungroup() %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) 
+
+
+# test=data_comp2 %>% filter(Site == 'VB',
+#                             Date_courte=='2021-07' )
+# data_comp2=data_comp2[rowSums(data_comp2)>0,]
+
+
+# Comp_mat=data_comp2 %>% select(-c(Site,Sample,Micro,Structure2,Strcut_groups,Date_courte)) %>% as.matrix() 
+# Meta_data=data_comp2 %>% select(Site,Sample,Micro,Structure2,Strcut_groups,Date_courte) #créer jeu de données avec les méta données
+# distdataR<-vegdist(Comp_mat, method='bray') #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme plus efficace pour les données écologiques
+
+Comp_mat=data_comp2 %>% select(-c(Site,Micro,Structure2,Date_courte)) %>% as.matrix() 
+Meta_data=data_comp2 %>% select(Site,Micro,Structure2,Date_courte) #créer jeu de données avec les méta données
+
+distdataR<-vegdist(Comp_mat, method='bray') #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme plus efficace pour les données écologiques
+
+
+```
+
+##  PCoA
+```{r}
+# Permet de représenter les données dans l'espace et voir les paramètres le plus la variance
+
+pcoa_tot_SS<- cmdscale(d = as.matrix(distdataR),k=10, eig = T) 
+x=pcoa_tot_SS$points[,1]
+y=pcoa_tot_SS$points[,2]
+
+plot(x,y) # <- ça fonctionne
+
+# <<<<<<< HEAD
+# 
+# # Data frame pour rassembler les coordonnées de la PCOA + les metadata
+# PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
+#            Structure=Meta_data$Structure2,
+# =======
+#  Eig=pcoa_tot_SS$eig[1:2]/sum(pcoa_tot_SS$eig)
+# 
+# # Pour mieux explorer le nuage de point on va passer par ggplot2.
+# # Data frame pour rassembler les coordonnées de la PCOA + les metadata
+# PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
+#            Struc=Meta_data$Structure2,
+#            Struc_group=Meta_data$Strcut_groups,
+# >>>>>>> d7a3076aa8c86cd4609b46ec0f575f800cd1d573
+#            Site=Meta_data$Site,
+#            Date=Meta_data$Date_courte)
+# 
+# 
+# <<<<<<< HEAD
+#  ggplot(data=PCOA_df,aes(x,y, col=Date))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
+#    # geom_point(aes(col=Site), size=1, alpha=.6)+
+#     geom_point()+
+#    labs(x="Axe 1 (temporalité)",y="Axe 2")+
+#  geom_hline(yintercept=0)+
+#    geom_vline(xintercept=0)+
+#    theme_bw()
+# =======
+# 
+# PCOA_df_mean=PCOA_df %>% group_by(Struc_group) %>% 
+#   summarize(Mx=mean(x),
+#             My=mean(y))
+# 
+# ggplot(data=PCOA_df,aes(x,y, col=Struc_group))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
+#   # geom_point(aes(col=Site), size=1, alpha=.6)+
+#   geom_point()+
+#   geom_point(data=PCOA_df_mean,aes(Mx,My), size=5)+
+#   geom_hline(yintercept=0)+
+#   geom_vline(xintercept=0)+
+#   theme_bw()
+
+
+ 
+ PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
+                   Structure=Meta_data$Structure2,
+                   Site=Meta_data$Site,
+                   Date=Meta_data$Date_courte)
+
+
+ggplot(data=PCOA_df,aes(x,y, col=Structure))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
+  # geom_point(aes(col=Site), size=1, alpha=.6)+
+  geom_point()+
+  labs(x="Axe 1",y="Axe 2")+
+  geom_hline(yintercept=0)+
+  geom_vline(xintercept=0)+
+  theme_bw()
+
+summaryPCOA<-data.frame(
+  EIG= pcoa_tot_SS$eig,
+  PCTVAR=100*pcoa_tot_SS$eig/sum(pcoa_tot_SS$eig),
+  CUMPCTVAR = cumsum(100*pcoa_tot_SS$eig/sum(pcoa_tot_SS$eig)))
+
+plot(summaryPCOA$PCTVAR[1:30],ylim=c(0,25),
+        xlab="Composantes",ylab="Pourcentage d'inertie (explication de la variance)")
+
+```
+
+## Permanova
+```{r}
+# Permet de voir s'il y a possibilité de regrouper les structures
+
+data_comp2=dataR %>% ungroup %>% 
+  select(spp,Mcov,Site,Micro,Date_courte,Structure2) %>% 
+  group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
+  distinct() %>% drop_na() %>% 
+  spread(spp,Mcov) %>% ungroup() %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) 
+
+distdataR<-vegdist(Comp_mat, method='bray')
+
+adonis2(distdataR~Structure2,data=data_comp2,permutations=999)
+
 ```
