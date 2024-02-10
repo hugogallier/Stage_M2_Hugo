@@ -31,6 +31,7 @@ library(RColorBrewer)
 library(iNEXT)
 library(rstatix)
 library(ggradar)
+library(tidyverse)
 
 ```
 
@@ -52,8 +53,8 @@ MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
 ```{r}
 #Chargement des jeux de données
 
-setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
-# setwd('E:/Marineff/suivi_scientifique')
+# setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
+setwd('E:/Marineff/suivi_scientifique')
 
 data_list=list.files(pattern =".csv", recursive=T)
 
@@ -103,6 +104,7 @@ Date_sais=data.frame(
 
 
 ## Mise en forme des données
+
 
 ```{r}
 # Ajout de méta données à partir du nom de fichier (site,data,micro,n° de quadrat)
@@ -157,7 +159,8 @@ rename('spp'='spp.Name',
   mutate(abb=abbreviate(spp))%>%
    group_by(spp,abb,Site,Micro,Date_courte,Date_ok) %>%
   # summarize(Mcov=mean(Cov)) %>%
-  summarize(MCount=mean(Count)) %>%
+  summarize(Mcov=mean(Cov),
+            Mcount=mean(Count)) %>%
   left_join(MPhoto, by=c('Micro')) %>%
   mutate(Structure2=recode_factor(Structure,
    "Bandes"="Dome",
@@ -775,6 +778,9 @@ adonis2(distdataR~Site,data=data_comp2,permutations=999)
 
 # Courbe d'accumulation
 ## Méthode 1 (intrapolation)
+
+
+
 ```{r}
 #Permet de savoir le nombre de taxon retrouvé selon l'effort d'inventaire
 # Courbe d'accumulation package vegan (seulement intrapolation)
@@ -784,20 +790,22 @@ data_comp2=data_PQ_light %>% ungroup %>%
   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte'),) %>%
   filter(Structure2 == "Pillars") %>% 
   filter(Site == "Bi")%>%
-  filter(Date_courte %in% c("2022-07","2022-04","2022-11","2022-01"))%>%
+    filter(Date_courte %in% c("2022-07")) %>% 
+
+  # filter(Date_courte %in% c("2022-07","2022-04","2022-11","2022-01"))%>%
   group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
   distinct() %>% drop_na() %>% 
     spread(spp,Mcov) %>% ungroup() %>% 
       mutate(across(everything(.), ~replace_na(., 0))) 
 
-Comp_mat2=data_comp2 %>% select(-c(Site,Micro,Structure2,Date_courte)) %>% as.matrix() 
+Comp_mat2=data_comp2 %>% ungroup() %>%  select(-c(Site,Micro,Structure2,Date_courte)) %>% as.matrix() 
 
 data_comp3=data_PQ_light %>% ungroup %>% 
   select(spp,Mcov,Site,Micro,Date_courte,Structure2) %>% 
   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
   filter(Structure2 == "Pillars") %>% 
   filter(Site == "Bu")%>%
-  filter(Date_courte %in% c("2022-07","2022-04","2022-11","2022-01"))%>%
+  # filter(Date_courte %in% c("2022-07","2022-04","2022-11","2022-01"))%>%
   group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
   distinct() %>% drop_na() %>% 
     spread(spp,Mcov) %>% ungroup() %>% 
@@ -865,12 +873,83 @@ estimateR(as.integer(Comp_mat5))
 ```
 
 ## Méthode 2 (intra et extrapolation)
+
+
+### test Bruno
+
+J'ai ici repris le package iNext pour tester avec les matrices d'incidence (P/A par structure + Mois).
+La difficulté est ici est de produire une liste contenant la matrice d'incidence de chaque site. C'est le seul format qui est accepté.
+
+Donc voilà un exemple avec le "Disc"
+
+Contrairement à ce que je pensais, il est plus judicieux d'évaluer le nombre total de taxons sur l'ensemble du suivi, même si je suis conscient que les différences peuvent également être liées à des différence dans le suivi des différents sites...
+
+Donc, soit on souhaite rester parcimonieux et on ne selectionne que les dates où tous les sites ont bien été échantillonnés soit on considère toutes les dates ...
+
+```{r}
+
+# il s'agit du jeu de données de l'exemple du package
+#pour la partie incidence
+# C'était simplement pour m'en inspirer
+data(ciliates)
+ciliates$EtoshaPan
+
+
+# On réorganise le df de base
+# Ne pas oublié de virer les "None"
+# Je rajoute une variable qui combine la date et la structure
+data_comp1=data_PQ_light %>% ungroup %>% 
+  select(spp,Date_courte,Site,Structure2, Code_struct) %>% 
+   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte','None')) %>%
+  mutate(date_st=paste0(Date_courte,'_',Code_struct)) %>%  # 
+  filter(Structure2 == ("Disc")) %>% 
+  mutate(P=1) %>% 
+    select(-c(Date_courte,Code_struct)) %>% 
+  distinct() %>% group_by(Site) %>% 
+  group_split()
+
+
+# On créait une fonction pour nettoyer l'intérieur de la liste
+fun_clean=function(x){
+  x %>% spread(date_st,P) %>% 
+    select(-c(spp,Site,Structure2)) %>% 
+      mutate(across(everything(.), ~replace_na(., 0))) %>% 
+  as.data.frame()
+}
+
+
+# Convertion de split df en list
+comp_list=as.list(data_comp1)
+
+# Application de la fonction + names
+comp_list_clean=lapply(LL, fun_clean)
+names(comp_list_clean)<-c('Bi','Bu','Fe','Vb')
+ 
+
+# Fonction
+out.raw <- iNEXT(comp_list_clean,q=0,
+                 datatype="incidence_raw",
+                 endpoint=80)
+
+plot(out.raw)
+
+# Ici tu les données concernant l'estimation de la rich. totale
+Rar_disc_df=as.data.frame(out.raw$AsyEst)
+
+
+# Il va maintenant plotter ça en intégrant les lower et upper confident interval ... A toi de jouer!
+
+```
+
+
+### Test Hugo
 ```{r}
 # Permet de savoir le nombre de taxon retrouvé selon l'effort d'inventaire
 # Courbe d'accumulation package iNEXT (permet intrapolation et extrapolation)
 
-data_comp5=dataR %>% ungroup %>% 
+data_comp5=data_PQ_light %>% ungroup %>% 
   select(spp,Date_courte,Site,Structure2) %>% 
+   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte','None')) %>%
   filter(Date_courte %in% c('2022-11'))%>%
   filter(Structure2 == ("Disc"))%>%
   distinct()%>% 
@@ -884,8 +963,11 @@ data_comp6<- spread(data_comp5,key=Site,value=S) %>% ungroup() %>%
 data_comp6<-data_comp6[,-c(1:2)]
 
 
+
 out.raw <- iNEXT(as.data.frame(data_comp6),endpoint=60)
 plot(out.raw)
+
+ChaoRichness(as.data.frame(data_comp6))
 
 # ggiNEXT(out.raw)
 
