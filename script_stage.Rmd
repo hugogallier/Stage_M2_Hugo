@@ -31,6 +31,9 @@ library(RColorBrewer)
 library(iNEXT)
 library(rstatix)
 library(ggradar)
+library(pairwiseAdonis)
+library(ecole)
+
 
 ```
 
@@ -156,8 +159,8 @@ rename('spp'='spp.Name',
        'Cov_all'='Cov..ALL.species')%>%
   mutate(abb=abbreviate(spp))%>%
    group_by(spp,abb,Site,Micro,Date_courte,Date_ok) %>%
-  # summarize(Mcov=mean(Cov)) %>%
-  summarize(MCount=mean(Count)) %>%
+  summarize(Mcov=mean(Cov)) %>%
+  # summarize(MCount=mean(Count)) %>%
   left_join(MPhoto, by=c('Micro')) %>%
   mutate(Structure2=recode_factor(Structure,
    "Bandes"="Dome",
@@ -193,16 +196,9 @@ dataR1<-data_PQ_light
 dataR=dataR1 %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte",'None','NA')) %>%
   filter(!Site == ("DSC"))%>%
   filter(!Structure2 %in% c('Holes','Upper_slots','Inner_slots')) %>% 
-  select (spp,abb,Site,Micro,Date_courte,Structure2,MCount)
+  select (spp,abb,Site,Micro,Date_courte,Structure2,Mcov)
   # select (spp,abb,Site,Micro,Date_courte,Structure2,Mcov)
 
-dataR$spp<-as.factor(dataR$spp)
-dataR$abb<-as.factor(dataR$abb)
-dataR$Site<-as.factor(dataR$Site)
-dataR$Micro<-as.factor(dataR$Micro)
-dataR$Mcov<-as.numeric(dataR$Mcov)
-dataR$Structure2<-as.factor(dataR$Structure2)
-dataR$Date_courte<-as.factor(dataR$Date_courte)
 # save(dataR,file="dataR.Rdata")
 
 ```
@@ -660,6 +656,8 @@ data_comp2=dataR %>% ungroup %>%
   spread(spp,Mcov) %>% ungroup() %>% 
   mutate(across(everything(.), ~replace_na(., 0))) 
 
+# data_comp2$nouvelle<-ifelse(data_comp2$Structure2 == "Pillars" | data_comp2$Structure2 == "Columns", "Pillars", "Autres")
+# data_comp2$nouvelle<-ifelse(data_comp2$Structure2 == "Pillars", "Pillars", "Autres")
 
 # test=data_comp2 %>% filter(Site == 'VB',
 #                             Date_courte=='2021-07' )
@@ -672,6 +670,9 @@ data_comp2=dataR %>% ungroup %>%
 
 Comp_mat=data_comp2 %>% select(-c(Site,Micro,Structure2,Date_courte)) %>% as.matrix() 
 Meta_data=data_comp2 %>% select(Site,Micro,Structure2,Date_courte) #créer jeu de données avec les méta données
+
+# Comp_mat=data_comp2 %>% select(-c(Site,Micro,Structure2,Date_courte,nouvelle)) %>% as.matrix() 
+# Meta_data=data_comp2 %>% select(Site,Micro,Structure2,Date_courte,nouvelle) #créer jeu de données avec les méta données
 
 distdataR<-vegdist(Comp_mat, method='bray') #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme plus efficace pour les données écologiques
 
@@ -733,7 +734,12 @@ plot(x,y) # <- ça fonctionne
  PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
                    Structure=Meta_data$Structure2,
                    Site=Meta_data$Site,
-                   Date=Meta_data$Date_courte)
+                   Date=Meta_data$Date_courte,
+                   # Structure3=Meta_data$nouvelle
+                    )
+# res<-prcomp(PCOA_df[,c(1:2)],center=T,scale=T)
+# 
+# fviz_pca_ind(res,geom.ind='point',col.ind=groupes,addEllipses = T)
 
 
 ggplot(data=PCOA_df,aes(x,y, col=Structure))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
@@ -742,8 +748,16 @@ ggplot(data=PCOA_df,aes(x,y, col=Structure))+ # <- Ici on explore avec col les v
   labs(x="Axe 1 (temporalité)",y="Axe 2")+
   geom_hline(yintercept=0)+
   geom_vline(xintercept=0)+
-  theme_bw()
+  theme_bw()+
+  geom_mark_ellipse(aes(fill=Structure,group=Structure))
 
+res <- prcomp(PCOA_df, center = TRUE, scale = TRUE)
+pander(factoextra::get_eig(res))
+
+groupes <- data_comp2$Structure2
+
+
+# apport de la variabilité selon le nombre d'axe
 summaryPCOA<-data.frame(
   EIG= pcoa_tot_SS$eig,
   PCTVAR=100*pcoa_tot_SS$eig/sum(pcoa_tot_SS$eig),
@@ -768,8 +782,17 @@ data_comp2=dataR %>% ungroup %>%
 
 distdataR<-vegdist(Comp_mat, method='bray')
 
-adonis2(distdataR~Site,data=data_comp2,permutations=999)
+adonis2(distdataR~nouvelle,data=data_comp2,permutations=999)
 
+
+# Pair wise permanova 
+groupe<-data_comp2$Structure2
+groupe<-data_comp2$Site
+groupe<-data_comp2$Date_courte
+
+
+pairwise.adonis(distdataR,groupe,perm=999,sim.method = 'bray',p.adjust.m='bonferroni')
+adonis3<-permanova_pairwise(distdataR,groupe,permutations=999,method='bray',padj="bonferroni")
 ```
 
 
@@ -943,7 +966,5 @@ dataR2=dataR %>% ungroup %>%
   # group_by(spp,MCount,Structure2,Micro) %>% 
   summarize(S=n()) %>%
   na.omit() 
-
-
 
 ```
