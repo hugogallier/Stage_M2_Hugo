@@ -31,13 +31,9 @@ library(RColorBrewer)
 library(iNEXT)
 library(rstatix)
 library(ggradar)
-<<<<<<< HEAD
 library(pairwiseAdonis)
 library(ecole)
-
-=======
 library(tidyverse)
->>>>>>> 85e13e91955f931dac262e7c430572b75e53e18d
 
 ```
 
@@ -59,8 +55,8 @@ MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
 ```{r}
 #Chargement des jeux de données
 
-# setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
-setwd('E:/Marineff/suivi_scientifique')
+setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
+# setwd('E:/Marineff/suivi_scientifique')
 
 data_list=list.files(pattern =".csv", recursive=T)
 
@@ -89,8 +85,10 @@ test_data_list=data_list[grepl('DSC',data_list)]
 # Ajout des dates d'immersion des différents récifs
 
 Immer_site=data.frame(Site=c('Bi','Bu','VB','Fe'), Date=c(as.Date('2020-10-30'),as.Date('2020-11-26'),as.Date('2020-11-27'),as.Date('2020-11-30'))) %>%
-       mutate( Date_imm_ok=format(as.POSIXlt(Date,  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT")) %>% select(Site, Date_imm_ok)
-         
+       mutate(Date_imm_ok=format(as.POSIXlt(Date,  format = "%Y-%m-%d"), format="%Y-%m-%d", tz="GMT")) %>% select(Site, Date_imm_ok)
+     
+# Date=c(as.Date('2020-10-30'),as.Date('2020-11-26'),as.Date('2020-11-27'),as.Date('2020-11-30'))) %>%
+       # mutate(Date_imm_ok=format(as.POSIXlt(Date,  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT")) %>% select(Site, Date_imm_ok)    
 ```
 
 ## Saison - date
@@ -123,8 +121,6 @@ Date_sais=data.frame(
 
 data_PQ=do.call(rbind,L) %>%
   mutate(Site=substr(Name_file, start = 1, stop = 2)) %>%
-  # test2=substr(Name_file, start = 1, stop = 6))%>%
-  # test3=sub("^([^_]*_[^_]*).*", "\\2", Name_file),
   separate(col = Name_file, into = c('Site','Date','Micro','truc','Quad'), sep = '_') %>%
   mutate( Site=ifelse(Site=='FR','Fe',Site),
           Quad=ifelse(is.na(Quad),truc,Quad),
@@ -168,9 +164,8 @@ rename('spp'='spp.Name',
   summarize(Mcov=mean(Cov)) %>%
   # summarize(MCount=mean(Count)) %>%
 # =======
-  # summarize(Mcov=mean(Cov)) %>%
-  summarize(Mcov=mean(Cov),
-            Mcount=mean(Count)) %>%
+  # summarize(Mcov=mean(Cov),
+  #           Mcount=mean(Count)) %>%
 # >>>>>>> 85e13e91955f931dac262e7c430572b75e53e18d
   left_join(MPhoto, by=c('Micro')) %>%
   mutate(Structure2=recode_factor(Structure,
@@ -205,8 +200,9 @@ corresp=data_PQ_light %>% select(spp,abb)%>% unique()
 ```{r}
 dataR1<-data_PQ_light
 dataR=dataR1 %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte",'None','NA')) %>%
+  filter(!Micro %in% c('C2P3.rndpts.csv','C2P4.rndpts.csv','C2P6.rndpts.csv')) %>% 
   filter(!Site == ("DSC"))%>%
-  filter(!Structure2 %in% c('Holes','Upper_slots','Inner_slots')) %>% 
+  filter(!Structure2 %in% c('Holes','Upper_slots','Dome')) %>% 
   select (spp,abb,Site,Micro,Date_courte,Structure2,Mcov)
   # select (spp,abb,Site,Micro,Date_courte,Structure2,MCount)
 
@@ -326,7 +322,7 @@ dataR3=dataR %>% ungroup %>%
 # leveneTest(S~Structure2,data=dataR2021)#Si p value supérieur à 0,05 alors variance entre les groupes est égale
 
 
-test_anova<-aov(S~Date_courte,data=dataR3)#anova en prenant la date ainsi que les structures comme facteur
+test_anova<-aov(S~Site,data=dataR3)#anova en prenant la date ainsi que les structures comme facteur
 
 summary(test_anova)
 
@@ -512,9 +508,9 @@ ggradar(resultat3VB[,-1],grid.min = 0,grid.max =10,grid.mid=5,values.radar = c(0
 
 dataR2=dataR %>%
   filter(!Date_courte=="2021-01") %>%
-  select(spp,Site,Date_courte,Micro) %>% 
+  select(spp,Site,Date_courte,Micro,Structure2) %>% 
   distinct() %>% 
-  group_by(Site,Date_courte,Micro) %>% #filtre selon le site, date et structure
+  group_by(Site,Date_courte,Micro,Structure2) %>% #filtre selon le site, date et structure
   summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
 
 
@@ -525,6 +521,49 @@ plot_model(mixed.lmer,show.values = T,show.p = T)#montre que par rapport à un s
 tab_model(mixed.lmer)
 
 ```
+
+# Generalized linear model
+```{r}
+#Permet de montrer la significativité des valeurs selon des variables aléatoires
+
+dataR2=dataR %>% ungroup %>% 
+  filter(!Date_courte=="2021-01") %>%
+  select(spp,Site,Date_courte,Structure2) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Structure2) %>% #filtre selon le site, date et structure
+  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+
+glm1<-glm(S~Date_courte,data=dataR2)
+summary(glm1)
+
+
+
+dataR2=dataR %>% ungroup %>% 
+  filter(!Date_courte=="2021-01") %>%
+  select(spp,Site,Date_courte,Structure2) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Structure2) %>% #filtre selon le site, date et structure
+  summarize(S=n()) 
+ 
+dataR2$ecart<-as.numeric(dataR2$Date_courte-Immer_site[1,2])
+dataR2$diff=(difftime(dataR2$Date_courte,Immer_site[1,2],units="weeks"))
+
+# dataR2$nummois<-dataR2$Date_courte 
+
+# dataR2$nummois= dataR2$nummois %>% 
+#   ifelse(dataR2$nummois=="2021-04",0,3)
+#   
+#   if(dataR2$nummois == "2021-04"){0
+#   }else if (dataR2$nummois == "2021-07"){3
+#   }else if (dataR2$nummois == "2021-10"){6
+#   }else if (dataR2$nummois == "2021-11"){7
+#   }else if (dataR2$nummois == "2022-01"){9
+#   }else if (dataR2$nummois == "2022-04"){12
+#   }else if (dataR2$nummois == "2021-07"){15
+#   }else{19}
+
+```
+
 
 # Indices Beta
 ## Indice de Jaccard
@@ -950,7 +989,7 @@ data_comp1=data_PQ_light %>% ungroup %>%
   select(spp,Date_courte,Site,Structure2, Code_struct) %>% 
    filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte','None')) %>%
   mutate(date_st=paste0(Date_courte,'_',Code_struct)) %>%  # 
-  filter(Structure2 == ("Disc")) %>% 
+  filter(Structure2 == ("Disc")) %>%
   mutate(P=1) %>% 
     select(-c(Date_courte,Code_struct)) %>% 
   distinct() %>% group_by(Site) %>% 
@@ -1051,6 +1090,40 @@ plot(out.raw)
 Rar_disc_df=as.data.frame(out.raw$AsyEst)
 
 
+### Structures externes
+data_comp1=data_PQ_light %>% ungroup %>% 
+  select(spp,Date_courte,Site,Structure2, Code_struct) %>% 
+   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte','None')) %>%
+  mutate(date_st=paste0(Date_courte,'_',Code_struct)) %>%  # 
+  filter(Structure2 %in% c("Disc","Pillars","Columns")) %>% 
+  mutate(P=1) %>% 
+    select(-c(Date_courte,Code_struct)) %>% 
+  distinct() %>% group_by(Site) %>% 
+  group_split()
+
+# On créait une fonction pour nettoyer l'intérieur de la liste
+fun_clean=function(x){
+  x %>% spread(date_st,P) %>% 
+    select(-c(spp,Site,Structure2)) %>% 
+      mutate(across(everything(.), ~replace_na(., 0))) %>% 
+  as.data.frame()}
+
+# Convertion de split df en list
+comp_list=as.list(data_comp1)
+
+# Application de la fonction + names
+comp_list_clean=lapply(comp_list, fun_clean)
+names(comp_list_clean)<-c('Bi','Bu','Fe','Vb')
+
+# Fonction
+out.raw <- iNEXT(comp_list_clean,q=0,
+                 datatype="incidence_raw",
+                 endpoint=150)
+plot(out.raw)
+
+# Ici tu les données concernant l'estimation de la rich. totale
+Rar_disc_df=as.data.frame(out.raw$AsyEst)
+
 ```
 
 
@@ -1063,7 +1136,7 @@ data_comp5=data_PQ_light %>% ungroup %>%
   select(spp,Date_courte,Site,Structure2) %>% 
    filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte','None')) %>%
   filter(Date_courte %in% c('2022-11'))%>%
-  filter(Structure2 == ("Disc"))%>%
+  # filter(Structure2 == ("Disc"))%>%
   distinct()%>% 
   group_by(spp,Site,Structure2) %>% 
   summarize(S=n()) %>%
