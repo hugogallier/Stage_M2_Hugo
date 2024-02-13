@@ -197,7 +197,8 @@ corresp=data_PQ_light %>% select(spp,abb)%>% unique()
 ```{r}
 dataR1<-data_PQ_light
 dataR=dataR1 %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte",'NA','None')) %>%
-    filter(!Structure2 %in% c('Holes','Upper_slots','Inner_slots','Dome')) %>% 
+    # filter(!Structure2 %in% c('Holes','Upper_slots','Inner_slots','Dome')) %>% 
+    filter(!Structure2 %in% c('Holes','Upper_slots','Dome')) %>% 
   select (spp,abb,Site,Micro,Date_courte,Mcov,Structure2)
 
 ```
@@ -236,7 +237,6 @@ length(unique(dataR1$spp))#permet de savoir le nombre de variable différente da
 # Comparaison intersite (microhabitats confondus) temporelle
 ```{r}
 
-dataR
 dataR2=dataR %>% 
   select(spp,Site,Date_courte) %>% 
   distinct() %>% 
@@ -266,20 +266,13 @@ dataR2=dataR %>% ungroup %>%
   summarize(S=n()) %>%
   na.omit()
 
-ggplot(dataR2, aes(Structure2,S, fill=Site))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
+ggplot(dataR2, aes(Site,S, fill=Structure2))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
   xlab("Structure")+
   ylab("Richesse taxonomique")+
   geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
   geom_boxplot()+
   theme_bw()
 
-
-ggplot(dataR2, aes(Site,S, fill=Micro))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
-  xlab("Structure")+
-  ylab("Richesse taxonomique")+
-  geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
-  geom_boxplot()+
-  theme_bw()
 ```
 
 
@@ -287,10 +280,10 @@ ggplot(dataR2, aes(Site,S, fill=Micro))+ # Avec "fill" ou "col" du peut ajout un
 ```{r}
 
 dataR2=dataR %>% ungroup %>% 
-  select(spp,Site,Structure2,Date_courte,Micro) %>% 
+  select(spp,Site,Date_courte,Structure2,Micro) %>% 
   # filter(Site == 'recif3') %>% 
   distinct()%>% 
-  group_by(Site,Structure2,Date_courte,Micro) %>% 
+  group_by(Site,Date_courte,Structure2,Micro) %>% 
   summarize(S=n()) %>%
   na.omit()
 
@@ -312,7 +305,6 @@ summary(test_anova)
 ```{r}
 
 dataR2=dataR %>% 
-  filter(!Structure2  %in% c("Holes","Dome","Inner_slots","Upper_slots"))%>% 
   select(spp,Site,Date_courte,Micro) %>% 
   distinct() %>% 
   group_by(Site,Date_courte,Micro) %>% 
