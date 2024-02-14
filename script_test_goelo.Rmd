@@ -117,20 +117,9 @@ Mise en forme des fichiers chargés:
 # data_PQ[grepl('rndpts.csv.rndpts',data_PQ$Name_file),]
 
 ## ajout de categories à partir du nom de fichier
-
-# data_PQ=do.call(rbind,L) %>%
-#   mutate(Site=substr(Name_file, start = 1, stop = 2)) %>%
-#   # test2=substr(Name_file, start = 1, stop = 6))%>%
-#   # test3=sub("^([^_]*_[^_]*).*", "\\2", Name_file),
-#   separate(col = Name_file, into = c('Date','Micro','Quad','Recif'), sep = '_') %>%
-#   mutate(Micro=stringr::str_replace_all(Micro, ".rndpts.csv", ""), 
-#     Quad2=substr(Quad, start = 1, stop = 1),
-#     
     
 data_PQ=do.call(rbind,L) %>%
   mutate(Site=substr(Name_file, start = 1, stop = 2)) %>%
-  # test2=substr(Name_file, start = 1, stop = 6))%>%
-  # test3=sub("^([^_]*_[^_]*).*", "\\2", Name_file),
   separate(col = Name_file, into = c('Date','Micro','Quad'), sep = '_') %>%
   mutate(Micro=stringr::str_replace_all(Micro, ".rndpts.csv", ""),
     Quad2=substr(Quad, start = 1, stop = 1),
@@ -146,10 +135,8 @@ data_PQ=do.call(rbind,L) %>%
           Date_ok=format(as.POSIXlt(paste0('01/',Month,'/',YY),  format = "%d/%m/%y"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
           Date_courte=format(as.POSIXlt(paste0('01/',Month,'/',YY),  format = "%d/%m/%y"), format="%Y-%m", tz="GMT"),
           Week=strftime(Date_ok, format = "%V")) %>%
-  mutate(spp.Name= ifelse(spp.Name == 'Tubularia indivisa ',
-                          'Tubularia indivisa',spp.Name),
-         spp.Name=ifelse(spp.Name == 'Unidentified',
-                          'NI',spp.Name))
+  mutate(spp.Name= ifelse(spp.Name == 'Tubularia indivisa ','Tubularia indivisa',spp.Name),
+         spp.Name=ifelse(spp.Name == 'Unidentified','NI',spp.Name))
   
 
 # Version synthétique du df
@@ -259,10 +246,10 @@ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # <- rotatio
 ```{r}
 
 dataR2=dataR %>% ungroup %>% 
-  select(spp,Site,Structure2,Micro) %>% 
+  select(spp,Site,Structure2,Micro,Date_courte) %>% 
   # filter(Site == 'recif3') %>% 
   distinct()%>% 
-  group_by(Site,Structure2,Micro) %>% 
+  group_by(Site,Structure2,Micro,Date_courte) %>% 
   summarize(S=n()) %>%
   na.omit()
 
@@ -552,5 +539,87 @@ data_comp2=dataR %>% ungroup %>%
 distdataR<-vegdist(Comp_mat, method='bray')
 
 adonis2(distdataR~Structure2,data=data_comp2,permutations=999)
+
+```
+
+
+# Vitesse de colonisation
+```{r}
+
+dataR$nummois<-dataR$Date_courte
+dataR$nummois[dataR$nummois == "2022-09"] <-71
+dataR$nummois[dataR$nummois == "2023-07"] <-374 
+dataR$nummois[dataR$nummois == "2023-09"] <-436 
+
+# à utiliser avec les les lignes de dataR$nummois d'avant
+seq<-c(0,0)
+
+dataR21=dataR %>% ungroup %>%   
+  select(spp,Site,Date_courte,nummois) %>% 
+  filter(Site %in% c('recif1')) %>% 
+  distinct() %>% 
+  group_by(Site,nummois) %>% #filtre selon le site, date et structure
+  summarize(S=n()) 
+
+dataR2recif1<-dataR21$Site[-1]
+dataR21$nummois<-as.numeric(dataR21$nummois)
+dataR21$S<-as.numeric(dataR21$S)
+dataR21<-dataR21[,-1]
+dataR21<-rbind(seq,dataR21)
+dataR211<-dataR21[order(dataR21$nummois),]
+dataR3<-dataR211[-1,]-dataR211[-nrow(dataR211),]
+dataR3$SparT<-dataR3$S/dataR3$nummois
+
+
+
+dataR22=dataR %>% ungroup %>%   
+  select(spp,Site,Date_courte,nummois) %>% 
+  filter(Site %in% c('recif2')) %>% 
+  distinct() %>% 
+  group_by(Site,nummois) %>% #filtre selon le site, date et structure
+  summarize(S=n()) 
+
+dataR2recif2<-dataR22$Site[-1]
+dataR22$nummois<-as.numeric(dataR22$nummois)
+dataR22$S<-as.numeric(dataR22$S)
+dataR22<-dataR22[,-1]
+dataR22<-rbind(seq,dataR22)
+dataR221<-dataR22[order(dataR22$nummois),]
+dataR4<-dataR221[-1,]-dataR221[-nrow(dataR221),]
+dataR4$SparT<-dataR4$S/dataR4$nummois
+
+
+
+dataR23=dataR %>% ungroup %>%   
+  select(spp,Site,Date_courte,nummois) %>% 
+  filter(Site %in% c('recif3')) %>% 
+  distinct() %>% 
+  group_by(Site,nummois) %>% #filtre selon le site, date et structure
+  summarize(S=n()) 
+
+dataR2recif3<-dataR23$Site[-1]
+dataR23$nummois<-as.numeric(dataR23$nummois)
+dataR23$S<-as.numeric(dataR23$S)
+dataR23<-dataR23[,-1]
+dataR23<-rbind(seq,dataR23)
+dataR231<-dataR23[order(dataR23$nummois),]
+dataR5<-dataR231[-1,]-dataR231[-nrow(dataR231),]
+dataR5$SparT<-dataR5$S/dataR5$nummois
+
+
+dataRjour<-dataR21$nummois[-1]
+dataRjour1<-dataRjour[order(dataRjour)]
+
+
+plot(dataR3$SparT~dataRjour1,col="red",xlim=c(50,550),ylim=c(-0.2,0.26),pch=19,xlab="Nombre de jours",ylab="Nombre d'espèces colonisant par jour")
+par(new=T)
+plot(dataR4$SparT~dataRjour1,col="blue",xlim=c(50,550),ylim=c(-0.2,0.26),pch=19,xlab="",ylab="")
+par(new=T)
+plot(dataR5$SparT~dataRjour1,col="green",xlim=c(50,550),ylim=c(-0.2,0.26),pch=19,xlab="",ylab="")
+par(new=T)
+lines(dataR4$SparT~dataRjour1,col="blue",xlim=c(50,550),ylim=c(-0.2,0.26),pch=19,xlab="",ylab="")
+lines(dataR5$SparT~dataRjour1,col="green",xlim=c(50,550),ylim=c(-0.2,0.26),pch=19,xlab="",ylab="")
+lines(dataR3$SparT~dataRjour1,col="red",xlim=c(50,550),ylim=c(-0.2,0.26),pch=19,xlab="",ylab="")
+legend(x = "bottomright", legend = c("récif 1","récif 2","récif 3"),lty = 1, col = c("red","blue","green"),lwd = 2)
 
 ```
