@@ -623,3 +623,29 @@ lines(dataR3$SparT~dataRjour1,col="red",xlim=c(50,550),ylim=c(-0.2,0.26),pch=19,
 legend(x = "bottomright", legend = c("récif 1","récif 2","récif 3"),lty = 1, col = c("red","blue","green"),lwd = 2)
 
 ```
+
+
+
+
+# Test comparaison site MARINEFF et GOELO
+
+```{r}
+
+dataR2=dataR %>%
+  select(spp,Site,Date_courte,Structure2) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Structure2) %>% #filtre selon le site, date et structure
+  summarize(S=n())
+
+load("dataR.Rdata")
+dataR2=dataR %>%
+  filter(!Date_courte=="2021-01") %>%
+  select(spp,Site,Date_courte,Micro,Structure2) %>% 
+  distinct() %>% 
+  group_by(Site,Date_courte,Micro,Structure2) %>% #filtre selon le site, date et structure
+  summarize(S=n())
+
+mixed.lmer <- lmer(S ~ Site + (1|Micro/Date_courte), data = dataR2) 
+summary(mixed.lmer)
+plot_model(mixed.lmer,show.values = T,show.p = T)
+```
