@@ -922,7 +922,7 @@ fun_clean=function(x){
 comp_list=as.list(data_comp1)
 
 # Application de la fonction + names
-comp_list_clean=lapply(LL, fun_clean)
+comp_list_clean=lapply(comp_list, fun_clean)
 names(comp_list_clean)<-c('Bi','Bu','Fe','Vb')
  
 
