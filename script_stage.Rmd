@@ -1405,3 +1405,14 @@ dataR2=dataR %>% ungroup %>%
   na.omit() 
 
 ```
+
+## Calcul du temps depuis l'immersion
+
+```{r}
+
+data_PQ_light=data_PQ_light %>% 
+   mutate(Day_delta=as.numeric(difftime(Date_ok,Date_imm_ok,units='days')))
+
+```
+
+
