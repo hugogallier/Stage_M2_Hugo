@@ -36,6 +36,8 @@ library(ecole)
 library(tidyverse)
 library(mgcv)
 library(ggforce)
+library(mgcv)
+
 
 ```
 
@@ -556,7 +558,20 @@ summary(glm1)
 ```{r}
 #Permet de montrer la significativité des valeurs selon des variables aléatoires
 #ajoute une colonne de saison 
-library(mgcv)
+
+dataR$saison<-dataR$Date_courte
+dataR$saison[dataR$saison == "2021-04" | dataR$saison == "2022-04"] <- "printemps"
+dataR$saison[dataR$saison == "2021-07" | dataR$saison == "2022-07"] <- "été"
+dataR$saison[dataR$saison == "2021-10" | dataR$saison == "2021-11"| dataR$saison == "2022-11"] <- "automne"
+dataR$saison[dataR$saison == "2022-01"] <- "hiver"
+
+dataR2=dataR %>% ungroup %>% 
+  filter(!Date_courte=="2021-01") %>%
+  select(spp,Site,Date_courte,Structure2,Day_delta,saison) %>% 
+  distinct() %>% 
+  group_by(spp,Site,Day_delta,Structure2,Date_courte,saison) %>% #filtre selon le site, date et structure
+  summarize(S=n()) 
+
 str(dataR2)
 dataR2$Site<-as.factor(dataR2$Site)
 dataR2$S<-as.numeric(dataR2$S)
@@ -564,12 +579,14 @@ dataR2$S<-as.numeric(dataR2$S)
 model1<-gam(S~s(Day_delta)+Site+Structure2+saison,data=dataR2,method='REML')
 gam.check(model1)#permet de voir si le nombre de fonction simple utilisé est suffisant (si pvalue trop petite alors utiliser plus)
 summary(model1)
-plot(model1,shift=mean(dataR2$S),residuals=T,cex=1,pch=16,col="blue",shade=T,shade.col='grey')
 
+
+plot(model1,shift=mean(dataR2$S),residuals=T,cex=1,pch=16,col="blue",shade=T,shade.col='grey')
 ggplot(data = dataR2, mapping = aes(x = Day_delta, y = S)) +
   geom_point(size = 0.7, alpha = 0.7) +
   geom_smooth(method="gam", formula= y~s(x))+
   theme_bw()
+
 
 ```
 
