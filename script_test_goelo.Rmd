@@ -82,9 +82,9 @@ L[[i]]<-data
 ## Date d'immersion
 Ajout des dates d'immersion des différents récifs
 ```{r}
-Immer_site=data.frame(Site=c('Paim'), Date=c(as.Date('2023-10-01'),as.Date('2022-09-01'),as.Date('2023-07-01'))) %>%
+Immer_site=data.frame(Site=c('recif2','recif1','recif3'), Date=c(as.Date('2022-09-01'),as.Date('2023-10-01'),as.Date('2023-07-01'))) %>%
        mutate( Date_imm_ok=format(as.POSIXlt(Date,  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT")) %>% select(Site, Date_imm_ok)
-         
+        
 ```
 
 ## Saison - date
@@ -182,11 +182,16 @@ corresp=data_PQ_light %>% select(spp,abb)%>% unique()
 # ###### Partie Hugo ######
 # Formatage du jeu de données 
 ```{r}
+
+#Calcul du temps depuis l'immersion
+data_PQ_light=data_PQ_light %>% 
+   mutate(Day_delta=as.numeric(abs(difftime(Date_ok,Date_imm_ok,units='days'))))
+
 dataR1<-data_PQ_light
 dataR=dataR1 %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte",'NA','None')) %>%
     # filter(!Structure2 %in% c('Holes','Upper_slots','Inner_slots','Dome')) %>% 
     filter(!Structure2 %in% c('Holes','Upper_slots','Dome')) %>% 
-  select (spp,abb,Site,Micro,Date_courte,Mcov,Structure2)
+  select (spp,abb,Site,Micro,Date_courte,Mcov,Structure2,Day_delta)
 
 ```
 
@@ -224,18 +229,22 @@ length(unique(dataR1$spp))#permet de savoir le nombre de variable différente da
 # Comparaison intersite (microhabitats confondus) temporelle
 ```{r}
 
-dataR2=dataR %>% 
-  select(spp,Site,Date_courte) %>% 
-  distinct() %>% 
-  group_by(Site,Date_courte) %>% #filtre selon le site, date et structure
-  summarize(S=n()) #créér une nouvelle colonne permettant de faire un summary des valeurs filtrées
+dataR2=dataR %>% ungroup %>% 
+  select(spp,Site,Structure2,Micro,Date_courte) %>%
+  distinct()%>%
+  group_by(Site,Structure2,Micro,Date_courte) %>%
+  summarize(S=n()) %>%
+  na.omit()
 
+dataR3=dataR2 %>%
+  group_by(Site,Date_courte) %>%
+  summarize(S2 = mean(S))
 
-ggplot(dataR2, aes(Date_courte,S, col=Site))+
+ggplot(dataR3, aes(Date_courte,S2, col=Site))+
   xlab("Date")+
   ylab("Richesse taxonomique")+
   geom_point()+
-  geom_line( aes(group=Site))+
+  geom_line(aes(group=Site))+
   # facet_wrap(.~Site)+ # <- cette fonction permet de réaliser les geoms précedents mais pour différentes catégories (ici j'ai choisi les micro habitat, mais on aurait pu le faire pour les sites par exemples)
   theme_bw()+
 theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # <- rotation des dates pour qu'elles soient lisibles
@@ -246,14 +255,17 @@ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # <- rotatio
 ```{r}
 
 dataR2=dataR %>% ungroup %>% 
-  select(spp,Site,Structure2,Micro,Date_courte) %>% 
-  # filter(Site == 'recif3') %>% 
-  distinct()%>% 
-  group_by(Site,Structure2,Micro,Date_courte) %>% 
+  select(spp,Site,Structure2,Micro,Date_courte) %>%
+  distinct()%>%
+  group_by(Site,Structure2,Micro,Date_courte) %>%
   summarize(S=n()) %>%
   na.omit()
 
-ggplot(dataR2, aes(Site,S, fill=Structure2))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
+dataR3=dataR2 %>%
+  group_by(Site,Structure2,Date_courte) %>%
+  summarize(S2 = mean(S))
+
+ggplot(dataR3, aes(Structure2,S2, fill=Site))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
   xlab("Structure")+
   ylab("Richesse taxonomique")+
   geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
@@ -267,41 +279,93 @@ ggplot(dataR2, aes(Site,S, fill=Structure2))+ # Avec "fill" ou "col" du peut ajo
 ```{r}
 
 dataR2=dataR %>% ungroup %>% 
-  select(spp,Site,Date_courte,Structure2,Micro) %>% 
-  # filter(Site == 'recif3') %>% 
-  distinct()%>% 
-  group_by(Site,Date_courte,Structure2,Micro) %>% 
+  select(spp,Site,Structure2,Micro,Date_courte) %>%
+  distinct()%>%
+  group_by(Site,Structure2,Micro,Date_courte) %>%
   summarize(S=n()) %>%
   na.omit()
 
-model1<-lm(S~Structure2,data=dataR2021)
-shapiro_test(residuals(model1))#si pvalue supérieure à 0,05 alors permet de dire que les résidus sont normalements distribuées
+dataR3=dataR2 %>%
+  group_by(Site,Structure2,Date_courte) %>%
+  summarize(S2 = mean(S))
 
-leveneTest(S~Structure2,data=dataR2)#Si p value supérieur à 0,05 alors variance entre les groupes est égale
+# model1<-lm(S~Structure2,data=dataR2021)
+# shapiro_test(residuals(model1))#si pvalue supérieure à 0,05 alors permet de dire que les résidus sont normalements distribuées
 
-test_anova<-aov(S~factor(Site)*factor(Date_courte),data=dataR2)#anova en prenant la date ainsi que les sites comme facteur
-test_anova<-aov(S~factor(Site)*factor(Micro),data=dataR2)#anova en prenant la date ainsi que les micro comme facteur
-test_anova<-aov(S~factor(Site),data=dataR2)#anova en prenant la date ainsi que les micro comme facteur
-test_anova<-aov(S~factor(Micro),data=dataR2)#anova en prenant la date ainsi que les micro comme facteur
-test_anova<-aov(S~factor(Structure2),data=dataR2)#anova en prenant la date ainsi que les micro comme facteur
+# leveneTest(S~Structure2,data=dataR2)#Si p value supérieur à 0,05 alors variance entre les groupes est égale
+
+test_anova<-aov(S2~factor(Site)*factor(Date_courte),data=dataR3)#anova en prenant la date ainsi que les sites comme facteur
+test_anova<-aov(S2~factor(Site)*factor(Micro),data=dataR3)#anova en prenant la date ainsi que les micro comme facteur
+test_anova<-aov(S2~factor(Site),data=dataR3)#anova en prenant la date ainsi que les micro comme facteur
+test_anova<-aov(S2~factor(Micro),data=dataR3)#anova en prenant la date ainsi que les micro comme facteur
+test_anova<-aov(S2~factor(Structure2),data=dataR3)#anova en prenant la date ainsi que les micro comme facteur
 
 summary(test_anova)
 ```
 
 # Linear mixed model
 ```{r}
+#ajoute une colonne de saison 
+dataR$saison<-dataR$Date_courte
+dataR$saison[dataR$saison == "2023-07"] <- "été"
+dataR$saison[dataR$saison == "2022-09" | dataR$saison == "2023-09"] <- "automne"
 
-dataR2=dataR %>% 
-  select(spp,Site,Date_courte,Micro) %>% 
-  distinct() %>% 
-  group_by(Site,Date_courte,Micro) %>% 
-  summarize(S=n()) 
+dataR2=dataR %>% ungroup %>% 
+  select(spp,Site,Structure2,Micro,Date_courte,saison) %>% 
+  distinct()%>% 
+  group_by(Site,Structure2,Micro,Date_courte,saison) %>% 
+  summarize(S=n()) %>%
+  na.omit()
 
-mixed.lmer <- lmer(S ~ Site + (1|Micro/Date_courte), data = dataR2) #compare les données de richesse taxo avec les variables aléatoires qui sont Micro et date courte
+dataR3=dataR2 %>% 
+  group_by(Site,Structure2,Date_courte,saison) %>% 
+  summarize(S2 = mean(S))
+
+mixed.lmer <- lmer(S2 ~ Site + (1|Structure2/saison), data = dataR3) #compare les données de richesse taxo avec les variables aléatoires qui sont Micro et date courte
 summary(mixed.lmer)
 plot_model(mixed.lmer,show.values = T,show.p = T)#montre que par rapport à un site de réference (ici Bi), les autres sites sont différents. Ici Fetlar a plutot une diversité moindre que Bi mais est le plus proche. 
 tab_model(mixed.lmer)
 
+```
+
+
+# Generalized Additive Models
+```{r}
+#Permet de montrer la significativité des valeurs selon des variables aléatoires
+
+#ajoute une colonne de saison 
+dataR$saison<-dataR$Date_courte
+dataR$saison[dataR$saison == "2023-07"] <- "été"
+dataR$saison[dataR$saison == "2022-09" | dataR$saison == "2023-09"] <- "automne"
+
+dataR2=dataR %>% ungroup %>% 
+  select(spp,Site,Structure2,Micro,Day_delta,saison) %>% 
+  distinct()%>% 
+  group_by(Site,Structure2,Micro,Day_delta,saison) %>% 
+  summarize(S=n()) %>%
+  na.omit()
+
+dataR3=dataR2 %>% 
+  group_by(Site,Structure2,Day_delta,saison) %>% 
+  summarize(S2 = mean(S))
+
+str(dataR3)
+dataR3$Site<-as.factor(dataR3$Site)
+dataR3$S2<-as.numeric(dataR3$S2)
+dataR3$saison<-as.factor(dataR3$saison)
+
+model1<-gam(S2~s(Day_delta)+Site+Structure2+saison,data=dataR3)
+model1<-gam(S2~s(Day_delta)+Site,data=dataR3)
+gam.check(model1)#permet de voir si le nombre de fonction simple utilisé est suffisant (si pvalue trop petite alors utiliser plus)
+summary(model1)
+
+plot(model1,shift=mean(dataR3$S2),residuals=T,cex=1,pch=16,col="blue",shade=T,shade.col='grey')
+ggplot(data = dataR3, mapping = aes(x = Day_delta, y = S2,colour=Site)) +
+  geom_point(size = 0.7, alpha = 0.7) +
+  geom_smooth(method="gam", formula= y~s(x))+
+  theme_bw()
+
+plot_smooths(model=model1, series=Day_delta,comparison=Site)+theme_bw() #permet de mettre les gam selon les sites
 ```
 
 
@@ -551,75 +615,90 @@ dataR$nummois[dataR$nummois == "2022-09"] <-71
 dataR$nummois[dataR$nummois == "2023-07"] <-374 
 dataR$nummois[dataR$nummois == "2023-09"] <-436 
 
-# à utiliser avec les les lignes de dataR$nummois d'avant
+# à utiliser avec les lignes de dataR$nummois d'avant
 seq<-c(0,0)
 
-dataR21=dataR %>% ungroup %>%   
-  select(spp,Site,Date_courte,nummois) %>% 
-  filter(Site %in% c('recif1')) %>% 
-  distinct() %>% 
-  group_by(Site,nummois) %>% #filtre selon le site, date et structure
-  summarize(S=n()) 
+dataR21=dataR %>% ungroup %>% 
+  select(spp,Site,Structure2,Micro,nummois) %>%
+  filter(Site == "recif1") %>% 
+  distinct()%>%
+  group_by(Site,Structure2,Micro,nummois) %>%
+  summarize(S=n()) %>%
+  na.omit()
 
-dataR2recif1<-dataR21$Site[-1]
-dataR21$nummois<-as.numeric(dataR21$nummois)
-dataR21$S<-as.numeric(dataR21$S)
-dataR21<-dataR21[,-1]
-dataR21<-rbind(seq,dataR21)
-dataR211<-dataR21[order(dataR21$nummois),]
+dataR31=dataR2 %>%
+  group_by(Site,nummois) %>%
+  summarize(S2 = mean(S))
+
+dataR2recif1<-dataR31$Site[-1]
+dataR31$nummois<-as.numeric(dataR31$nummois)
+dataR31$S2<-as.numeric(dataR31$S2)
+dataR31<-dataR31[,-1]
+dataR211<-dataR31[order(dataR31$nummois),]
 dataR3<-dataR211[-1,]-dataR211[-nrow(dataR211),]
 dataR3$SparT<-dataR3$S/dataR3$nummois
+dataR31<-rbind(seq,dataR3[,-2])
 
 
 
-dataR22=dataR %>% ungroup %>%   
-  select(spp,Site,Date_courte,nummois) %>% 
-  filter(Site %in% c('recif2')) %>% 
-  distinct() %>% 
-  group_by(Site,nummois) %>% #filtre selon le site, date et structure
-  summarize(S=n()) 
+dataR22=dataR %>% ungroup %>% 
+  select(spp,Site,Structure2,Micro,nummois) %>%
+  filter(Site == "recif2") %>% 
+  distinct()%>%
+  group_by(Site,Structure2,Micro,nummois) %>%
+  summarize(S=n()) %>%
+  na.omit()
 
-dataR2recif2<-dataR22$Site[-1]
-dataR22$nummois<-as.numeric(dataR22$nummois)
-dataR22$S<-as.numeric(dataR22$S)
-dataR22<-dataR22[,-1]
-dataR22<-rbind(seq,dataR22)
-dataR221<-dataR22[order(dataR22$nummois),]
-dataR4<-dataR221[-1,]-dataR221[-nrow(dataR221),]
-dataR4$SparT<-dataR4$S/dataR4$nummois
+dataR32=dataR22 %>%
+  group_by(Site,nummois) %>%
+  summarize(S2 = mean(S))
 
-
-
-dataR23=dataR %>% ungroup %>%   
-  select(spp,Site,Date_courte,nummois) %>% 
-  filter(Site %in% c('recif3')) %>% 
-  distinct() %>% 
-  group_by(Site,nummois) %>% #filtre selon le site, date et structure
-  summarize(S=n()) 
-
-dataR2recif3<-dataR23$Site[-1]
-dataR23$nummois<-as.numeric(dataR23$nummois)
-dataR23$S<-as.numeric(dataR23$S)
-dataR23<-dataR23[,-1]
-dataR23<-rbind(seq,dataR23)
-dataR231<-dataR23[order(dataR23$nummois),]
-dataR5<-dataR231[-1,]-dataR231[-nrow(dataR231),]
-dataR5$SparT<-dataR5$S/dataR5$nummois
+dataR2recif1<-dataR32$Site[-1]
+dataR32$nummois<-as.numeric(dataR31$nummois)
+dataR32$S2<-as.numeric(dataR32$S2)
+dataR32<-dataR32[,-1]
+dataR211<-dataR32[order(dataR32$nummois),]
+dataR3<-dataR211[-1,]-dataR211[-nrow(dataR211),]
+dataR3$SparT<-dataR3$S/dataR3$nummois
+dataR32<-rbind(seq,dataR3[,-2])
 
 
-dataRjour<-dataR21$nummois[-1]
+
+dataR23=dataR %>% ungroup %>% 
+  select(spp,Site,Structure2,Micro,nummois) %>%
+  filter(Site == "recif3") %>% 
+  distinct()%>%
+  group_by(Site,Structure2,Micro,nummois) %>%
+  summarize(S=n()) %>%
+  na.omit()
+
+dataR33=dataR23 %>%
+  group_by(Site,nummois) %>%
+  summarize(S2 = mean(S))
+
+dataR2recif1<-dataR33$Site[-1]
+dataR33$nummois<-as.numeric(dataR31$nummois)
+dataR33$S2<-as.numeric(dataR33$S2)
+dataR33<-dataR33[,-1]
+dataR211<-dataR33[order(dataR33$nummois),]
+dataR3<-dataR211[-1,]-dataR211[-nrow(dataR211),]
+dataR3$SparT<-dataR3$S/dataR3$nummois
+dataR33<-rbind(seq,dataR3[,-2])
+
+
+dataRjour<-dataR31$nummois
 dataRjour1<-dataRjour[order(dataRjour)]
 
 
-plot(dataR3$SparT~dataRjour1,col="red",xlim=c(50,550),ylim=c(-0.2,0.26),pch=19,xlab="Nombre de jours",ylab="Nombre d'espèces colonisant par jour")
+plot(dataR31$SparT~dataRjour1,col="red",xlim=c(0,310),ylim=c(-0.01,0.03),pch=19,xlab="Nombre de jours",ylab="Nombre d'espèces colonisant par jour")
 par(new=T)
-plot(dataR4$SparT~dataRjour1,col="blue",xlim=c(50,550),ylim=c(-0.2,0.26),pch=19,xlab="",ylab="")
+plot(dataR32$SparT~dataRjour1,col="blue",xlim=c(0,310),ylim=c(-0.01,0.03),pch=19,xlab="",ylab="")
 par(new=T)
-plot(dataR5$SparT~dataRjour1,col="green",xlim=c(50,550),ylim=c(-0.2,0.26),pch=19,xlab="",ylab="")
+plot(dataR33$SparT~dataRjour1,col="green",xlim=c(0,310),ylim=c(-0.01,0.03),pch=19,xlab="",ylab="")
 par(new=T)
-lines(dataR4$SparT~dataRjour1,col="blue",xlim=c(50,550),ylim=c(-0.2,0.26),pch=19,xlab="",ylab="")
-lines(dataR5$SparT~dataRjour1,col="green",xlim=c(50,550),ylim=c(-0.2,0.26),pch=19,xlab="",ylab="")
-lines(dataR3$SparT~dataRjour1,col="red",xlim=c(50,550),ylim=c(-0.2,0.26),pch=19,xlab="",ylab="")
+lines(dataR31$SparT~dataRjour1,col="red",xlim=c(0,310),ylim=c(-0.01,0.03),pch=19,xlab="",ylab="")
+lines(dataR32$SparT~dataRjour1,col="blue",xlim=c(0,310),ylim=c(-0.01,0.03),pch=19,xlab="",ylab="")
+lines(dataR33$SparT~dataRjour1,col="green",xlim=c(0,310),ylim=c(-0.01,0.03),pch=19,xlab="",ylab="")
 legend(x = "bottomright", legend = c("récif 1","récif 2","récif 3"),lty = 1, col = c("red","blue","green"),lwd = 2)
 
 ```
@@ -631,21 +710,23 @@ legend(x = "bottomright", legend = c("récif 1","récif 2","récif 3"),lty = 1, 
 
 ```{r}
 
-dataR2=dataR %>%
+dataR2=dataR %>% ungroup %>% 
   select(spp,Site,Date_courte,Structure2) %>% 
   distinct() %>% 
   group_by(Site,Date_courte,Structure2) %>% #filtre selon le site, date et structure
   summarize(S=n())
 
-load("dataR.Rdata")
-dataR2=dataR %>%
+dataR4=dataR3 %>% ungroup %>% 
   filter(!Date_courte=="2021-01") %>%
-  select(spp,Site,Date_courte,Micro,Structure2) %>% 
+  select(spp,Site,Date_courte,Structure2) %>% 
   distinct() %>% 
-  group_by(Site,Date_courte,Micro,Structure2) %>% #filtre selon le site, date et structure
+  group_by(Site,Date_courte,Structure2) %>% #filtre selon le site, date et structure
   summarize(S=n())
 
-mixed.lmer <- lmer(S ~ Site + (1|Micro/Date_courte), data = dataR2) 
+dataR5<-rbind(dataR2,dataR4)
+
+
+mixed.lmer <- lmer(S ~ Site + (1|Structure2/Date_courte), data = dataR5) 
 summary(mixed.lmer)
 plot_model(mixed.lmer,show.values = T,show.p = T)
 ```
