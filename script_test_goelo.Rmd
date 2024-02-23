@@ -195,7 +195,8 @@ dataR=dataR1 %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte",'NA','None
 
 ```
 
-
+  
+  
 #Indice Gamma
 ```{r}
 # Quel est la richesse taxonomique global (Indice Gamma) d'un site et de la zone d'étude en général
@@ -237,8 +238,10 @@ dataR2=dataR %>% ungroup %>%
   na.omit()
 
 dataR3=dataR2 %>%
-  group_by(Site,Date_courte) %>%
+  group_by(Site,Date_courte,Structure2) %>%
   summarize(S2 = mean(S))
+  
+dataR3$S2[which(dataR3$Structure2=='Pillars')]<-(dataR3$S2[which(dataR3$Structure2=='Pillars')]/2)
 
 ggplot(dataR3, aes(Date_courte,S2, col=Site))+
   xlab("Date")+
@@ -262,10 +265,12 @@ dataR2=dataR %>% ungroup %>%
   na.omit()
 
 dataR3=dataR2 %>%
-  group_by(Site,Structure2,Date_courte) %>%
+  group_by(Site,Date_courte,Structure2) %>%
   summarize(S2 = mean(S))
 
-ggplot(dataR3, aes(Structure2,S2, fill=Site))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
+dataR3$S2[which(dataR3$Structure2=='Pillars')]<-(dataR3$S2[which(dataR3$Structure2=='Pillars')]/2)
+
+ggplot(dataR3, aes(Site,S2, fill=Structure2))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
   xlab("Structure")+
   ylab("Richesse taxonomique")+
   geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
