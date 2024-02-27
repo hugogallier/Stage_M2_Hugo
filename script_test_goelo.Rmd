@@ -31,7 +31,7 @@ library(RColorBrewer)
 library(iNEXT)
 library(rstatix)
 library(ggradar)
-
+library(ggtern)
 ```
 
 #################### Importation du data et chargement ###################
@@ -344,20 +344,23 @@ dataR$saison[dataR$saison == "2023-07"] <- "été"
 dataR$saison[dataR$saison == "2022-09" | dataR$saison == "2023-09"] <- "automne"
 
 dataR2=dataR %>% ungroup %>% 
-  select(spp,Site,Structure2,Micro,Day_delta,saison) %>% 
+  select(spp,Site,Structure2,Micro,Day_delta,saison,Date_courte) %>% 
   distinct()%>% 
-  group_by(Site,Structure2,Micro,Day_delta,saison) %>% 
+  mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
+  group_by(Site,Structure2,Micro,Day_delta,saison,Years) %>% 
   summarize(S=n()) %>%
-  na.omit()
+  na.omit()%>% 
+  droplevels()
 
 dataR3=dataR2 %>% 
-  group_by(Site,Structure2,Day_delta,saison) %>% 
-  summarize(S2 = mean(S))
+  group_by(Site,Structure2,Day_delta,saison,Years) %>% 
+  summarize(S2 = mean(S)) 
 
 str(dataR3)
 dataR3$Site<-as.factor(dataR3$Site)
 dataR3$S2<-as.numeric(dataR3$S2)
 dataR3$saison<-as.factor(dataR3$saison)
+dataR3$Years<-as.factor(dataR3$Years)
 
 model1<-gam(S2~s(Day_delta)+Site+Structure2+saison,data=dataR3)
 model1<-gam(S2~s(Day_delta)+Site,data=dataR3)
@@ -371,6 +374,36 @@ ggplot(data = dataR3, mapping = aes(x = Day_delta, y = S2,colour=Site)) +
   theme_bw()
 
 plot_smooths(model=model1, series=Day_delta,comparison=Site)+theme_bw() #permet de mettre les gam selon les sites
+
+
+#test comparaison tous les paramètres
+model1<-gam(S2~s(Day_delta)+Site,data=dataR3)
+model11<-gam(S2~s(Day_delta)+Years,data=dataR3)
+model111<-gam(S2~s(Day_delta)+Structure2,data=dataR3)
+model1111<-gam(S2~s(Day_delta)+saison,data=dataR3)
+model11111<-gam(S2~s(Day_delta)+Site+saison,data=dataR3)
+model111111<-gam(S2~s(Day_delta)+Structure2+saison,data=dataR3)
+model1111111<-gam(S2~s(Day_delta)+Structure2+Site,data=dataR3)
+model11111111<-gam(S2~s(Day_delta)+Structure2+Site+saison,data=dataR3)
+
+
+model2<-gam(S2~Site/Day_delta+Day_delta,data=dataR3)
+model22<-gam(S2~Site/Day_delta+Day_delta+Structure2,data=dataR3)
+model222<-gam(S2~Site/Day_delta+Day_delta+saison,data=dataR3)
+model2222<-gam(S2~Site/Day_delta+Day_delta+Site,data=dataR3)
+model22222<-gam(S2~Site/Day_delta+Day_delta+Years,data=dataR3)
+model222222<-gam(S2~Site/Day_delta+Day_delta+saison+Years,data=dataR3)
+model2222222<-gam(S2~Site/Day_delta+Day_delta+saison+Site,data=dataR3)
+model22222222<-gam(S2~Site/Day_delta+Day_delta+saison+Structure2,data=dataR3)
+model222222222<-gam(S2~Site/Day_delta+Day_delta+Years+Site,data=dataR3)
+model2222222222<-gam(S2~Site/Day_delta+Day_delta+Years+Structure2,data=dataR3)
+model22222222222<-gam(S2~Site/Day_delta+Day_delta+Structure2+Site,data=dataR3)
+model222222222222<-gam(S2~Site/Day_delta+Day_delta+Structure2+Site+saison+Years,data=dataR3)
+
+
+AICc(model1,model11,model111,model1111,model11111,model111111,model1111111,model11111111)
+AICc(model2,model22,model222,model2222,model22222,model222222,model2222222,model22222222,model222222222,model2222222222,
+     model22222222222,model222222222222)
 ```
 
 
@@ -734,4 +767,229 @@ dataR5<-rbind(dataR2,dataR4)
 mixed.lmer <- lmer(S ~ Site + (1|Structure2/Date_courte), data = dataR5) 
 summary(mixed.lmer)
 plot_model(mixed.lmer,show.values = T,show.p = T)
+```
+
+
+# Indices Beta
+## Calcul nestedness/replacement/richesse
+```{r}
+#la nestedness temperature minimale doit etre calculé à partir d'une matrice de meme dimension
+
+dataR2=dataR %>% ungroup %>% 
+  select(spp,Site,Structure2,Micro,Day_delta) %>% 
+  distinct()%>% 
+  group_by(Site,Structure2,Micro,Day_delta) %>% 
+  summarize(S=n()) %>%
+  na.omit()
+
+dataR4<-spread((dataR3=dataR2 %>% 
+  filter(Structure2 == "Disc") %>%
+  # filter(Site %in% c()) %>% #ne marche pas qu'avec 3 sites minimum
+  group_by(Site,Structure2,Day_delta) %>% 
+  summarize(S2 = mean(S))),key=Site,value=S2)
+dataR4[is.na(dataR4)]<-0
+
+
+# resnes<-nestedtemp(dataR2)
+# resnes$p
+
+library(bipartite)
+seuil<-1
+presence_absence <- dataR4[,-c(1)] >= seuil
+nes<-nestedness(presence_absence)
+
+nes2<-nested(presence_absence,method="NODF") #valeur élevée = forte Nestedness
+nes3<-nestednodf(presence_absence)
+nested(presence_absence,method='weighted NODF')  #valeur élevée = forte Nestedness mais pondère les espèces en fonction de leur rareté
+
+nested(presence_absence)
+
+
+# été
+dataR2=dataR %>% ungroup %>%
+  filter(saison == 'été') %>% 
+  select(spp,Site,Day_delta) %>% 
+  distinct()%>% 
+  group_by(spp,Site,Day_delta) %>% 
+  summarize(S=n()) %>%
+  na.omit()
+
+dataR4<-spread((dataR3=dataR2 %>% 
+  group_by(spp,Site,Day_delta) %>%
+  summarize(S2 = mean(S))),key=Site,value=S2) 
+dataR4[is.na(dataR4)]<-0
+
+
+
+#### Test package adespatial
+dataR2=dataR %>% ungroup %>% 
+  select(spp,Site,Micro,Date_courte,Structure2,Mcov) %>% 
+  group_by(spp,Site,Micro,Date_courte,Structure2,Mcov) %>% 
+  distinct() %>% drop_na() %>% 
+    spread(spp,Mcov) %>% ungroup() %>% 
+    mutate(across(everything(.), ~replace_na(., 0))) %>% 
+    mutate(Name=paste(Site,Structure2,Date_courte,sep=",")) #prend les metas données de chaque ligne 
+
+databetadiv2<-beta.div.comp(dataR2[,-c(1:4,39)],coef="S") #calcul de la nestedness, diversité et turnover
+databetadiv2$rich
+mean(databetadiv$rich)
+  
+
+# Extraction des matrices
+mat.D=as.matrix(databetadiv2$D)
+mat.D[upper.tri(mat.D)]<-NA
+diag(mat.D)<-NA
+rownames(mat.D)<-dataR2$Name #change le nom des lignes avec les metadonnées
+colnames(mat.D)<-dataR2$Name #change le nom des colonnes avec les metadonnées
+ 
+mat.repl=as.matrix(databetadiv2$repl)
+mat.repl[upper.tri(mat.repl)]<-NA
+diag(mat.repl)<-NA
+rownames(mat.repl)<-dataR2$Name #change le nom des lignes avec les metadonnées
+colnames(mat.repl)<-dataR2$Name #change le nom des colonnes avec les metadonnées
+ 
+mat.rich=as.matrix(databetadiv2$rich)
+mat.rich[upper.tri(mat.rich)]<-NA
+diag(mat.rich)<-NA
+rownames(mat.rich)<-dataR2$Name #change le nom des lignes avec les metadonnées
+colnames(mat.rich)<-dataR2$Name #change le nom des colonnes avec les metadonnées
+ 
+
+# Transformation des matrices en df
+test.mat.D=na.omit(reshape2::melt(mat.D)) %>% mutate(Type='D') 
+test.mat.D2 <- test.mat.D %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:3), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:3), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.D2)<-c("Site1","Structure1","Date1","Site2","Structure2","Date2","Dissimilarité","type")
+
+
+test.mat.repl=na.omit(reshape2::melt(mat.repl)) %>% mutate(Type='repl')
+test.mat.repl2 <- test.mat.repl %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:3), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:3), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.repl2)<-c("Site1","Structure1","Date1","Site2","Structure2","Date2","Remplacement","type")
+
+
+test.mat.rich=na.omit(reshape2::melt(mat.rich)) %>% mutate(Type='rich')
+test.mat.rich2 <- test.mat.rich %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:3), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:3), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.rich2)<-c("Site1","Structure1","Date1","Site2","Structure2","Date2","Richesse","type")
+
+```
+
+
+### Ternary plot
+```{r}
+
+########## test package Ternary ##########
+library("Ternary")
+TernaryPlot("Nestedness", "Turnover", "Similarité", 
+            grid.lines = 5, grid.lty = "dotted",
+            grid.minor.lines = 1, grid.minor.lty = "dotted",
+            point = "up")
+
+# Colour the background:
+cols <- TernaryPointValues(rgb)
+ColourTernary(cols, spectrum = NULL)
+
+# Add data points
+data_points <- list(
+  R = c(255, 0, 0), 
+  O = c(240, 180, 52),
+  Y = c(210, 222, 102),
+  G = c(111, 222, 16),
+  B = c(25, 160, 243),
+  I = c(92, 12, 243),
+  V = c(225, 24, 208)
+)
+
+data_points <- c(nes$statistic,mean(turn$total),0.5)
+
+AddToTernary(graphics::points, data_points,col='red')
+
+AddToTernary(text, data_points, names(data_points), cex = 0.8, font = 2)
+legend("bottomright", 
+       legend = c("Red", "Orange", "Yellow", "Green"),
+       cex = 0.8, bty = "n", pch = 21, pt.cex = 1.8,
+       pt.bg = c(rgb(255,   0,   0, 128, NULL, 255), 
+                 rgb(240, 180,  52, 128, NULL, 255),
+                 rgb(210, 222, 102, 128, NULL, 255),
+                 rgb(111, 222,  16, 128, NULL, 255)))
+
+
+
+#Création jeu de données rassemblant les différentes données
+datadissi=test.mat.D2 %>% select(Site1,Structure1,Date1,Site2,Structure2,Date2,Dissimilarité) #%>% 
+  # filter(Site1== "Bi") 
+  # filter(Structure1 == "Disc")
+
+datarepl<-test.mat.repl2 %>% select(Site1,Structure1,Date1,Site2,Structure2,Date2,Remplacement) #%>% 
+  # filter(Site1== "Bi") 
+  # filter(Structure1 == "Disc")
+
+datarich<-test.mat.rich2 %>% select(Site1,Structure1,Date1,Site2,Structure2,Date2,Richesse)# %>% 
+  # filter(Site1== "Bi")  
+  # filter(Structure1 == "Disc")
+
+datatern<-cbind(datadissi[,-c(5,7)],Similarité=(1-datadissi[,7])*100,Remplacement=100*datarepl[,7],Richesse=100*datarich[,7])
+
+
+########## Test package gg plot ########## 
+
+ #http://www.ggtern.com/d/2.2.0/
+ggtern(data=datatern, aes(x=Richesse,y=Similarité,z=Remplacement)) +
+  geom_point(colour='black') +
+  # geom_crosshair_tern(colour='black')+
+  labs(title="")+
+  # theme_arrowlarge()+
+  theme_noarrows()+
+theme_custom(  #https://rdrr.io/cran/ggtern/man/ggtern_themes.html
+  base_size = 12,
+  base_family = "",
+  tern.plot.background = NULL,
+  tern.panel.background = NULL,
+  col.T = "deepskyblue",
+  col.L = "green3",
+  col.R = "firebrick1",
+  col.grid.minor = "white")
+
+
+datatern2=datatern %>%
+  # filter(Structure1 == 'Disc') %>% 
+  filter(Site1 == 'recif3') %>%
+  filter(Site2 == 'recif3')
+  # filter(Date1 == '2022-01') %>%
+  # filter(Date2 == '2022-01')
+
+# test pour mettre à  100% (les deux fonctions marchent séparemment mais pas l'une après l'autre)
+# datatern2[,c(5:7)] <- round(datatern2[,c(5:7)] / rowSums(datatern2[,c(5:7)]) * 100,1)
+# datatern2[,c(5:7)]<-round(datatern2[,c(5:7)],1)
+
+
+datamean<-as.data.frame(t(colMeans(datatern2[,c(6:8)])))
+ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement)) +
+  # geom_point(colour='black') +
+  stat_density_tern( #ajout de la densité
+    geom="polygon",aes(fill=..level..),bins=10,color='grey')+
+  labs(title="")+
+theme_custom(  #https://rdrr.io/cran/ggtern/man/ggtern_themes.html
+  base_size = 10,
+  base_family = "",
+  tern.plot.background = NULL,
+  tern.panel.background = NULL,
+  col.T = "deepskyblue",
+  col.L = "green3",
+  col.R = "firebrick1",
+  col.grid.minor = "white"
+)+
+  theme_showarrows()+
+  geom_crosshair_tern(data=datamean,colour='red')
+
 ```
