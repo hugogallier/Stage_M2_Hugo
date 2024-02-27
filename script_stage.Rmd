@@ -36,12 +36,12 @@ library(ecole)
 library(tidyverse)
 library(mgcv)
 library(ggforce)
-library(mgcv)
 library(tidymv)
 library(ggtern)
 library(codyn)
 library(adespatial)
 library(ggdendro)
+library(car)
 
 ```
 
@@ -116,8 +116,8 @@ Date_sais=data.frame(
 ```
 
 
-## Mise en forme des données
 
+## Mise en forme des données
 
 ```{r}
 # Ajout de méta données à partir du nom de fichier (site,data,micro,n° de quadrat)
@@ -250,6 +250,7 @@ dataR=dataR1 %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte",'None','NA
 
 ```
 
+
 # ### Indice Gamma
 ```{r}
 # Quel est la richesse taxonomique global (Indice Gamma) d'un site et de la zone d'étude en général
@@ -308,6 +309,7 @@ dataR2=dataR %>% ungroup %>%
 dataR3=dataR2 %>% 
   group_by(Site,Structure2,Date_courte) %>% 
   summarize(S2 = mean(S))
+dataR3$S2[which(dataR3$Structure2=='Pillars')]<-(dataR3$S2[which(dataR3$Structure2=='Pillars')]/2)
 
 ggplot(dataR3, aes(Structure2,S2, fill=Site))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
   xlab("Structure")+
@@ -537,7 +539,8 @@ ggradar(resultat3VB[,-1],grid.min = 0,grid.max =10,grid.mid=5,values.radar = c(0
 ```
 
 
-# Linear mixed model
+# Utilisation des modèles
+## Linear mixed model
 ```{r}
 #Permet de montrer la significativité des valeurs selon des variables aléatoires
 
@@ -574,7 +577,7 @@ shapiro_test(lmer(S2 ~ Site + (1|saison/Structure2), data = dataR3))
 leveneTest(S2~Site ,data=dataR3)
 ```
 
-# Generalized linear model
+## Generalized linear model
 ```{r}
 #Permet de montrer la significativité des valeurs selon des variables aléatoires
 
@@ -601,7 +604,7 @@ plot(glm1)
 summary(glm1)
 ```
 
-# Generalized Additive Models
+## Generalized Additive Models
 ```{r}
 #Permet de montrer la significativité des valeurs selon des variables aléatoires
 
@@ -612,9 +615,12 @@ dataR$saison[dataR$saison == "2021-07" | dataR$saison == "2022-07"] <- "été"
 dataR$saison[dataR$saison == "2021-10" | dataR$saison == "2021-11"| dataR$saison == "2022-11"] <- "automne"
 dataR$saison[dataR$saison == "2022-01"] <- "hiver"
 
+
+#avec Richesse taxo
 dataR2=dataR %>% ungroup %>% 
-  select(spp,Site,Structure2,Micro,Day_delta,saison) %>% 
+  select(spp,Site,Structure2,Micro,Day_delta,saison,Date_courte) %>% 
   distinct()%>% 
+  # mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
   group_by(Site,Structure2,Micro,Day_delta,saison) %>% 
   summarize(S=n()) %>%
   na.omit()%>% 
@@ -624,57 +630,111 @@ dataR3=dataR2 %>%
   group_by(Site,Structure2,Day_delta,saison) %>% 
   summarize(S2 = mean(S)) 
 
+#avec Mcov
+dataR2=dataR %>% ungroup %>% 
+  select(spp,Site,Structure2,Micro,Day_delta,saison,Date_courte,Mcov) %>% 
+  distinct()%>% 
+  mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
+  group_by(Site,Structure2,Day_delta,saison,Years,Mcov) %>% 
+  # summarize(S=n()) %>%
+  na.omit()%>% 
+  droplevels()
+
+dataR3=dataR2 %>% 
+  group_by(Site,Structure2,Day_delta,saison) %>% 
+  summarize(Mcov2 = sum(Mcov,.by=Structure2)) 
+
+
 str(dataR3)
 dataR3$Site<-as.factor(dataR3$Site)
 dataR3$S2<-as.numeric(dataR3$S2)
 dataR3$saison<-as.factor(dataR3$saison)
+# dataR3$Day_delta<-as.factor(dataR3$Day_delta)
+# dataR3$Years<-as.factor(dataR3$Years)
 
 model1<-gam(S2~s(Day_delta)+Site+Structure2+saison,data=dataR3)
 model1<-gam(S2~s(Day_delta)+Site,data=dataR3)
+model1<-gam(Mcov~s(Day_delta)+Site,data=dataR3)
+
 gam.check(model1)#permet de voir si le nombre de fonction simple utilisé est suffisant (si pvalue trop petite alors utiliser plus)
 summary(model1)
 
-plot(model1,shift=mean(dataR3$S2),residuals=T,cex=1,pch=16,col="blue",shade=T,shade.col='grey')
+plot(model11111111,shift=mean(dataR3$S2),residuals=T,cex=0.7,pch=16,col="blue",shade=T,shade.col='grey')
 ggplot(data = dataR3, mapping = aes(x = Day_delta, y = S2)) +
   geom_point(size = 0.7, alpha = 0.7) +
   geom_smooth(method="gam", formula= y~s(x))+
   theme_bw()
 
-plot_smooths(model=model1, series=Day_delta,comparison=Site)+theme_bw() #permet de mettre les gam selon les sites
+plot_smooths(model=model11111111, series=Day_delta,comparison=Site)+theme_bw() #permet de mettre les gam selon les sites
 
-#Homoscédasticité
-leveneTest(lmmodel)
-plot(model1$residuals~model1$fitted.values)
-
-lmmodel<-lm(S2~Site/Day_delta+saison,data=dataR3)
-lmmodel<-lm(S2~Site,data=dataR3)
-ncvTest(lmmodel) #si supérieur à alpha alors homoscedastique
-
-#normalité des valeurs
-shapiro_test(lmmodel$residuals)
-hist(dataR3$S2)
-qqnorm(lmmodel$residuals)
-qqline(lmmodel$residuals)
 
 #test comparaison tous les paramètres
 library(MuMIn)
 model1<-gam(S2~s(Day_delta)+Site,data=dataR3)
-model11<-gam(S2~s(Day_delta)+Structure2,data=dataR3)
-model111<-gam(S2~s(Day_delta)+saison,data=dataR3)
-model1111<-gam(S2~s(Day_delta)+Site+saison,data=dataR3)
-model11111<-gam(S2~s(Day_delta)+Structure2+saison,data=dataR3)
-model111111<-gam(S2~s(Day_delta)+Structure2+Site,data=dataR3)
-model1111111<-gam(S2~s(Day_delta)+Structure2+Site+saison,data=dataR3)
+model11<-gam(S2~s(Day_delta)+Years,data=dataR3)
+model111<-gam(S2~s(Day_delta)+Structure2,data=dataR3)
+model1111<-gam(S2~s(Day_delta)+saison,data=dataR3)
+model11111<-gam(S2~s(Day_delta)+Site,data=dataR3)
+model111111<-gam(S2~s(Day_delta)+Structure2,data=dataR3)
+model1111111<-gam(S2~s(Day_delta)+Structure2+Site,data=dataR3)
+model11111111<-gam(S2~s(Day_delta)+s(Structure2,bs="re")+s(Site,bs="re"),data=dataR3)
+model111111111<-gam(Mcov2~s(Day_delta)+s(Structure2,bs='re')+s(Site,bs="re")+Site,data=dataR3)
+
 
 model2<-gam(S2~Site/Day_delta+Day_delta,data=dataR3)
 model22<-gam(S2~Site/Day_delta+Day_delta+Structure2,data=dataR3)
 model222<-gam(S2~Site/Day_delta+Day_delta+saison,data=dataR3)
 model2222<-gam(S2~Site/Day_delta+Day_delta+Site,data=dataR3)
-model22222<-gam(S2~Site/Day_delta+Day_delta+Structure2+Site+saison,data=dataR3)
+model22222<-gam(S2~Site/Day_delta+Day_delta+Years,data=dataR3)
+model2222222<-gam(S2~Site/Day_delta+Day_delta+saison+Site,data=dataR3)
+model22222222<-gam(S2~Site/Day_delta+Day_delta+saison+Structure2,data=dataR3)
+model222222222<-gam(S2~Site/Day_delta+Day_delta+Years+Site,data=dataR3)
+model2222222222<-gam(S2~Site/Day_delta+Day_delta+Years+Structure2,data=dataR3)
+model22222222222<-gam(S2~Site/Day_delta+Day_delta+Structure2+Site,data=dataR3)
+model222222222222<-gam(S2~Site/Day_delta+Day_delta+Structure2+Site+Years,data=dataR3)
 
-summary(model222)
 
-AICc(model1,model11,model111,model1111,model11111,model111111,model1111111,model2,model22,model222,model2222,model22222)
+AICc(model1,model11,model111,model1111,model11111,model111111,model1111111,model11111111)
+AICc(model2,model22,model222,model2222,model22222,model222222,model2222222,model22222222,model222222222,model2222222222,
+     model22222222222,model222222222222)
+summary(model11111111)
+
+par(mfrow= c(1,1))
+plot(model11111111,shift=mean(dataR3$S2),residuals=T,cex=1,pch=16,col="blue",shade=T,shade.col='grey')
+plot(model111111111,shift=mean(dataR3$Mcov2),residuals=T,cex=0.7,pch=16,col="blue",shade=T,shade.col='grey')
+
+#test comparaison tous les paramètres
+options(na.action = "na.fail")
+fm1<-gam(S2~s(Day_delta)+s(Structure2,bs="re")+s(Site,bs="re"),data=dataR3)
+ms1<-dredge(fm1)
+par(mar = c(3,5,6,4))
+plot(ms1, labAsExpr = TRUE)
+model.avg(ms1, subset = delta < 4)
+
+
+#calcul correlation day_delta et years
+cor(dataR3$Day_delta,dataR3$Years)
+
+#### Conditions d'applications
+par(mfrow = c(2, 2))
+gam.check(model11111111)
+
+#Homoscédasticité
+leveneTest(lmmodel)#si supérieur à alpha alors homoscedastique
+plot(model1$residuals~model1$fitted.values)
+
+lmmodel<-lm(S2~Site/Day_delta+saison,data=dataR3)
+lmmodel<-gam(S2~Site,data=dataR3)
+# ncvTest(lmmodel) #que avec lm
+
+#normalité des valeurs
+shapiro_test(lmmodel$residuals) #si supérieur à alpha alors hypothèse de normalité acceptée
+shapiro_test(dataR3$S2)  
+hist(dataR3$S2)
+qqnorm(lmmodel$residuals)
+qqline(lmmodel$residuals)
+dataR3 %>% shapiro_test(S2)
+
 
 ```
 
@@ -819,8 +879,8 @@ legend(x = "bottomright", legend = c("Bi","Bu","Fe","VB"),lty = 1, col = c("red"
 
 ```
 
-
-# Matrice de distance
+# Représentation spatial
+## Matrice de distance
 ```{r}
 # Permet de calculer la distance entre le recouvrement de chaque espèce et le taux de recouvrement
 
@@ -857,7 +917,8 @@ dataR$saison[dataR$saison == "2022-01"] <- "hiver"
 
 data_comp2=dataR %>% ungroup %>% 
   select(spp,Mcov,Site,Micro,Date_courte,Structure2,saison) %>% 
-  group_by(spp,Site,Micro,Date_courte,Structure2,saison) %>% 
+  mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
+  group_by(spp,Site,Micro,Date_courte,Structure2,saison,Years) %>% 
   distinct() %>% drop_na() %>% 
   spread(spp,Mcov) %>% ungroup() %>% 
   mutate(across(everything(.), ~replace_na(., 0))) 
@@ -869,7 +930,7 @@ data_comp2$Site<-as.factor(data_comp2$Site)
 data_comp2$Micro<-as.factor(data_comp2$Micro)
 data_comp2$Date_courte<-as.factor(data_comp2$Date_courte)
 data_comp2$nouvelle<-as.factor(data_comp2$nouvelle)
-
+data_comp2$Years<-as.factor(data_comp2$Years)
 
 # test=data_comp2 %>% filter(Site == 'VB',
                           # Date_courte=='2021-07' )
@@ -878,8 +939,8 @@ data_comp2$nouvelle<-as.factor(data_comp2$nouvelle)
 # Comp_mat=data_comp2 %>% select(-c(Site,Sample,Micro,Structure2,Strcut_groups,Date_courte)) %>% as.matrix() 
 # Meta_data=data_comp2 %>% select(Site,Sample,Micro,Structure2,Strcut_groups,Date_courte)
 
-Comp_mat=data_comp2 %>% select(-c(Site,Micro,Structure2,Date_courte,saison)) %>% as.matrix() #sans meta données
-Meta_data=data_comp2 %>% select(Site,Micro,Structure2,Date_courte,saison) #meta données
+Comp_mat=data_comp2 %>% select(-c(Site,Micro,Structure2,Date_courte,saison,Years)) %>% as.matrix() #sans meta données
+Meta_data=data_comp2 %>% select(Site,Micro,Structure2,Date_courte,saison,Years) #meta données
 
 # Comp_mat=data_comp2 %>% select(-c(Site,Micro,Structure2,Date_courte,nouvelle,saison)) %>% as.matrix() #sans meta données
 # Meta_data=data_comp2 %>% select(Site,Micro,Structure2,Date_courte,nouvelle,saison) #meta données
@@ -944,11 +1005,12 @@ PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
                    Structure=Meta_data$Structure2,
                    Site=Meta_data$Site,
                    Date=Meta_data$Date_courte,
-                   Saison=Meta_data$saison
+                   Saison=Meta_data$saison,
+                   Years=Meta_data$Years
                    # Structure3=Meta_data$nouvelle
                    )
 
-ggplot(data=PCOA_df,aes(x,y, col=Structure))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
+ggplot(data=PCOA_df,aes(x,y, col=Years))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
   # geom_point(aes(col=Site), size=1, alpha=.6)+
   geom_point()+
   labs(x="Axe 1 (temporalité)",y="Axe 2")+
@@ -1000,8 +1062,8 @@ adonis2(distdataR~Structure2,data=data_comp2,permutations=999)
 # Permet de voir si les microhabitats possèdent une richesse taxo équivalente et donc qu'ils peuvent etre regroupés
 
 data_comp2=dataR %>% ungroup %>% 
-  filter(Site == 'Bu') %>%
-  filter(Structure2 == 'Disc') %>%
+  filter(Site == 'VB') %>%
+  filter(Structure2 == 'Inner_slots') %>%
   select(spp,Mcov,Site,Micro,Day_delta,Structure2) %>% 
   group_by(spp,Site,Micro,Day_delta,Structure2) %>% 
   distinct() %>% drop_na() %>% 
@@ -1223,6 +1285,7 @@ out.raw <- iNEXT(comp_list_clean,q=0,
                  endpoint=80)
 plot(out.raw)
 # ggiNEXT(out.raw)
+
 ChaoRichness(comp_list_clean,datatype = 'incidence_raw')
 
 # Ici tu les données concernant l'estimation de la rich. totale
@@ -1387,22 +1450,30 @@ specpool(as.numeric(comp_list_clean))
 
 # Test différence échantillonage
 ```{r}
-dataR2=dataR %>% ungroup %>% 
-  select(Site,Structure2,Micro,Date_courte) %>% 
-  filter(Site =="VB") %>% 
+
+dataR2=dataR %>% ungroup %>%
+  select(Site,Day_delta,Structure2) %>% 
   distinct()%>% 
-  group_by(Site,Structure2,Micro,Date_courte) %>% 
-  summarize(S=sum(n(Structure2)),.by=Site) %>%
+  group_by(Site,Day_delta,Structure2) %>% 
+  summarize(S3=sum(n(Site)),.by=Structure2) %>%
   na.omit()
 
 
-seqdate<-c('2021-04','2021-07','2021-11','2022-01','2022-04','2022-07','2022-11')
-Bid<-rep(8,times=7)
+seqdate<-c('153','244','367','428','518','609','732')
+Bid<-as.numeric(rep(8,times=7))
 Bic<-c(8,7,8,8,8,7,8)
 Bip<-rep(3,times=7)
 Bis<-c(8,8,8,7,8,8,8)
 Birep<-rep("Bi",times=7)
-Bidata<-cbind(Birep,seqdate,Bid,Bic,Bip,Bis)
+Bidata<-as.data.frame(cbind(Birep,seqdate,Bid,Bic,Bip,Bis))
+colnames(Bidata)<-c("Site","Nbjourimmer","Disques","Colonnes","Pilliers","Slots")
+Bidata$Nbjourimmer<-as.factor(Bidata$Nbjourimmer)
+Bidata$Disques<-as.numeric(Bidata$Disques)
+Bidata$Colonnes<-as.numeric(Bidata$Colonnes)
+Bidata$Pilliers<-as.numeric(Bidata$Pilliers)
+Bidata$Slots<-as.numeric(Bidata$Slots)
+Bidata2<-spread(Bidata,key=Birep,value=Bid)
+ggplot(Bidata,aes(fill=))
 
 Bud<-c(7,8,8,5,8,"",8)
 Buc<-c(8,7,8,8,4,"",8)
@@ -1553,7 +1624,7 @@ simpsonind<-diversity(dataR4[,-1],index="simpson")
 # stabilité des communautés, 0 = 1 espèce prédominante sur sur le récif et 1 = équité de la répartion des espèces
 #### indice de Shannon
 
-#matrice présence/absence moyenne par site par espèce
+#matrice présence/absence  par site par espèce
 dataR2=dataR %>% ungroup %>%
   select(spp,Site,Day_delta) %>% 
   distinct()%>% 
@@ -1562,8 +1633,9 @@ dataR2=dataR %>% ungroup %>%
   na.omit()
 
 dataR4<-spread((dataR3=dataR2 %>% 
-  group_by(spp,Site,Day_delta) %>%
-  summarize(S2 = mean(S))),key=spp,value=S2) 
+  group_by(spp,Site,Day_delta) #%>%
+  # summarize(S2 = mean(S))),key=spp,value=S2))
+   ),key=spp,value=S)
 dataR4[is.na(dataR4)]<-0
 
 shannonind<-diversity(dataR4[,-c(1:2)],index="shannon")
@@ -1601,7 +1673,7 @@ ggplot(shannonind2, aes(Day_delta,shannon, col=Site))+ # Avec "fill" ou "col" du
 # shannonmax<- -sum(propmax*log(propmax))
 
 #### indice de Piélou (indice de Shannon/Richesse spécifique)
-Piélouind<-shannonind/(specnumber(dataR4[,-1]))
+Piélouind<-shannonind/45 #indice de shannon divisé par le nombre max de taxons sur un meme site
 Piélouind2<-cbind(dataR4[,c(1:2)],Piélouind)
 colnames(Piélouind2)[3]<-"Piélou"
 ggplot(Piélouind2, aes(Day_delta,Piélou, col=Site))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
@@ -1615,54 +1687,53 @@ ggplot(Piélouind2, aes(Day_delta,Piélou, col=Site))+ # Avec "fill" ou "col" du
 
 ```
 
-## Test calcul nestedness
+## Calcul nestedness/replacement/richesse
 ```{r}
 #la nestedness temperature minimale doit etre calculé à partir d'une matrice de meme dimension
 
-dataR2=dataR %>% ungroup %>% 
-  select(spp,Site,Structure2,Micro,Day_delta) %>% 
-  distinct()%>% 
-  group_by(Site,Structure2,Micro,Day_delta) %>% 
-  summarize(S=n()) %>%
-  na.omit()
-
-dataR4<-spread((dataR3=dataR2 %>% 
-  filter(Structure2 == "Disc") %>%
-  filter(Site %in% c('Bu','Bi','Fe','VB')) %>% #ne marche pas qu'avec 3 sites minimum
-  group_by(Site,Structure2,Day_delta) %>% 
-  summarize(S2 = mean(S))),key=Site,value=S2)
-dataR4[is.na(dataR4)]<-0
-
-
-# resnes<-nestedtemp(dataR2)
-# resnes$p
-
-library(bipartite)
-seuil<-1
-presence_absence <- dataR4[,-c(1)] >= seuil
-nes<-nestedness(presence_absence)
-
-nes2<-nested(presence_absence,method="NODF") #valeur élevée = forte Nestedness
-nes3<-nestednodf(presence_absence)
-nested(presence_absence,method='weighted NODF')  #valeur élevée = forte Nestedness mais pondère les espèces en fonction de leur rareté
-
-nested(presence_absence)
-
-
-# été
-dataR2=dataR %>% ungroup %>%
-  filter(saison == 'été') %>% 
-  select(spp,Site,Day_delta) %>% 
-  distinct()%>% 
-  group_by(spp,Site,Day_delta) %>% 
-  summarize(S=n()) %>%
-  na.omit()
-
-dataR4<-spread((dataR3=dataR2 %>% 
-  group_by(spp,Site,Day_delta) %>%
-  summarize(S2 = mean(S))),key=Site,value=S2) 
-dataR4[is.na(dataR4)]<-0
-
+# dataR2=dataR %>% ungroup %>% 
+#   select(spp,Site,Structure2,Micro,Day_delta) %>% 
+#   distinct()%>% 
+#   group_by(Site,Structure2,Micro,Day_delta) %>% 
+#   summarize(S=n()) %>%
+#   na.omit()
+# 
+# dataR4<-spread((dataR3=dataR2 %>% 
+#   filter(Structure2 == "Disc") %>%
+#   filter(Site %in% c('Bu','Bi','Fe','VB')) %>% #ne marche pas qu'avec 3 sites minimum
+#   group_by(Site,Structure2,Day_delta) %>% 
+#   summarize(S2 = mean(S))),key=Site,value=S2)
+# dataR4[is.na(dataR4)]<-0
+# 
+# 
+# # resnes<-nestedtemp(dataR2)
+# # resnes$p
+# 
+# library(bipartite)
+# seuil<-1
+# presence_absence <- dataR4[,-c(1)] >= seuil
+# nes<-nestedness(presence_absence)
+# 
+# nes2<-nested(presence_absence,method="NODF") #valeur élevée = forte Nestedness
+# nes3<-nestednodf(presence_absence)
+# nested(presence_absence,method='weighted NODF')  #valeur élevée = forte Nestedness mais pondère les espèces en fonction de leur rareté
+# 
+# nested(presence_absence)
+# 
+# 
+# # été
+# dataR2=dataR %>% ungroup %>%
+#   filter(saison == 'été') %>% 
+#   select(spp,Site,Day_delta) %>% 
+#   distinct()%>% 
+#   group_by(spp,Site,Day_delta) %>% 
+#   summarize(S=n()) %>%
+#   na.omit()
+# 
+# dataR4<-spread((dataR3=dataR2 %>% 
+#   group_by(spp,Site,Day_delta) %>%
+#   summarize(S2 = mean(S))),key=Site,value=S2) 
+# dataR4[is.na(dataR4)]<-0
 
 
 #### Test package adespatial
@@ -1675,7 +1746,7 @@ dataR2=dataR %>% ungroup %>%
     mutate(Name=paste(Site,Structure2,Date_courte,sep=",")) #prend les metas données de chaque ligne 
 
 databetadiv2<-beta.div.comp(dataR2[,-c(1:4,65)],coef="S") #calcul de la nestedness, diversité et turnover
-databetadiv$rich
+databetadiv2$rich
 mean(databetadiv$rich)
   
 
@@ -1729,66 +1800,66 @@ colnames(test.mat.rich2)<-c("Site1","Structure1","Date1","Site2","Structure2","D
 ```
 
 
-## #Ternary plot
+### Ternary plot
 ```{r}
 
-########## test package Ternary ##########
-library("Ternary")
-TernaryPlot("Nestedness", "Turnover", "Similarité", 
-            grid.lines = 5, grid.lty = "dotted",
-            grid.minor.lines = 1, grid.minor.lty = "dotted",
-            point = "up")
-
-# Colour the background:
-cols <- TernaryPointValues(rgb)
-ColourTernary(cols, spectrum = NULL)
-
-# Add data points
-data_points <- list(
-  R = c(255, 0, 0), 
-  O = c(240, 180, 52),
-  Y = c(210, 222, 102),
-  G = c(111, 222, 16),
-  B = c(25, 160, 243),
-  I = c(92, 12, 243),
-  V = c(225, 24, 208)
-)
-
-data_points <- c(nes$statistic,mean(turn$total),0.5)
-
-AddToTernary(graphics::points, data_points,col='red')
-
-AddToTernary(text, data_points, names(data_points), cex = 0.8, font = 2)
-legend("bottomright", 
-       legend = c("Red", "Orange", "Yellow", "Green"),
-       cex = 0.8, bty = "n", pch = 21, pt.cex = 1.8,
-       pt.bg = c(rgb(255,   0,   0, 128, NULL, 255), 
-                 rgb(240, 180,  52, 128, NULL, 255),
-                 rgb(210, 222, 102, 128, NULL, 255),
-                 rgb(111, 222,  16, 128, NULL, 255)))
-
+# ########## test package Ternary ##########
+# library("Ternary")
+# TernaryPlot("Nestedness", "Turnover", "Similarité", 
+#             grid.lines = 5, grid.lty = "dotted",
+#             grid.minor.lines = 1, grid.minor.lty = "dotted",
+#             point = "up")
+# 
+# # Colour the background:
+# cols <- TernaryPointValues(rgb)
+# ColourTernary(cols, spectrum = NULL)
+# 
+# # Add data points
+# data_points <- list(
+#   R = c(255, 0, 0), 
+#   O = c(240, 180, 52),
+#   Y = c(210, 222, 102),
+#   G = c(111, 222, 16),
+#   B = c(25, 160, 243),
+#   I = c(92, 12, 243),
+#   V = c(225, 24, 208)
+# )
+# 
+# data_points <- c(nes$statistic,mean(turn$total),0.5)
+# 
+# AddToTernary(graphics::points, data_points,col='red')
+# 
+# AddToTernary(text, data_points, names(data_points), cex = 0.8, font = 2)
+# legend("bottomright", 
+#        legend = c("Red", "Orange", "Yellow", "Green"),
+#        cex = 0.8, bty = "n", pch = 21, pt.cex = 1.8,
+#        pt.bg = c(rgb(255,   0,   0, 128, NULL, 255), 
+#                  rgb(240, 180,  52, 128, NULL, 255),
+#                  rgb(210, 222, 102, 128, NULL, 255),
+#                  rgb(111, 222,  16, 128, NULL, 255)))
+# 
 
 
 #Création jeu de données rassemblant les différentes données
-datadissi=test.mat.D2 %>% select(Site1,Structure1,Date1,Site2,Structure2,Date2,Dissimilarité) %>% 
-  filter(Site1== "Bi") 
+datadissi=test.mat.D2 %>% select(Site1,Structure1,Date1,Site2,Structure2,Date2,Dissimilarité) #%>% 
+  # filter(Site1== "Bi") 
   # filter(Structure1 == "Disc")
 
-datarepl<-test.mat.repl2 %>% select(Site1,Structure1,Date1,Site2,Structure2,Date2,Remplacement) %>% 
-  filter(Site1== "Bi") 
+datarepl<-test.mat.repl2 %>% select(Site1,Structure1,Date1,Site2,Structure2,Date2,Remplacement) #%>% 
+  # filter(Site1== "Bi") 
   # filter(Structure1 == "Disc")
 
-datarich<-test.mat.rich2 %>% select(Site1,Structure1,Date1,Site2,Structure2,Date2,Richesse) %>% 
-  filter(Site1== "Bi")  
+datarich<-test.mat.rich2 %>% select(Site1,Structure1,Date1,Site2,Structure2,Date2,Richesse)# %>% 
+  # filter(Site1== "Bi")  
   # filter(Structure1 == "Disc")
 
-datatern<-cbind(datadissi[,-c(4:5,7)],Dissimilarité=(1-datadissi[,7])*100,Remplacement=100*datarepl[,7],Richesse=100*datarich[,7])
+datatern<-cbind(datadissi[,-c(5,7)],Similarité=(1-datadissi[,7])*100,Remplacement=100*datarepl[,7],Richesse=100*datarich[,7])
 
 
 ########## Test package gg plot ########## 
 
  #http://www.ggtern.com/d/2.2.0/
-ggtern(data=datatern2, aes(x=Richesse,y=Dissimilarité,z=Remplacement)) +
+ggtern(data=datatern, aes(x=Richesse,y=Similarité,z=Remplacement)) +
   geom_point(colour='black') +
   # geom_crosshair_tern(colour='black')+
   labs(title="")+
@@ -1806,86 +1877,93 @@ theme_custom(  #https://rdrr.io/cran/ggtern/man/ggtern_themes.html
 
 
 datatern2=datatern %>%
-  filter(Structure1 == 'Disc') %>% 
-  filter(Site1 == 'Bi') %>% 
-  filter(Date2 == '2021-04')
+  # filter(Structure1 == 'Disc') %>% 
+  filter(Site1 == 'Bu') %>%
+  # filter(Site2 == 'VB')
+  # filter(Structure1 == "Di") %>% 
+  filter(Date1 == '2021-11') %>%
+  filter(Date2 == '2021-11') 
+
+# test pour mettre à  100% (les deux fonctions marchent séparemment mais pas l'une après l'autre)
+# datatern2[,c(5:7)] <- round(datatern2[,c(5:7)] / rowSums(datatern2[,c(5:7)]) * 100,1)
+# datatern2[,c(5:7)]<-round(datatern2[,c(5:7)],1)
 
 
-ggtern(data=datatern2, aes(x=Richesse,y=Dissimilarité,z=Remplacement)) +
-  geom_point(colour='black') +
-  # geom_crosshair_tern(colour='black')+
-  stat_density_tern( #ajout de la densité  
-    geom="polygon",aes(fill=..level..),bins=5,color='grey')+
+datamean<-as.data.frame(t(colMeans(datatern2[,c(6:8)])))
+ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement)) +
+  geom_point(colour='black',alpha=0.3,size=2) +
+  # stat_density_tern( #ajout de la densité
+    # geom="polygon",aes(fill=..level..),bins=10,color='grey')+
   labs(title="")+
-  # theme_arrowlarge()+
-  theme_noarrows()+
-theme_custom(  #https://rdrr.io/cran/ggtern/man/ggtern_themes.html
-  base_size = 12,
-  base_family = "",
-  tern.plot.background = NULL,
-  tern.panel.background = NULL,
-  col.T = "deepskyblue",
-  col.L = "green3",
-  col.R = "firebrick1",
-  col.grid.minor = "white"
-)
+# theme_custom(  #https://rdrr.io/cran/ggtern/man/ggtern_themes.html
+#   base_size = 10,
+#   base_family = "",
+#   tern.plot.background = NULL,
+#   tern.panel.background = NULL,
+#   col.T = "deepskyblue",
+#   col.L = "green3",
+#   col.R = "firebrick1",
+#   col.grid.minor = "white"
+# )+
+  theme_showarrows()+
+  geom_crosshair_tern(data=datamean,colour='red')
+
 
 ```
-
-
 
 
 ## Test calcul turnover
 ```{r}
 
 #proportion relative d'espèces gagnée ou perdue face au nombre total d'espèces observé sur la période 
-
-dataR2=dataR %>% ungroup %>% 
-   filter(Site == 'Bi') %>%
-  select(spp,Site,Structure2,Day_delta) %>% 
-  distinct()%>% 
-  group_by(spp,Site,Day_delta) %>% 
-  summarize(S=n()) %>%
-  na.omit()
-
-dataR3=dataR2 %>% 
-  group_by(spp,Site,Day_delta) %>% 
-  summarize(S2 = mean(S))
-
-
-turn<-turnover(dataR3,
-               time.var="Day_delta",
-               species.var="spp",
-               abundance.var="S2",
-               metric="total")
-
-
-#Dissimilarité de Jaccard
-dataR2<- spread((dataR2=dataR %>% 
-  select(spp,Site,Date_courte,Structure2) %>% 
-  # filter(Date_courte %in% c("2022-04","2022-07"))%>%
-  # filter(Structure2 == ("Disc")) %>%
-  filter(Site == "Bi") %>% 
-  distinct() %>% 
-  group_by(spp,Site,Date_courte) %>% 
-  summarize(S=n())),key=Site,value=S)
-dataR2[is.na(dataR2)]<-0
-
-similarité_jaccard <- vegdist(dataR2[,3], method = "jaccard")
-
-similarité_bray <- vegdist(dataR2[,3], method = "bray")
-
-# library(betapart)
-# dissimilarité_raup_crick<-beta.pair(dataR2,method="raup_crick")
-
-dissimilarité_raup_crick<-raupcrick(dataR2)
-library(pheatmap)
-pheatmap(1-as.matrix(similarité_jaccard), display_numbers = 1-as.matrix(similarité_jaccard))
-
+# 
+# dataR2=dataR %>% ungroup %>% 
+#    filter(Site == 'Bi') %>%
+#   select(spp,Site,Structure2,Day_delta) %>% 
+#   distinct()%>% 
+#   group_by(spp,Site,Day_delta) %>% 
+#   summarize(S=n()) %>%
+#   na.omit()
+# 
+# dataR3=dataR2 %>% 
+#   group_by(spp,Site,Day_delta) %>% 
+#   summarize(S2 = mean(S))
+# 
+# 
+# turn<-turnover(dataR3,
+#                time.var="Day_delta",
+#                species.var="spp",
+#                abundance.var="S2",
+#                metric="total")
+# 
+# 
+# #Dissimilarité de Jaccard
+# dataR2<- spread((dataR2=dataR %>% 
+#   select(spp,Site,Date_courte,Structure2) %>% 
+#   # filter(Date_courte %in% c("2022-04","2022-07"))%>%
+#   # filter(Structure2 == ("Disc")) %>%
+#   filter(Site == "Bi") %>% 
+#   distinct() %>% 
+#   group_by(spp,Site,Date_courte) %>% 
+#   summarize(S=n())),key=Site,value=S)
+# dataR2[is.na(dataR2)]<-0
+# 
+# similarité_jaccard <- vegdist(dataR2[,3], method = "jaccard")
+# 
+# similarité_bray <- vegdist(dataR2[,3], method = "bray")
+# 
+# # library(betapart)
+# # dissimilarité_raup_crick<-beta.pair(dataR2,method="raup_crick")
+# 
+# dissimilarité_raup_crick<-raupcrick(dataR2)
+# library(pheatmap)
+# pheatmap(1-as.matrix(similarité_jaccard), display_numbers = 1-as.matrix(similarité_jaccard))
+# 
 ```
 
 
 # Recouvrement par la roche nue
+
 ```{r}
 # Quelle est l'évolution de la colonisation de la roche nue au fil du temps?
 # Est ce que la diminution de la richesse taxonomique en hiver est démontrée par un nombre d'espèces plus faibles? Par une diminution de la colonisation du récif (augmentation du taux de roche nue(mortalité de la flore/faune sessile))?
@@ -1923,21 +2001,3 @@ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
 
 
-dataR2=dataR %>% ungroup %>% 
-filter(Structure2 == 'Pillars') %>% 
-  select(spp,Site,Structure2,Micro,Date_courte) %>% 
-  distinct()%>% 
-  group_by(Site,Structure2,Micro,Date_courte) %>% 
-  summarize(S=n()) %>%
-  na.omit()
-
-dataR3=dataR2 %>% 
-  group_by(Site,Structure2,Micro,Date_courte) %>% 
-  summarize(S2 = mean(S))
-
-ggplot(dataR3, aes(Structure2,S2, fill=Site))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
-  xlab("Structure")+
-  ylab("Richesse taxonomique")+
-  geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
-  geom_boxplot()+
-  theme_bw()  
