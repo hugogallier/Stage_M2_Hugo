@@ -149,13 +149,7 @@ data_PQ=do.call(rbind,L) %>%
          spp.Name=ifelse(spp.Name == 'Unidentified','NI',spp.Name))
   
 
-# <<<<<<< HEAD
-# test=data_PQ[is.na(data_PQ$Date_courte),]
-# 
-# test=data_PQ %>% filter(Site =='Fe',
-#                         Date =="Nov-21")
 
-# >>>>>>> d7a3076aa8c86cd4609b46ec0f575f800cd1d573
 
 # Version synthétique du df
 
@@ -169,11 +163,8 @@ rename('spp'='spp.Name',
        'Cov_all'='Cov..ALL.species')%>%
   mutate(abb=abbreviate(spp))%>%
    group_by(spp,abb,Site,Micro,Date_courte,Date_ok,Quad2) %>%
-# <<<<<<< HEAD
   summarize(Mcov=mean(Cov)) %>%
   # summarize(MCount=mean(Count)) %>%
-# =======
-# >>>>>>> 85e13e91955f931dac262e7c430572b75e53e18d
   left_join(MPhoto, by=c('Micro')) %>%
   mutate(Structure2=recode_factor(Structure,
    "Bandes"="Dome",
@@ -967,47 +958,7 @@ pcoa_tot_SS<- cmdscale(d = as.matrix(distdataR),k=10, eig = T)
 x=pcoa_tot_SS$points[,1]
 y=pcoa_tot_SS$points[,2]
 
-plot(x,y) # <- ça fonctionne
-
-# <<<<<<< HEAD
-# 
-# # Data frame pour rassembler les coordonnées de la PCOA + les metadata
-# PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
-#            Structure=Meta_data$Structure2,
-# =======
-#  Eig=pcoa_tot_SS$eig[1:2]/sum(pcoa_tot_SS$eig)
-# 
-# # Pour mieux explorer le nuage de point on va passer par ggplot2.
-# # Data frame pour rassembler les coordonnées de la PCOA + les metadata
-# PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
-#            Struc=Meta_data$Structure2,
-#            Struc_group=Meta_data$Strcut_groups,
-# >>>>>>> d7a3076aa8c86cd4609b46ec0f575f800cd1d573
-#            Site=Meta_data$Site,
-#            Date=Meta_data$Date_courte)
-# 
-# 
-# <<<<<<< HEAD
-#  ggplot(data=PCOA_df,aes(x,y, col=Date))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
-#    # geom_point(aes(col=Site), size=1, alpha=.6)+
-#     geom_point()+
-#    labs(x="Axe 1 (temporalité)",y="Axe 2")+
-#  geom_hline(yintercept=0)+
-#    geom_vline(xintercept=0)+
-#    theme_bw()
-# =======
-# 
-# PCOA_df_mean=PCOA_df %>% group_by(Struc_group) %>% 
-#   summarize(Mx=mean(x),
-#             My=mean(y))
-# 
-# ggplot(data=PCOA_df,aes(x,y, col=Struc_group))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
-#   # geom_point(aes(col=Site), size=1, alpha=.6)+
-#   geom_point()+
-#   geom_point(data=PCOA_df_mean,aes(Mx,My), size=5)+
-#   geom_hline(yintercept=0)+
-#   geom_vline(xintercept=0)+
-#   theme_bw()
+plot(x,y) 
 
 PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
                    Structure=Meta_data$Structure2,
@@ -1040,10 +991,12 @@ plot(summaryPCOA$PCTVAR[1:30],ylim=c(0,25),
 
 ### Explication de la variance par les variables
 #test avec factominer (fonctionne mais les axes n'expliquent pas la même variance que l'ACoP plus haut)
-res.pca<-PCA(PCOA_df[,c(1:2)])
+res.pca<-PCOA_df[,c(1:2)]
 res.pca<-PCA(x,y)
 res.pca<-PCA(Comp_mat,ncp=6)
-res_va<-dimdesc(res.pca,axes=c(1,2))#permet d'avoir la corrélation
+res.pca2<-plot(res.pca)
+
+res_va<-dimdesc(res.pca2,axes=c(1,2))#permet d'avoir la corrélation
 res_va<-dimdesc(res.pca)
 
 res_va_dim1<-cbind(rep("Dim1",times=6),head(res_va$Dim.1$quanti))
@@ -1549,9 +1502,9 @@ dataR2=dataR %>% ungroup %>%
   na.omit()
 
 dataR4<-spread((dataR3=dataR2 %>% 
-  group_by(spp,Site,Day_delta) #%>%
-  # summarize(S2 = mean(S))),key=spp,value=S2))
-   ),key=spp,value=S)
+  group_by(spp,Site,Day_delta) %>%
+  summarize(S2 = mean(S))),key=spp,value=S2)
+   # ),key=spp,value=S)
 dataR4[is.na(dataR4)]<-0
 
 shannonind<-diversity(dataR4[,-c(1:2)],index="shannon")
@@ -1589,7 +1542,7 @@ ggplot(shannonind2, aes(Day_delta,shannon, col=Site))+ # Avec "fill" ou "col" du
 # shannonmax<- -sum(propmax*log(propmax))
 
 #### indice de Piélou (indice de Shannon/Richesse spécifique)
-Piélouind<-shannonind/45 #indice de shannon divisé par le nombre max de taxons sur un meme site
+Piélouind<-shannonind/log(45) #indice de shannon divisé par le nombre max de taxons sur un meme site
 Piélouind2<-cbind(dataR4[,c(1:2)],Piélouind)
 colnames(Piélouind2)[3]<-"Piélou"
 ggplot(Piélouind2, aes(Day_delta,Piélou, col=Site))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
@@ -1670,7 +1623,7 @@ dataR3=dataR %>% ungroup %>%
 
 
 #Calcul de la nestedness, diversité et turnover
-databetadiv2<-beta.div.comp(dataR2[,-c(1:5,66)],coef="S") 
+databetadiv2<-beta.div.comp(dataR3[,-c(1:4,65)],coef="S") 
 databetadiv2$rich
 
   
@@ -1679,20 +1632,20 @@ databetadiv2$rich
 mat.D=as.matrix(databetadiv2$D)
 mat.D[upper.tri(mat.D)]<-NA
 diag(mat.D)<-NA
-rownames(mat.D)<-dataR2$Name #change le nom des lignes avec les metadonnées
-colnames(mat.D)<-dataR2$Name #change le nom des colonnes avec les metadonnées
+rownames(mat.D)<-dataR3$Name #change le nom des lignes avec les metadonnées
+colnames(mat.D)<-dataR3$Name #change le nom des colonnes avec les metadonnées
  
 mat.repl=as.matrix(databetadiv2$repl)
 mat.repl[upper.tri(mat.repl)]<-NA
 diag(mat.repl)<-NA
-rownames(mat.repl)<-dataR2$Name #change le nom des lignes avec les metadonnées
-colnames(mat.repl)<-dataR2$Name #change le nom des colonnes avec les metadonnées
+rownames(mat.repl)<-dataR3$Name #change le nom des lignes avec les metadonnées
+colnames(mat.repl)<-dataR3$Name #change le nom des colonnes avec les metadonnées
  
 mat.rich=as.matrix(databetadiv2$rich)
 mat.rich[upper.tri(mat.rich)]<-NA
 diag(mat.rich)<-NA
-rownames(mat.rich)<-dataR2$Name #change le nom des lignes avec les metadonnées
-colnames(mat.rich)<-dataR2$Name #change le nom des colonnes avec les metadonnées
+rownames(mat.rich)<-dataR3$Name #change le nom des lignes avec les metadonnées
+colnames(mat.rich)<-dataR3$Name #change le nom des colonnes avec les metadonnées
  
 
 # Transformation des matrices en df
@@ -1766,19 +1719,20 @@ colnames(test.mat.rich2)<-c("Site1","Structure1","Date1","Site2","Structure2","D
 
 
 #Création jeu de données rassemblant les différentes données
-datadissi=test.mat.D2 %>% select(Site1,Structure1,Date1,Site2,Structure2,Date2,Dissimilarité) 
+datadissi<-test.mat.D2 %>% select(Site1,Structure1,Date1,Site2,Structure2,Date2,Dissimilarité) 
 datarepl<-test.mat.repl2 %>% select(Site1,Structure1,Date1,Site2,Structure2,Date2,Remplacement) 
-
 datarich<-test.mat.rich2 %>% select(Site1,Structure1,Date1,Site2,Structure2,Date2,Richesse)
 
 datatern<-cbind(datadissi[,-c(5,7)],Similarité=(1-datadissi[,7])*100,Remplacement=100*datarepl[,7],Richesse=100*datarich[,7])
+datatern<-cbind(datadissi[,-c(7)],Similarité=(1-datadissi[,7]),Remplacement=datarepl[,7],Richesse=datarich[,7])
 
 
 ########## Test package gg plot ########## 
 
  #http://www.ggtern.com/d/2.2.0/
 ggtern(data=datatern, aes(x=Richesse,y=Similarité,z=Remplacement)) +
-  geom_point(colour='black') +
+  geom_point(colour='black', position=position_jitter_tern(x=0.1, y=0.1, z=0.1),
+             alpha=.1) 
   # geom_crosshair_tern(colour='black')+
   labs(title="")+
   # theme_arrowlarge()+
@@ -1794,33 +1748,55 @@ theme_custom(  #https://rdrr.io/cran/ggtern/man/ggtern_themes.html
   col.grid.minor = "white")
 
 
+# datatern2=datatern %>%
+#   # filter(Structure1 == 'Disc') %>% 
+#   # filter(Site1 == 'Bi') %>%
+#   filter(Site2 == 'Bi') %>%
+#   # filter(Structure1 == "Disc") %>%
+#   filter(Date1 == '2022-01') %>%
+#   filter(Date2 == '2022-01')
+
 datatern2=datatern %>%
   # filter(Structure1 == 'Disc') %>% 
-  # filter(Site1 == 'Bi') %>%
-  filter(Site2 == 'Bi') %>%
-  # filter(Structure1 == "Disc") %>%
-  filter(Date1 == '2022-01') %>%
-  filter(Date2 == '2022-01')
+  filter(Site1 == Site2,
+         Structure1==Structure2
+         ) %>%
+  # filter(Site2 == 'VB')
+  # filter(Structure1 == "Di") %>% 
+  filter(Date1 == '2021-11') %>%
+  filter(Date2 == '2021-11') %>% 
+  mutate(Comp_site=Site1,
+         Comp_struct=Structure1
+         ) 
+# %>% 
+  # filter(Comp_struct =="Inner_slots")
 
 datatern2=datatern2 %>% 
  mutate(Compasite<-paste(Site1,Site2,sep="/"))
-colnames(datatern2)[9]<-"Compasite"
+colnames(datatern2)[12]<-"Compasite"
+
+
 
 # test pour mettre à  100% (les deux fonctions marchent séparemment mais pas l'une après l'autre)
 # datatern2[,c(5:7)] <- round(datatern2[,c(5:7)] / rowSums(datatern2[,c(5:7)]) * 100,1)
-# datatern2[,c(5:7)]<-round(datatern2[,c(5:7)],1)
+# datatern2[,c(5:7)] <-round(datatern2[,c(5:7)],1)
 
+datamean<-datatern2 %>%  group_by(Comp_site,Comp_struct) %>%  #permet de faire la moyenne de chaque colonne par site/struct
+  dplyr::summarize(Similarité=mean(Similarité),
+            Remplacement=mean(Remplacement),
+            Richesse=mean(Richesse))
 
-datamean<-as.data.frame(t(colMeans(datatern2[,c(6:8)])))
+# datamean<-as.data.frame(t(colMeans(datatern2[,c("Similarité","Richesse","Remplacement")])))
 
 ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement)) +
-  # geom_point(colour='black',alpha=0.3,size=2) +
+  geom_point(aes(colour=Comp_struct), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3) +
+    # geom_point(aes(fill=Comp_struct), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.1) +
   # stat_density_tern( #ajout de la densité
    # geom="polygon",aes(fill=after_stat(level)),bins=10,color='grey')+
   # stat_density_tern(
     #   geom="polygon",aes(fill=Structure1),bins=10,color='grey')+
-  stat_density_tern(
-    geom="polygon",aes(fill=Compasite),bins=10,color='grey')+
+  # stat_density_tern(
+    # geom="polygon",aes(fill=Compasite),bins=10,color='grey')+
   labs(title="")+
 # theme_custom(  #https://rdrr.io/cran/ggtern/man/ggtern_themes.html
 #   base_size = 10,
@@ -1832,8 +1808,11 @@ ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement)) +
 #   col.R = "firebrick1",
 #   col.grid.minor = "white"
 # )+
+  theme_hidetitles()+ #enlève le nom des axes
   theme_showarrows()+
-  geom_crosshair_tern(data=datamean,colour='red')
+  geom_crosshair_tern(data=datamean,aes(color=Comp_struct))+
+  facet_wrap(.~Comp_site)+
+  labs(color = "Structures comparées")
 
 ```
 
@@ -1885,7 +1864,7 @@ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
 
 # Test calcul divers
-###### Test calcul turnover
+## Test calcul turnover
 ```{r}
 
 #proportion relative d'espèces gagnée ou perdue face au nombre total d'espèces observé sur la période 
