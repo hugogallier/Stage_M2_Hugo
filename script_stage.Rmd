@@ -64,8 +64,8 @@ MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
 ```{r}
 #Chargement des jeux de données
 
-setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
-# setwd('E:/Marineff/suivi_scientifique')
+# setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
+setwd('E:/Marineff/suivi_scientifique')
 
 data_list=list.files(pattern =".csv", recursive=T)
 
@@ -1895,6 +1895,176 @@ ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement)) +
   # stat_density_tern( #ajout de la densité
     # geom="polygon",aes(fill=..level..),bins=10,color='grey')+
   labs(title="")+
+# theme_custom(  #https://rdrr.io/cran/ggtern/man/ggtern_themes.html
+#   base_size = 10,
+#   base_family = "",
+#   tern.plot.background = NULL,
+#   tern.panel.background = NULL,
+#   col.T = "deepskyblue",
+#   col.L = "green3",
+#   col.R = "firebrick1",
+#   col.grid.minor = "white"
+# )+
+  theme_showarrows()+
+  geom_crosshair_tern(data=datamean,colour='red')
+
+
+```
+
+
+# Betadiv Bruno
+
+Vérification de la section betadiv. Résolution du problème somme != 0.
+```{r}
+#### Test package adespatial
+data_comp=data_PQ_light %>% ungroup %>% 
+  select(spp,Site,Micro,Date_courte,Structure2,Mcov) %>% 
+  group_by(spp,Site,Micro,Date_courte,Structure2,Mcov) %>% 
+  distinct() %>% drop_na() %>% 
+    spread(spp,Mcov) %>% ungroup() %>% 
+    mutate(across(everything(.), ~replace_na(., 0))) %>% 
+    mutate(Name=paste(Site,Structure2,Date_courte,sep=",")) #prend les metas données de chaque ligne 
+
+
+# On construit la matrice de communauté en retirant les metadata des quadrats
+# Mais aussi  les "None" + "Ni" + "Ponte" + "ponte"
+data_comp_mat=data_comp %>% dplyr::select(-c(Site,Micro,Date_courte,Structure2,
+                                          Unassigned,Name, NI, None,
+                                          Ponte,ponte))
+
+databetadiv2<-beta.div.comp(data_comp_mat,coef="S")
+
+
+
+
+# Extraction des matrices
+mat.D=as.matrix(databetadiv2$D)
+mat.D[upper.tri(mat.D)]<-NA
+diag(mat.D)<-NA
+rownames(mat.D)<-data_comp$Name #change le nom des lignes avec les metadonnées
+colnames(mat.D)<-data_comp$Name #change le nom des colonnes avec les metadonnées
+ 
+mat.repl=as.matrix(databetadiv2$repl)
+mat.repl[upper.tri(mat.repl)]<-NA
+diag(mat.repl)<-NA
+rownames(mat.repl)<-data_comp$Name #change le nom des lignes avec les metadonnées
+colnames(mat.repl)<-data_comp$Name #change le nom des colonnes avec les metadonnées
+ 
+mat.rich=as.matrix(databetadiv2$rich)
+mat.rich[upper.tri(mat.rich)]<-NA
+diag(mat.rich)<-NA
+rownames(mat.rich)<-data_comp$Name #change le nom des lignes avec les metadonnées
+colnames(mat.rich)<-data_comp$Name #change le nom des colonnes avec les metadonnées
+ 
+
+
+
+
+
+# Transformation des matrices en df
+test.mat.D=na.omit(reshape2::melt(mat.D)) %>% mutate(Type='D') 
+test.mat.D2 <- test.mat.D %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:3), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:3), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.D2)<-c("Site1","Structure1","Date1","Site2","Structure2","Date2","Dissimilarité","type")
+
+
+
+test.mat.repl=na.omit(reshape2::melt(mat.repl)) %>% mutate(Type='repl')
+test.mat.repl2 <- test.mat.repl %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:3), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:3), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.repl2)<-c("Site1","Structure1","Date1","Site2","Structure2","Date2","Remplacement","type")
+
+
+test.mat.rich=na.omit(reshape2::melt(mat.rich)) %>% mutate(Type='rich')
+test.mat.rich2 <- test.mat.rich %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:3), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:3), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.rich2)<-c("Site1","Structure1","Date1","Site2","Structure2","Date2","Richesse","type")
+
+
+
+
+
+#Création jeu de données rassemblant les différentes données
+datadissi=test.mat.D2 %>% select(Site1,Structure1,Date1,Site2,Structure2,Date2,Dissimilarité) #%>% 
+  # filter(Site1== "Bi") 
+  # filter(Structure1 == "Disc")
+
+datarepl<-test.mat.repl2 %>% select(Site1,Structure1,Date1,Site2,Structure2,Date2,Remplacement) #%>% 
+  # filter(Site1== "Bi") 
+  # filter(Structure1 == "Disc")
+
+datarich<-test.mat.rich2 %>% select(Site1,Structure1,Date1,Site2,Structure2,Date2,Richesse)# %>% 
+  # filter(Site1== "Bi")  
+  # filter(Structure1 == "Disc")
+
+
+
+# Il y a un problème ici. Tu retires la colonne structure 2 (-5) et donc après tu ne sais plus quelles sont les structures qui csont comparées
+datatern<-cbind(datadissi[,-c(7)],Similarité=(1-datadissi[,7]),Remplacement=datarepl[,7],Richesse=datarich[,7])
+
+
+
+ #http://www.ggtern.com/d/2.2.0/
+ggtern(data=datatern, aes(x=Richesse,y=Similarité,z=Remplacement)) +
+  geom_point(colour='black', position=position_jitter_tern(x=0.1, y=0.1, z=0.1),
+             alpha=.1) +
+  # geom_crosshair_tern(colour='black')+
+  labs(title="")+
+  # theme_arrowlarge()+
+  theme_noarrows()+
+theme_custom(  #https://rdrr.io/cran/ggtern/man/ggtern_themes.html
+  base_size = 12,
+  base_family = "",
+  tern.plot.background = NULL,
+  tern.panel.background = NULL,
+  col.T = "deepskyblue",
+  col.L = "green3",
+  col.R = "firebrick1",
+  col.grid.minor = "white")
+
+
+
+
+# Test avec la variabilité intra des Inner_slots (Structure1==Structure2)
+
+datatern2=datatern %>%
+  # filter(Structure1 == 'Disc') %>% 
+  filter(Site1 == Site2,
+         Structure1==Structure2) %>%
+  # filter(Site2 == 'VB')
+  # filter(Structure1 == "Di") %>% 
+  filter(Date1 == '2021-11') %>%
+  filter(Date2 == '2021-11') %>% 
+  
+  mutate(Comp_site=Site1,
+         Comp_struct=Structure1) %>% 
+  filter(Comp_struct =="Inner_slots")
+
+
+# j'ai refait cette ligne pour éviter de se tromper avec les numéros de colonnes
+# datamean<-as.data.frame(t(colMeans(datatern2[,c(6:8)])))
+datamean<-datatern2 %>%  group_by(Comp_site) %>%  
+  dplyr::summarize(Similarité=mean(Similarité),
+            Remplacement=mean(Remplacement),
+            Richesse=mean(Richesse))
+
+
+ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement)) +
+  geom_point(colour='black',alpha=0.3,size=1,
+             position=position_jitter_tern(x=0.1, y=0.1, z=0.1)) +
+  # stat_density_tern( #ajout de la densité
+    # geom="polygon",aes(fill=..level..),bins=10,color='grey')+
+  labs(title="")+
+  facet_wrap(Comp_site~.)+
 # theme_custom(  #https://rdrr.io/cran/ggtern/man/ggtern_themes.html
 #   base_size = 10,
 #   base_family = "",
