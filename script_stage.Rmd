@@ -320,7 +320,7 @@ dataR$saison[dataR$saison == "2021-10" | dataR$saison == "2021-11"| dataR$saison
 dataR$saison[dataR$saison == "2022-01"] <- "hiver"
 
 dataR2=dataR %>% ungroup %>% 
-  # filter(Date_courte %in% c("2021-04","2021-07","2021-10","2021-11")) %>% 
+  filter(!Date_courte %in% c("2021-04","2021-07","2021-10","2021-11")) %>%
   select(spp,Site,Structure2,Micro,Day_delta,saison) %>% 
   distinct()%>% 
   group_by(Site,Structure2,Micro,Day_delta,saison) %>% 
@@ -331,7 +331,18 @@ dataR3=dataR2 %>%
   group_by(Site,Structure2,Day_delta,saison) %>% 
   summarize(S2 = mean(S))
 
-test_levene<-levene_test(dataR3$S2~dataR3$Site+Structure2+dataR3$saison)
+dataR3$Site<-as.factor(dataR3$Site)
+dataR3$saison<-as.factor(dataR3$saison)
+
+
+#Anova
+test_anova<-aov(S2~Site+Structure2+saison,data=dataR3)# anova en prenant la date ainsi que les structures comme facteur
+test_anova<-aov(S2~Site+Error(Day_delta),data=dataR3)# en prenant en variable aléatoire day delta
+test_anova<-aov(S2~Site+Error(Structure2),data=dataR3)
+test_anova<-aov(S2~Site,data=dataR3)
+summary(test_anova)
+
+
 #normalité des données
 shapiro_test(residuals(test_anova))#si pvalue supérieure à 0,05 alors permet de dire que les résidus sont normalements distribuées
 # qqnorm(test_anova$residuals)
@@ -340,11 +351,8 @@ shapiro_test(residuals(test_anova))#si pvalue supérieure à 0,05 alors permet d
 
 #Homoscédasticité
 leveneTest(test_anova$residuals,dataR3)#Si p value supérieur à 0,05 alors variance entre les groupes est égale
+test_levene<-levene_test(dataR3$S2~dataR3$Site+Structure2+dataR3$saison)
 plot(test_anova$residuals~test_anova$fitted.values)
-
-test_anova<-aov(S2~Site+Structure2+saison,data=dataR3)#anova en prenant la date ainsi que les structures comme facteur
-
-summary(test_anova)
 
 ```
 
@@ -622,27 +630,34 @@ dataR3=dataR2 %>%
   summarize(S2 = mean(S))
 
 
-## MCOV avec quadrat moyenné
+### MCOV avec quadrat moyenné
 dataR2=dataR %>% ungroup %>%
   select(spp,Site,Structure2,Micro,Day_delta,saison,Date_courte,Mcov,Quad2) %>%
   distinct()%>%
   mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
-  filter(Site =="Bi") %>%
+  # filter(Site =="Bi") %>%
   group_by(Site,Structure2,Day_delta,saison,Years,Mcov,Micro,Quad2) %>%
   # summarize(S=n()) %>%
   na.omit()%>%
   droplevels() 
 
+#fait la moyenne des quadrats
 dataR3=dataR2 %>%
   group_by(spp,Site,Structure2,Day_delta,saison,Micro) %>%
-  summarize(Mcov2 = mean(Mcov,.by=c(spp,Micro,Day_delta,Quad2))) #moyenne du recouvrement des 2 quadrats/espèce/micro
+  summarize(Mcov2 = mean(Mcov,.by=c(Micro,Day_delta,Quad2)))   #moyenne du recouvrement des 2 quadrats/espèce/micro
 
-
+#fait la moyenne du recouvrement toutes espèces par micro
 dataR4=dataR3 %>%
-    group_by(Site,Structure2,Day_delta,saison,Micro) %>%
-summarize(Mcov3 = mean(Mcov2,.by=Micro))
+        group_by(Site,Structure2,Day_delta,saison,Micro) %>%
+
+    # group_by(Site,Structure2,Day_delta,saison,Micro) %>%
+summarize(Mcov3 = sum(Mcov2,.by=Structure2))
     # dataR3$Mcov2= 100*dataR3$Mcov2/max(dataR3$Mcov2)
-  # summarize(Mcov3 = sum(Mcov,.by=as.factor(Micro)))
+  # summarize(Mcov3 = sum(Mcov2,.by=c(as.factor(Micro),as.factor(Site),Day_delta,as.factor(Structure2))))
+  # summarize(Mcov3 = sum(Mcov2,.by=c(Structure2,Day_delta))) %>% 
+      # group_by(Site,Structure2,Day_delta,saison) 
+
+  # summarize(Mcov3 = sum(Mcov2,.by=as.factor(Micro)))
 
 
 #Richesse taxo
@@ -671,8 +686,9 @@ model111<-gam(S2~s(Day_delta)+saison,data=dataR3)
 model1111<-gam(S2~s(Day_delta)+Site,data=dataR3)
 model11111<-gam(S2~s(Day_delta)+Structure2+Site,data=dataR3)
 model111111<-gam(S2~s(Day_delta)+s(Structure2,bs="re")+s(Site,bs="re")+s(saison,bs="re"),data=dataR3)
-model11111111<-gam(Mcov2~s(Day_delta)+s(Structure2,bs='re')+s(Site,bs="re"),data=dataR3)
-model111111111<-gam(Mcov3~s(Day_delta)+s(Structure2,bs='re')+s(Site,bs="re"),data=dataR4)
+model1111111<-gam(Mcov~s(Day_delta)+s(Structure2,bs='re')+s(Site,bs="re")+s(saison,bs="re"),data=dataR2)
+model11111111<-gam(Mcov2~s(Day_delta)+s(Structure2,bs='re')+s(Site,bs="re")+s(saison,bs="re"),data=dataR3)
+model111111111<-gam(Mcov3~s(Day_delta)+s(Structure2,bs='re')+s(Site,bs="re")+s(saison,bs="re"),data=dataR4)
 summary(model111111)
 
 model2<-gam(S2~Site/Day_delta+s(Day_delta,bs="re"),data=dataR3)
@@ -689,7 +705,7 @@ AIC(model2,model22,model222,model2222,model22222,model222222,model2222222)
 
 par(mfrow= c(1,1))
 plot(model11111111,shift=mean(dataR3$S2),residuals=T,cex=1,pch=16,col="blue",shade=T,shade.col='grey')
-plot(model111111111,shift=mean(dataR3$Mcov2),residuals=T,cex=0.7,pch=16,col="blue",shade=T,shade.col='grey')
+plot(model111111111,shift=mean(dataR4$Mcov3),residuals=T,cex=0.7,pch=16,col="blue",shade=T,shade.col='grey')
 
 
 #test comparaison tous les paramètres
@@ -888,10 +904,9 @@ levels(factor(dataR$Site))
 # data_comp2=data_PQ_light %>% ungroup %>% 
 #   select(spp,Cov,Site,Micro,Date_courte,Structure2,Strcut_groups, Quad2) %>% 
 #   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
-# <<<<<<< HEAD
 #   filter(!Structure2 %in% c('Dome','Holes','Upper_slots','Inner_slots')) %>% 
 #   group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
-# =======
+
 #   filter(!Structure2 %in% c('Dome','Upper_slots' )) %>% 
 #     filter(!Site %in% c('Fe','DSC' )) %>% 
 #   mutate(Sample=paste0(Site,'_',Date_courte,'_',
@@ -900,7 +915,6 @@ levels(factor(dataR$Site))
 #   dplyr::summarize(Mcov=mean(Cov)) %>% 
 # 
 #   group_by(Sample,Site,Micro,Date_courte,Structure2) %>% 
-# >>>>>>> d7a3076aa8c86cd4609b46ec0f575f800cd1d573
 #   distinct() %>% drop_na() %>% 
 #     spread(spp,Mcov) %>% ungroup() %>% 
 #       mutate(across(everything(.), ~replace_na(., 0))) 
@@ -911,6 +925,7 @@ dataR$saison[dataR$saison == "2021-04" | dataR$saison == "2022-04"] <- "printemp
 dataR$saison[dataR$saison == "2021-07" | dataR$saison == "2022-07"] <- "été"
 dataR$saison[dataR$saison == "2021-10" | dataR$saison == "2021-11"| dataR$saison == "2022-11"] <- "automne"
 dataR$saison[dataR$saison == "2022-01"] <- "hiver"
+
 
 data_comp2=dataR %>% ungroup %>% 
   select(spp,Mcov,Site,Micro,Date_courte,Structure2,saison,Quad2,Day_delta) %>% 
@@ -972,7 +987,7 @@ PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
 ggplot(data=PCOA_df,aes(x,y, col=Years))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
   # geom_point(aes(col=Site), size=1, alpha=.6)+
   geom_point()+
-  labs(x="Axe 1 (temporalité)",y="Axe 2")+
+  labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+
   geom_hline(yintercept=0)+
   geom_vline(xintercept=0)+
   theme_bw()
@@ -984,27 +999,22 @@ summaryPCOA<-data.frame(
   PCTVAR=100*pcoa_tot_SS$eig/sum(pcoa_tot_SS$eig),
   CUMPCTVAR = cumsum(100*pcoa_tot_SS$eig/sum(pcoa_tot_SS$eig)))
 
-plot(summaryPCOA$PCTVAR[1:30],ylim=c(0,25),
+plot(summaryPCOA$PCTVAR[1:30],ylim=c(0,30),
         xlab="Composantes",ylab="Pourcentage d'inertie (explication de la variance)")
-
 
 
 ### Explication de la variance par les variables
 #test avec factominer (fonctionne mais les axes n'expliquent pas la même variance que l'ACoP plus haut)
 res.pca<-PCOA_df[,c(1:2)]
-res.pca<-PCA(x,y)
 res.pca<-PCA(Comp_mat,ncp=6)
-res.pca2<-plot(res.pca)
+res.pca<-PCA(as.matrix(distdataR),ncp=6)
 
-res_va<-dimdesc(res.pca2,axes=c(1,2))#permet d'avoir la corrélation
-res_va<-dimdesc(res.pca)
+# Test importance des espèces dans l'explication de la variance 
+vf <- envfit(pcoa_tot_SS, data_comp2, perm = 999)
+spp.scrs <- as.data.frame(scores(vf, display = "vectors"))
+spp.scrs2 <-(spp.scrs[which(vf$vectors$pvals<0.01),])
+spp.scrs3 <- cbind(spp.scrs2, Abb = rownames(spp.scrs2))
 
-res_va_dim1<-cbind(rep("Dim1",times=6),head(res_va$Dim.1$quanti))
-res_va_dim2<-cbind(rep("Dim2",times=6),head(res_va$Dim.2$quanti))
-res_va_dim3<-cbind(rep("Dim3",times=6),head(res_va$Dim.3$quanti))
-res_va_spp<-as.data.frame(rbind(res_va_dim1,res_va_dim2,res_va_dim3))
-
-res_va$Dim.1$quanti[,1]
 ```
 
 ## Permanova
@@ -1223,7 +1233,7 @@ estimateR(as.integer(Comp_mat5))
 ### Disques
 data_comp1=data_PQ_light %>% ungroup %>% 
   select(spp,Date_courte,Site,Structure2, Code_struct) %>% 
-   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte','None')) %>%
+   filter(!spp %in% c('NA','NI','Unassigned','ponte','Ponte','None')) %>%
   mutate(date_st=paste0(Date_courte,'_',Code_struct)) %>%  # 
   filter(Structure2 == ("Disc")) %>%
   mutate(P=1) %>% 
@@ -1407,80 +1417,7 @@ plot(out.raw)
 # Ici tu les données concernant l'estimation de la rich. totale
 Rar_disc_df=as.data.frame(out.raw$AsyEst)
 
-specpool(as.numeric(comp_list_clean))
-
-
-```
-
-
-
-# Test différence échantillonage
-```{r}
-
-dataR2=dataR %>% ungroup %>%
-  select(Site,Day_delta,Structure2) %>% 
-  distinct()%>% 
-  group_by(Site,Day_delta,Structure2) %>% 
-  summarize(S3=sum(n(Site)),.by=Structure2) %>%
-  na.omit()
-
-
-seqdate<-c('153','244','367','428','518','609','732')
-Bid<-as.numeric(rep(8,times=7))
-Bic<-c(8,7,8,8,8,7,8)
-Bip<-rep(3,times=7)
-Bis<-c(8,8,8,7,8,8,8)
-Birep<-rep("Bi",times=7)
-Bidata<-as.data.frame(cbind(Birep,seqdate,Bid,Bic,Bip,Bis))
-colnames(Bidata)<-c("Site","Nbjourimmer","Disques","Colonnes","Pilliers","Slots")
-Bidata$Nbjourimmer<-as.factor(Bidata$Nbjourimmer)
-Bidata$Disques<-as.numeric(Bidata$Disques)
-Bidata$Colonnes<-as.numeric(Bidata$Colonnes)
-Bidata$Pilliers<-as.numeric(Bidata$Pilliers)
-Bidata$Slots<-as.numeric(Bidata$Slots)
-Bidata2<-spread(Bidata,key=Birep,value=Bid)
-ggplot(Bidata,aes(fill=))
-
-Bud<-c(7,8,8,5,8,"",8)
-Buc<-c(8,7,8,8,4,"",8)
-Bup<-c(3,3,3,3,3,"",3)
-Bus<-c(7,8,8,7,8,"",7)
-Burep<-rep("Bu",times=7)
-Budata<-cbind(Burep,seqdate,Bud,Buc,Bup,Bus)
-
-Fed<-c(8,"",8,8,8,8,"")
-Fec<-c(8,"",5,8,6,8,"")
-Fep<-c(3,"",3,3,0,8,"")
-Fes<-c(8,"",8,8,8,8,"")
-Ferep<-rep("Bu",times=7)
-Fedata<-cbind(Ferep,seqdate,Fed,Fec,Fep,Fes)
-
-VBd<-c(8,8,8,8,7,8,8)
-VBc<-c(8,8,"",8,7,8,8)
-VBp<-c(3,3,"",3,3,3,3)
-VBs<-c(6,7,7,8,7,8,8)
-VBrep<-rep("VB",times=7)
-VBdata<-cbind(VBrep,seqdate,VBd,VBc,VBp,VBs)
-
-datanumber<-as.data.frame(rbind(Bidata,Budata,Fedata,VBdata))
-datanumber2<-as.data.frame(cbind(Bidata,Budata,Fedata,VBdata))
-
-colnames(datanumber)<-c("Site","Date","Disques","Colonnes","Pilliers","Slots")
-datanumber$Date<-as.factor(datanumber$Date)
-datanumber$Site<-as.factor(datanumber$Site)
-datanumber$Disques<-as.numeric(datanumber$Disques)
-datanumber$Colonnes<-as.numeric(datanumber$Colonnes)
-datanumber$Pilliers<-as.numeric(datanumber$Pilliers)
-datanumber$Slots<-as.numeric(datanumber$Slots)
-
-plot(datanumber$Date,datanumber$Disques)
-
-ggplot(datanumber, aes(Date,Colonnes, fill=Site))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
-  xlab("Structure")+
-  ylab("Richesse taxonomique")+
-  # geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
-  geom_boxplot()+
-  theme_bw() 
+specpool(as.numeric(comp_list_clean$Bi))
 
 ```
 
@@ -1607,7 +1544,6 @@ ggplot(Piélouind2, aes(Day_delta,Piélou, col=Site))+ # Avec "fill" ou "col" du
 # dataR4[is.na(dataR4)]<-0
 
 
-
 ### Mcov moyen
 dataR3=dataR %>% ungroup %>%
   select(spp,Site,Structure2,Micro,Date_courte,Mcov,Quad2) %>%
@@ -1621,12 +1557,10 @@ dataR3=dataR %>% ungroup %>%
   mutate(Name=paste(Site,Structure2,Date_courte,sep=","))
  
 
-
 #Calcul de la nestedness, diversité et turnover
 databetadiv2<-beta.div.comp(dataR3[,-c(1:4,65)],coef="S") 
 databetadiv2$rich
 
-  
 
 # Extraction des matrices
 mat.D=as.matrix(databetadiv2$D)
@@ -1657,7 +1591,6 @@ test.mat.D2 <- test.mat.D %>%
   select(-row_id)  # Supprimer la colonne d'identification
 colnames(test.mat.D2)<-c("Site1","Structure1","Date1","Site2","Structure2","Date2","Dissimilarité","type")
 
-
 test.mat.repl=na.omit(reshape2::melt(mat.repl)) %>% mutate(Type='repl')
 test.mat.repl2 <- test.mat.repl %>%
   mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
@@ -1666,7 +1599,6 @@ test.mat.repl2 <- test.mat.repl %>%
   select(-row_id)  # Supprimer la colonne d'identification
 colnames(test.mat.repl2)<-c("Site1","Structure1","Date1","Site2","Structure2","Date2","Remplacement","type")
 
-
 test.mat.rich=na.omit(reshape2::melt(mat.rich)) %>% mutate(Type='rich')
 test.mat.rich2 <- test.mat.rich %>%
   mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
@@ -1674,48 +1606,6 @@ test.mat.rich2 <- test.mat.rich %>%
   separate(Var2, into = paste0("Var2", 1:3), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 2
   select(-row_id)  # Supprimer la colonne d'identification
 colnames(test.mat.rich2)<-c("Site1","Structure1","Date1","Site2","Structure2","Date2","Richesse","type")
-
-```
-
-
-### Ternary plot
-```{r}
-
-# ########## test package Ternary ##########
-# library("Ternary")
-# TernaryPlot("Nestedness", "Turnover", "Similarité", 
-#             grid.lines = 5, grid.lty = "dotted",
-#             grid.minor.lines = 1, grid.minor.lty = "dotted",
-#             point = "up")
-# 
-# # Colour the background:
-# cols <- TernaryPointValues(rgb)
-# ColourTernary(cols, spectrum = NULL)
-# 
-# # Add data points
-# data_points <- list(
-#   R = c(255, 0, 0), 
-#   O = c(240, 180, 52),
-#   Y = c(210, 222, 102),
-#   G = c(111, 222, 16),
-#   B = c(25, 160, 243),
-#   I = c(92, 12, 243),
-#   V = c(225, 24, 208)
-# )
-# 
-# data_points <- c(nes$statistic,mean(turn$total),0.5)
-# 
-# AddToTernary(graphics::points, data_points,col='red')
-# 
-# AddToTernary(text, data_points, names(data_points), cex = 0.8, font = 2)
-# legend("bottomright", 
-#        legend = c("Red", "Orange", "Yellow", "Green"),
-#        cex = 0.8, bty = "n", pch = 21, pt.cex = 1.8,
-#        pt.bg = c(rgb(255,   0,   0, 128, NULL, 255), 
-#                  rgb(240, 180,  52, 128, NULL, 255),
-#                  rgb(210, 222, 102, 128, NULL, 255),
-#                  rgb(111, 222,  16, 128, NULL, 255)))
-# 
 
 
 #Création jeu de données rassemblant les différentes données
@@ -1726,6 +1616,11 @@ datarich<-test.mat.rich2 %>% select(Site1,Structure1,Date1,Site2,Structure2,Date
 datatern<-cbind(datadissi[,-c(5,7)],Similarité=(1-datadissi[,7])*100,Remplacement=100*datarepl[,7],Richesse=100*datarich[,7])
 datatern<-cbind(datadissi[,-c(7)],Similarité=(1-datadissi[,7]),Remplacement=datarepl[,7],Richesse=datarich[,7])
 
+```
+
+
+### Ternary plot
+```{r}
 
 ########## Test package gg plot ########## 
 
@@ -1748,34 +1643,26 @@ theme_custom(  #https://rdrr.io/cran/ggtern/man/ggtern_themes.html
   col.grid.minor = "white")
 
 
-# datatern2=datatern %>%
-#   # filter(Structure1 == 'Disc') %>% 
-#   # filter(Site1 == 'Bi') %>%
-#   filter(Site2 == 'Bi') %>%
-#   # filter(Structure1 == "Disc") %>%
-#   filter(Date1 == '2022-01') %>%
-#   filter(Date2 == '2022-01')
-
 datatern2=datatern %>%
   # filter(Structure1 == 'Disc') %>% 
+  # filter(Site1 == 'Bi') %>%
   filter(Site1 == Site2,
-         Structure1==Structure2
+         # Structure1==Structure2
          ) %>%
   # filter(Site2 == 'VB')
   # filter(Structure1 == "Di") %>% 
-  filter(Date1 == '2021-11') %>%
-  filter(Date2 == '2021-11') %>% 
+  filter(Date1 == '2022-01') %>%
+  filter(Date2 == '2022-01') %>% 
   mutate(Comp_site=Site1,
-         Comp_struct=Structure1
-         ) 
+         Comp_struct=Structure1) 
 # %>% 
   # filter(Comp_struct =="Inner_slots")
 
 datatern2=datatern2 %>% 
- mutate(Compasite<-paste(Site1,Site2,sep="/"))
+ mutate(Compasite<-paste(Site1,Site2,sep="/")) %>% 
+  mutate(Compastruct<-paste(Structure1,Structure2,sep="/"))
 colnames(datatern2)[12]<-"Compasite"
-
-
+colnames(datatern2)[13]<-"Compastruct"
 
 # test pour mettre à  100% (les deux fonctions marchent séparemment mais pas l'une après l'autre)
 # datatern2[,c(5:7)] <- round(datatern2[,c(5:7)] / rowSums(datatern2[,c(5:7)]) * 100,1)
@@ -1789,14 +1676,12 @@ datamean<-datatern2 %>%  group_by(Comp_site,Comp_struct) %>%  #permet de faire l
 # datamean<-as.data.frame(t(colMeans(datatern2[,c("Similarité","Richesse","Remplacement")])))
 
 ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement)) +
-  geom_point(aes(colour=Comp_struct), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3) +
-    # geom_point(aes(fill=Comp_struct), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.1) +
+  # geom_point(aes(colour=Comp_struct), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3) +
+    geom_point(aes(colour=Compastruct), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3) +
   # stat_density_tern( #ajout de la densité
-   # geom="polygon",aes(fill=after_stat(level)),bins=10,color='grey')+
-  # stat_density_tern(
-    #   geom="polygon",aes(fill=Structure1),bins=10,color='grey')+
-  # stat_density_tern(
-    # geom="polygon",aes(fill=Compasite),bins=10,color='grey')+
+            # geom="polygon",aes(fill=after_stat(level)),bins=10,color='grey')+
+            # geom="polygon",aes(fill=Structure1),bins=10,color='grey')+
+            # geom="polygon",aes(fill=Compasite),bins=10,color='grey')+
   labs(title="")+
 # theme_custom(  #https://rdrr.io/cran/ggtern/man/ggtern_themes.html
 #   base_size = 10,
@@ -1810,12 +1695,11 @@ ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement)) +
 # )+
   theme_hidetitles()+ #enlève le nom des axes
   theme_showarrows()+
-  geom_crosshair_tern(data=datamean,aes(color=Comp_struct))+
+  # geom_crosshair_tern(data=datamean,aes(color=Comp_struct))+
   facet_wrap(.~Comp_site)+
   labs(color = "Structures comparées")
 
 ```
-
 
 
 # Recouvrement par la roche nue
@@ -1830,16 +1714,16 @@ dataR2=data_PQ_light %>% ungroup %>%
   filter(!Site == ("DSC"))%>%
   filter(!Structure2 %in% c('Holes','Upper_slots','Dome')) %>% 
   filter(!Date_courte == '2021-01') %>% 
-  select(Site,Date_courte,Structure2,Micro,Quad2,Mcov) %>% 
-  group_by(Site,Date_courte,Structure2,Micro,Quad2,Mcov) %>% 
+  select(Site,Day_delta,Structure2,Micro,Quad2,Mcov) %>% 
+  group_by(Site,Day_delta,Structure2,Micro,Quad2,Mcov) %>% 
   na.omit() %>% 
-  as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by = c(Date_courte,Site,Structure2,Micro)) 
+  as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by = c(Day_delta,Site,Structure2,Micro)) 
 
 dataR3=dataR2 %>% as.data.frame() %>% 
-  summarize(Mcov3=mean(Mcov2),.by = c(Date_courte,Site,Structure2)) 
+  summarize(Mcov3=mean(Mcov2),.by = c(Day_delta,Site,Structure2)) 
 
 dataR3=dataR2 %>% as.data.frame() %>% 
-  summarize(Mcov3=mean(Mcov2),.by = c(Date_courte,Site)) 
+  summarize(Mcov3=mean(Mcov2),.by = c(Day_delta,Site)) 
 
 
 ggplot(dataR3, aes(Structure2,Mcov3, fill=Site))+
@@ -1850,7 +1734,7 @@ ggplot(dataR3, aes(Structure2,Mcov3, fill=Site))+
   theme_bw()  
 
 #Evolution temporelle
-ggplot(dataR3, aes(Date_courte,Mcov3, col=Site))+
+ggplot(dataR3, aes(Day_delta,Mcov3, col=Site))+
   xlab("Date")+
   ylab("Taux moyen de roche nue")+
   geom_point()+
@@ -1861,10 +1745,8 @@ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
 
 
-
-
 # Test calcul divers
-## Test calcul turnover
+##### Test calcul turnover
 ```{r}
 
 #proportion relative d'espèces gagnée ou perdue face au nombre total d'espèces observé sur la période 
@@ -2008,5 +1890,75 @@ dataR4<-spread((dataR3=dataR2 %>%
 dataR4[is.na(dataR4)]<-0
 
 simpsonind<-diversity(dataR4[,-1],index="simpson")
+
+```
+
+##### Test différence échantillonage
+```{r}
+
+dataR2=dataR %>% ungroup %>%
+  select(Site,Day_delta,Structure2) %>% 
+  distinct()%>% 
+  group_by(Site,Day_delta,Structure2) %>% 
+  summarize(S3=sum(n(Site)),.by=Structure2) %>%
+  na.omit()
+
+
+seqdate<-c('153','244','367','428','518','609','732')
+Bid<-as.numeric(rep(8,times=7))
+Bic<-c(8,7,8,8,8,7,8)
+Bip<-rep(3,times=7)
+Bis<-c(8,8,8,7,8,8,8)
+Birep<-rep("Bi",times=7)
+Bidata<-as.data.frame(cbind(Birep,seqdate,Bid,Bic,Bip,Bis))
+colnames(Bidata)<-c("Site","Nbjourimmer","Disques","Colonnes","Pilliers","Slots")
+Bidata$Nbjourimmer<-as.factor(Bidata$Nbjourimmer)
+Bidata$Disques<-as.numeric(Bidata$Disques)
+Bidata$Colonnes<-as.numeric(Bidata$Colonnes)
+Bidata$Pilliers<-as.numeric(Bidata$Pilliers)
+Bidata$Slots<-as.numeric(Bidata$Slots)
+Bidata2<-spread(Bidata,key=Birep,value=Bid)
+ggplot(Bidata,aes(fill=))
+
+Bud<-c(7,8,8,5,8,"",8)
+Buc<-c(8,7,8,8,4,"",8)
+Bup<-c(3,3,3,3,3,"",3)
+Bus<-c(7,8,8,7,8,"",7)
+Burep<-rep("Bu",times=7)
+Budata<-cbind(Burep,seqdate,Bud,Buc,Bup,Bus)
+
+Fed<-c(8,"",8,8,8,8,"")
+Fec<-c(8,"",5,8,6,8,"")
+Fep<-c(3,"",3,3,0,8,"")
+Fes<-c(8,"",8,8,8,8,"")
+Ferep<-rep("Bu",times=7)
+Fedata<-cbind(Ferep,seqdate,Fed,Fec,Fep,Fes)
+
+VBd<-c(8,8,8,8,7,8,8)
+VBc<-c(8,8,"",8,7,8,8)
+VBp<-c(3,3,"",3,3,3,3)
+VBs<-c(6,7,7,8,7,8,8)
+VBrep<-rep("VB",times=7)
+VBdata<-cbind(VBrep,seqdate,VBd,VBc,VBp,VBs)
+
+datanumber<-as.data.frame(rbind(Bidata,Budata,Fedata,VBdata))
+datanumber2<-as.data.frame(cbind(Bidata,Budata,Fedata,VBdata))
+
+colnames(datanumber)<-c("Site","Date","Disques","Colonnes","Pilliers","Slots")
+datanumber$Date<-as.factor(datanumber$Date)
+datanumber$Site<-as.factor(datanumber$Site)
+datanumber$Disques<-as.numeric(datanumber$Disques)
+datanumber$Colonnes<-as.numeric(datanumber$Colonnes)
+datanumber$Pilliers<-as.numeric(datanumber$Pilliers)
+datanumber$Slots<-as.numeric(datanumber$Slots)
+
+plot(datanumber$Date,datanumber$Disques)
+
+ggplot(datanumber, aes(Date,Colonnes, fill=Site))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
+  xlab("Structure")+
+  ylab("Richesse taxonomique")+
+  # geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
+  geom_boxplot()+
+  theme_bw() 
 
 ```
