@@ -65,8 +65,8 @@ MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
 ```{r}
 #Chargement des jeux de données
 
-setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
-# setwd('E:/Marineff/suivi_scientifique')
+# setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
+setwd('E:/Marineff/suivi_scientifique')
 
 data_list=list.files(pattern =".csv", recursive=T)
 
@@ -764,6 +764,79 @@ hist(dataR3$S2)
 qqnorm(lmmodel$residuals)
 qqline(lmmodel$residuals)
 dataR3 %>% shapiro_test(S2)
+
+```
+
+#### Plot diagnostic 
+
+le qqplot + plot fitted versus deviance plot
+```{r}
+
+library(gratia)
+library(ggpubr)
+
+qq_plot=qq_plot(mod, method = "simulate")+
+  labs(subtitle = NULL, title=NULL)+
+  theme_bw()
+
+df_mod<- data.frame(log_fitted = fitted(mod),
+                 residuals  = resid(mod, type = "deviance"))
+
+
+dev_mod <- ggplot(mod, aes(x = log_fitted, y = residuals))+
+    geom_point() +
+  geom_hline(yintercept=0, linetype=2)+
+    labs(x = "Linear predictor", y = "Deviance residual")+
+  theme_bw()
+
+
+dig_plot_tot=ggarrange(qq_plot, dev_mod, ncol=2)
+
+
+```
+
+
+#### Plot diagnostic 
+
+Exemple de plot de reponse 
+```{r}
+
+library(gratia)
+
+
+
+# on reconstruit un data frame en faisant varier que la variable d'interet (fonction "evenly")
+
+
+Parametre1_df <- data_slice(mod,
+                    param=evenly(param))
+
+
+# On génére des predictions avec le nouveau df
+
+fv_ds_distancesea <- fitted_values(mod, data = Parametre1_df) 
+
+
+
+# On plot le data frame
+# - si variable quantitative : geom_ribbon
+# - si variable qualitative: geom_range ou geom_bar
+# -geom_rug pour ajouter des ticks pour identifir le nombre de valeur sur un gradient quantitatif
+
+
+Distance_p=ggplot() +
+  # geom_boxplot()
+  geom_ribbon() +
+  geom_range()+
+  geom_line()+
+
+
+  theme_bw()+
+ ylab('')+
+  xlab('')+
+    theme(axis.text=element_text(size=12),
+          text = element_text(size = 15))+
+ geom_rug(position='jitter', inherit.aes = T)
 
 ```
 
