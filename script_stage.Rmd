@@ -993,7 +993,8 @@ data_comp2=dataR %>% ungroup %>%
   distinct() %>% drop_na() %>% 
   summarize(Mcov2 = mean(Mcov,.by=c(spp,Micro,Day_delta,Quad2))) %>%
   spread(spp,Mcov2) %>% ungroup() %>% 
-  mutate(across(everything(.), ~replace_na(., 0))) 
+  mutate(across(everything(.), ~replace_na(., 0))) %>% 
+  mutate(Compsite_date=paste(Site,Date_courte,sep=","))
 
 
 
@@ -1006,6 +1007,8 @@ data_comp2$Date_courte<-as.factor(data_comp2$Date_courte)
 data_comp2$Day_delta<-as.factor(data_comp2$Day_delta)
 # data_comp2$nouvelle<-as.factor(data_comp2$nouvelle)
 data_comp2$Years<-as.factor(data_comp2$Years)
+data_comp2$Compsite_date<-as.factor(data_comp2$Compsite_date)
+
 
 # test=data_comp2 %>% filter(Site == 'VB',
                           # Date_courte=='2021-07' )
@@ -1014,8 +1017,8 @@ data_comp2$Years<-as.factor(data_comp2$Years)
 # Comp_mat=data_comp2 %>% select(-c(Site,Sample,Micro,Structure2,Strcut_groups,Date_courte)) %>% as.matrix() 
 # Meta_data=data_comp2 %>% select(Site,Sample,Micro,Structure2,Strcut_groups,Date_courte)
 
-Comp_mat=data_comp2 %>% select(-c(Site,Micro,Structure2,Date_courte,saison,Years,Day_delta)) %>% as.matrix() #sans meta données
-Meta_data=data_comp2 %>% select(Site,Micro,Structure2,Date_courte,saison,Years,Day_delta) #meta données
+Comp_mat=data_comp2 %>% select(-c(Site,Micro,Structure2,Date_courte,saison,Years,Day_delta,Compsite_date)) %>% as.matrix() #sans meta données
+Meta_data=data_comp2 %>% select(Site,Micro,Structure2,Date_courte,saison,Years,Day_delta,Compsite_date) #meta données
 
 # Comp_mat=data_comp2 %>% select(-c(Site,Micro,Structure2,Date_courte,nouvelle,saison)) %>% as.matrix() #sans meta données
 # Meta_data=data_comp2 %>% select(Site,Micro,Structure2,Date_courte,nouvelle,saison) #meta données
@@ -1041,9 +1044,12 @@ PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
                    Site=Meta_data$Site,
                    Date=Meta_data$Date_courte,
                    Saison=Meta_data$saison,
-                   Years=Meta_data$Years
+                   Years=Meta_data$Years,
+                   Compsite_date=Meta_data$Compsite_date
                    # Structure3=Meta_data$nouvelle
                    )
+# PCOA_df=PCOA_df %>% filter(!Date == "2021-04")
+PCOA_df=PCOA_df %>% filter(Site == "VB")
 
 ggplot(data=PCOA_df,aes(x,y, col=Years))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
   # geom_point(aes(col=Site), size=1, alpha=.6)+
@@ -1056,9 +1062,11 @@ ggplot(data=PCOA_df,aes(x,y, col=Years))+ # <- Ici on explore avec col les varia
 
 
 #PCoA avec les barycentres
-s.class(PCOA_df[c(1:2)],as.factor(PCOA_df$Site),col=c("#fb746b","#7cab04","#00bfc4","#c77cff"),ellipseSize=0) # permet de faire le graph de l'PCoA avec des barycentres
+s.class(PCOA_df[c(1:2)],as.factor(PCOA_df$Site),col=c("#fb746b","#7cab04","#00bfc4","#c77cff"),ellipseSize=0) # permet de faire le graph de la PCoA avec des barycentres
 s.class(PCOA_df[c(1:2)],droplevels(as.factor(PCOA_df$Structure)),col=c("#fb746b","#7cab04","#00bfc4","#c77cff"),ellipseSize=0)
 s.class(PCOA_df[c(1:2)],droplevels(as.factor(PCOA_df$Date)),col=c("#000099","#0000FF","#6666FF","#99CCFF","#006600","#33CC33","#99FF00","#CCFF33"),ellipseSize=0)
+
+s.class(PCOA_df[c(1:2)],droplevels(as.factor(PCOA_df$Compsite_date)),ellipseSize=0,col=c("#000099","#0000FF","#6666FF","#99CCFF","#006600","#33CC33","#99FF00","#CCFF33"))
 
 
 # apport de la variabilité selon le nombre d'axe
@@ -1066,8 +1074,6 @@ summaryPCOA<-data.frame(
   EIG= pcoa_tot_SS$eig,
   PCTVAR=100*pcoa_tot_SS$eig/sum(pcoa_tot_SS$eig),
   CUMPCTVAR = cumsum(100*pcoa_tot_SS$eig/sum(pcoa_tot_SS$eig)))
-
-
 plot(summaryPCOA$PCTVAR[1:30],ylim=c(0,30),xlab="Composantes",ylab="Pourcentage d'inertie (explication de la variance)")
 
 
@@ -1082,6 +1088,15 @@ vf <- envfit(pcoa_tot_SS, data_comp2, perm = 999)
 spp.scrs <- as.data.frame(scores(vf, display = "vectors"))
 spp.scrs2 <-(spp.scrs[which(vf$vectors$pvals<0.01),])
 spp.scrs3 <- cbind(spp.scrs2, Abb = rownames(spp.scrs2))
+
+
+ggplot(data=spp.scrs3,aes(x=Dim1,y=Dim2,col=Abb))+
+  geom_point()
+
+ggplot(data=PCOA_df,aes(x=x,y=y))+
+  geom_point()+
+  geom_point(data=spp.scrs3,aes(x=Dim1,y=Dim2,col=Abb))
+
 
 ```
 
@@ -1862,7 +1877,7 @@ data_comp2=dataR %>% ungroup %>%
   group_by(spp,Site,Micro,Date_courte,Structure2,saison,Years,Day_delta) %>% 
   filter(Site == "Bi") %>% 
   # filter(Structure2 == "Disc") %>% 
-  filter(Date_courte == "2021-11") %>%
+  filter(Date_courte == "2022-01") %>%
   distinct() %>% drop_na() %>% 
   summarize(Mcov2 = mean(Mcov,.by=c(spp,Micro,Day_delta,Quad2)))
 
@@ -1880,7 +1895,7 @@ data_comp3=data_comp2 %>% ungroup %>%
 ggplot(data_comp2,aes(x=Structure2,y=Mcov2,col=spp))+
   geom_col()
 
-ggplot(data_comp3,aes(x=Structure2,y=Mcov3,fill=spp))+
+ggplot(data_comp3,aes(x=Structure2,y=Mcov3,col=spp))+
   geom_col()
 
 ```
