@@ -67,8 +67,8 @@ MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
 ```{r}
 #Chargement des jeux de données
 
-# setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
-setwd('E:/Marineff/suivi_scientifique')
+setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
+# setwd('E:/Marineff/suivi_scientifique')
 
 data_list=list.files(pattern =".csv", recursive=T)
 
@@ -211,7 +211,7 @@ dataR=dataR1 %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte",'None','NA
   filter(!Site == ("DSC"))%>%
   filter(!Structure2 %in% c('Holes','Upper_slots','Dome')) %>% 
   filter(!Date_courte == '2021-01') %>% 
-  select (spp,abb,Site,Micro,Date_courte,Structure2,Mcov,Day_delta,Quad2)
+  select (spp,abb,Site,Structure2,Micro,Date_courte,Mcov,Day_delta,Quad2)
   # select (spp,abb,Site,Micro,Date_courte,Structure2,MCount)
 
 # save(dataR,file="dataR.Rdata")
@@ -631,12 +631,12 @@ dataR2=dataR %>% ungroup %>%
   droplevels()
 
 # dataR3=dataR2 %>%
-#   group_by(Site,Structure2,Day_delta,saison) %>%
-#   summarize(S2 = mean(S))
+  # group_by(Site,Structure2,Day_delta,saison) %>%
+  # summarize(S2 = mean(S))
 
 dataR3=dataR2 %>% #grouper les données selon les sites et les jours afin de pouvoir avoir les memes données que shannon
   group_by(Site,Structure2,Day_delta,saison) %>%
-  as.data.frame() %>% 
+  as.data.frame() %>%
   summarize(S2 = mean(S),.by=c(Site,Day_delta,saison))
 
 
@@ -1144,6 +1144,8 @@ ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,sep="_"))) +
 
 
   ######## trajectoires sites-dates 2021 et 2022 ##########
+load("PCOA_df")
+
 barycenters <- aggregate(cbind(x,y) ~ Site+Date, PCOA_df, mean)
 
 ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,sep="_"))) +
@@ -1174,10 +1176,8 @@ ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,sep="_"))) +
   geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="pink")+
   geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="pink")+
   geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="pink")+
-  labs(color="Sites et dates")+ theme_bw() 
-
-
-
+  labs(color="Sites et dates")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+theme_bw() 
+  
 
   ######## trajectoires sites-dates-structures 2021 et 2022 ##########
 ##### Disc
@@ -1215,7 +1215,7 @@ ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,Structure,sep="_"))) +
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="pink")+
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="pink")+
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="pink")+
-  labs(color="Sites et dates")+ theme_bw() 
+  labs(color="Sites et dates")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+ theme_bw() 
 
 
 
@@ -1254,7 +1254,7 @@ ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,Structure,sep="_"))) +
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="pink")+
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="pink")+
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="pink")+
-  labs(color="Sites et dates")+ theme_bw() 
+  labs(color="Sites et dates")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+ theme_bw() 
 
 
 
@@ -1293,10 +1293,10 @@ ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,Structure,sep="_"))) +
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="pink")+
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="pink")+
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="pink")+
-  labs(color="Sites et dates")+ theme_bw() 
+  labs(color="Sites et dates")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+ theme_bw() 
 
 
-##### Piliers
+##### Inner_slots
 load("PCOA_df")
 PCOA_df=PCOA_df %>% filter(Structure == "Inner_slots")
 
@@ -1331,7 +1331,7 @@ ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,Structure,sep="_"))) +
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="pink")+
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="pink")+
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="pink")+
-  labs(color="Sites et dates")+ theme_bw() 
+  labs(color="Sites et dates")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+ theme_bw() 
 
 
 
@@ -1361,7 +1361,6 @@ ggplot(data=spp.scrs3,aes(x=Dim1,y=Dim2,col=Abb))+
 ggplot(data=PCOA_df,aes(x=x,y=y))+
   geom_point()+
   geom_point(data=spp.scrs3,aes(x=Dim1,y=Dim2,col=Abb))
-
 
 ```
 
@@ -1977,20 +1976,20 @@ datatern<-cbind(datadissi[,-c(9)],Similarité=(1-datadissi[,9]),Remplacement=dat
 
 ########## Test package gg plot ########## #http://www.ggtern.com/d/2.2.0/
 datatern2=datatern %>%
-  # filter(Structure1 == 'Disc') %>% 
+  filter(Structure1 == 'Inner_slots') %>%
   # filter(Site1 == 'Bi') %>%
-  filter(Site1 == Site2,
-         # Structure1==Structure2
-         Saison1 == Saison2
-         ) %>%
-  filter(Structure1!=Structure2) %>%
-    # filter(Date1!=Date2) %>% 
-  filter(Site2 == 'Bi') %>% 
-  # filter(Structure1 == "Di") %>% 
-  # filter(Date1 == '2021-11') %>%
-  # filter(Date2 == '2021-11') %>% 
-  # filter(!Date1 %in% c("2021-04","2021-07",'2021-11')) %>%
-    # filter(!Date2 %in% c("2021-04","2021-07",'2021-11')) %>%
+  # filter(Site1 == Site2,
+         # Saison1 == Saison2
+         # ) %>%
+  # filter(Structure1!=Structure2) %>%
+  filter(Structure1 == Structure2) %>%
+  filter(Site2 == 'Fe') %>%
+  # filter(Date1!=Date2) %>%
+  filter(Date1==Date2) %>%
+  # filter(Date1 == '2022-01') %>%
+  # filter(Date2 == '2022-01') %>%
+  # filter(!Date1 %in% c("2021-04","2021-07",'2021-10','2021-11')) %>%
+  # filter(!Date2 %in% c("2021-04","2021-07",'2021-10','2021-11')) %>%
   mutate(Comp_site=Site1,
          Comp_struct=Structure1) 
 # %>% 
@@ -2000,34 +1999,74 @@ datatern2=datatern2 %>%
  mutate(Compasite<-paste(Site1,Site2,sep="/")) %>% 
   mutate(Compastruct<-paste(Structure1,Structure2,sep="/")) %>% 
   mutate(Compadate<-paste(Date1,Date2,sep="/")) %>% 
-  mutate(Compasaison<-paste(Saison1,Saison2,sep="/"))
+  mutate(Compasaison<-paste(Saison1,Saison2,sep="/")) %>% 
+  mutate(Compasite_date<-paste(Site1,Date1,sep="/")) 
 colnames(datatern2)[14]<-"Compasite"
 colnames(datatern2)[15]<-"Compastruct"
 colnames(datatern2)[16]<-"Compadate"
 colnames(datatern2)[17]<-"Compasaison"
+colnames(datatern2)[18]<-"Compasitedate"
+
+#pour pouvoir mettre mettre les données de structure et date ensemble
+# datatern2=datatern2 %>% mutate(Compasitedate=paste(Comp_struct,Compadate))
+datatern2=datatern2 %>% mutate(Compasite_struct=paste(Compasite,Structure1))
+datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+datatern2=datatern2 %>% mutate(Site_Years=paste(Compasite,Years))
+datatern2=datatern2 %>% mutate(Compastruct_date=paste(Compadate,Compastruct))
 
 
-# test pour mettre à 100% (les deux fonctions marchent séparemment mais pas l'une après l'autre)
-# datatern2[,c(5:7)] <- round(datatern2[,c(5:7)] / rowSums(datatern2[,c(5:7)]) * 100,1)
-# datatern2[,c(5:7)] <- round(datatern2[,c(5:7)],1)
-
-datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Compadate,Compasaison) %>%  #permet de faire la moyenne de chaque colonne par site/struct
+datamean<-datatern2 %>%  group_by(Compasite,Compastruct_date) %>%  #permet de faire la moyenne de chaque colonne par site/struct
+  #  Compastruct,,Comp_site,Compadate,Compadate,Compadate,Compastruct,Compastruct,Site_Years <-à utiliser dans la ligne d'avant afin de faire les comparaisons voulues
   dplyr::summarize(Similarité=mean(Similarité),
             Remplacement=mean(Remplacement),
             Richesse=mean(Richesse))
 
-# datamean<-as.data.frame(t(colMeans(datatern2[,c("Similarité","Richesse","Remplacement")])))
-
-ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement)) +
+ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement,group=Compastruct_date)) +
   # geom_point(aes(colour=Compasite), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3) +
     # geom_point(aes(colour=Compastruct), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3) +
-      geom_point(aes(colour=Compasaison), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3) +
+      # geom_point(aes(colour=Compasitedate), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.2) +
+  geom_point(aes(color=Compastruct_date),position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.1)+
+        geom_point(data=datamean,aes(color=Compastruct_date)) +
   # stat_density_tern( #ajout de la densité
             # geom="polygon",aes(fill=after_stat(level)),bins=10,color='grey')+
             # geom="polygon",aes(fill=Structure1),bins=10,color='grey')+
             # geom="polygon",aes(fill=Compasite),bins=10,color='grey')+
-  labs(title="")+
-# theme_custom(  #https://rdrr.io/cran/ggtern/man/ggtern_themes.html
+  theme_hidetitles()+ #enlève le nom des axes
+  theme_showarrows()+ #montre les fléches
+  # geom_crosshair_tern(data=datamean,aes(color=Compastruct_date))+
+  # geom_crosshair_tern(data=datamean,aes(color=Compadate))+
+  # geom_crosshair_tern(data=datamean,aes(color=Compastruct_date))+
+  # geom_crosshair_tern(data=datamean,aes(color=Compasitedate))+
+  # facet_wrap(.~Comp_site)+
+  # facet_wrap(.~Compasite)+
+    facet_wrap(.~Compasite)+
+  labs(title="")
+  # labs(color = "Structures comparées")+
+
+  geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Compastruct=="Disc/Disc"),],group=1,aes(color=Compasite_struct))+
+    geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Compastruct=="Disc/Disc"),],group=1,aes(color=Compasite_struct))+
+    geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Compastruct=="Disc/Disc"),],group=1,aes(color=Compasite_struct))+
+    geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Compastruct=="Disc/Disc"),],group=1,aes(color=Compasite_struct))+
+  geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Compastruct=="Columns/Columns"),],group=1,aes(color=Compasite_struct))+
+    geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Compastruct=="Columns/Columns"),],group=1,aes(color=Compasite_struct))+
+    geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Compastruct=="Columns/Columns"),],group=1,aes(color=Compasite_struct))+
+    geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Compastruct=="Columns/Columns"),],group=1,aes(color=Compasite_struct))+
+  geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Compastruct=="Pillars/Pillars"),],group=1,aes(color=Compasite_struct))+
+    geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Compastruct=="Pillars/Pillars"),],group=1,aes(color=Compasite_struct))+
+    geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Compastruct=="Pillars/Pillars"),],group=1,aes(color=Compasite_struct))+
+    geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Compastruct=="Pillars/Pillars"),],group=1,aes(color=Compasite_struct))+
+  geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Compastruct=="Inner_slots/Inner_slots"),],group=1,aes(color=Compasite_struct))+
+    geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Compastruct=="Inner_slots/Inner_slots"),],group=1,aes(color=Compasite_struct))+
+    geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Compastruct=="Inner_slots/Inner_slots"),],group=1,aes(color=Compasite_struct))+
+    geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Compastruct=="Inner_slots/Inner_slots"),],group=1,aes(color=Compasite_struct))
+
+
+  # geom_segment(data = datamean[which(datamean$Comp_site == "Bi" & datamean$Comp_struct=="Columns"),],
+               # aes(x=Similarité[1],y=Remplacement[1],z=Richesse[1],xend=Remplacement[1+1],yend=Remplacement[1+1],zend=Richesse[1+1]),color="orange")
+      # geom_segment(data = datamean[which(barycenters$Site=="Bi"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="orange")+
+
+# personnalisation du plot
+# theme_custom( #https://rdrr.io/cran/ggtern/man/ggtern_themes.html
 #   base_size = 10,
 #   base_family = "",
 #   tern.plot.background = NULL,
@@ -2036,16 +2075,28 @@ ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement)) +
 #   col.L = "green3",
 #   col.R = "firebrick1",
 #   col.grid.minor = "white"
-# )+
-  theme_hidetitles()+ #enlève le nom des axes
-  theme_showarrows()+
-  # geom_crosshair_tern(data=datamean,aes(color=Comp_struct))+
-  # geom_crosshair_tern(data=datamean,aes(color=Compadate))+
-  geom_crosshair_tern(data=datamean,aes(color=Compasaison))+
-  # facet_wrap(.~Comp_site)+
-    facet_wrap(.~Compasite)+
-  labs(color = "Structures comparées")
+# )
+   
 
+
+# Example data with categorical values
+data <- data.frame(
+  x = c(1, 2, 3, 4, 5),
+  y = c(2, 3, 1, 4, 5),
+  z = c(5, 1, 5, 6, 3),
+  category = c("A", "A", "B", "B", "A")
+)
+
+# Ensure data is sorted by category
+data <- data[order(data$category), ]
+
+# Create ggplot with a line between points based on category
+ggtern(data, aes(x = x, y = y,z=z, group = category)) +
+  geom_path(color = "blue") +
+  geom_point(size = 3) +
+  labs(title = "Line between points based on category") +
+  theme_minimal()
+   
 ```
 
 
