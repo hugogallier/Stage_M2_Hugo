@@ -304,14 +304,19 @@ dataR2=dataR %>% ungroup %>%
 dataR3=dataR2 %>% 
   group_by(Site,Structure2,Date_courte) %>% 
   summarize(S2 = mean(S))
-dataR3$S2[which(dataR3$Structure2=='Pillars')]<-(dataR3$S2[which(dataR3$Structure2=='Pillars')]/2)
+# dataR3$S2[which(dataR3$Structure2=='Pillars')]<-(dataR3$S2[which(dataR3$Structure2=='Pillars')]/2)
 
 ggplot(dataR3, aes(Structure2,S2, fill=Site))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
   xlab("Structure")+
-  ylab("Richesse taxonomique")+
+  ylab("Richesse taxonomique moyenne")+
   geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
   geom_boxplot()+
-  theme_bw()  # Juste pour retirer le fond gris pas défaut (--> moche !)
+  theme_bw()+  # Juste pour retirer le fond gris pas défaut
+stat_summary(fun.y = mean,
+        geom = "point",
+        size = 2,
+        color = "black",
+        position = position_dodge(width = .75))
 
 ```
 
@@ -630,14 +635,15 @@ dataR2=dataR %>% ungroup %>%
   na.omit()%>% 
   droplevels()
 
-# dataR3=dataR2 %>%
-  # group_by(Site,Structure2,Day_delta,saison) %>%
-  # summarize(S2 = mean(S))
-
-dataR3=dataR2 %>% #grouper les données selon les sites et les jours afin de pouvoir avoir les memes données que shannon
+dataR3=dataR2 %>%
   group_by(Site,Structure2,Day_delta,saison) %>%
-  as.data.frame() %>%
-  summarize(S2 = mean(S),.by=c(Site,Day_delta,saison))
+  summarize(S2 = mean(S))
+
+
+# dataR3=dataR2 %>% #grouper les données selon les sites et les jours afin de pouvoir avoir les memes données que shannon
+#   group_by(Site,Structure2,Day_delta,saison) %>%
+#   as.data.frame() %>%
+#   summarize(S2 = mean(S),.by=c(Site,Day_delta,saison))
 
 
 #Richesse taxo
@@ -661,51 +667,53 @@ str(dataR3)
 
 
 #ajout de l'indice de shannon dans le df pour la gam
-dataR4<-cbind(dataR3,shannonind2[,-c(1:2)])
+# dataR4<-cbind(dataR3,shannonind2[,-c(1:2)])
 
 
 # calcul correlation day_delta et years
 # cor(dataR3$Day_delta,as.numeric(dataR3$Years))
 
 
-### MCOV avec quadrat moyenné
-dataR2=dataR %>% ungroup %>%
-  select(spp,Site,Structure2,Micro,Day_delta,saison,Date_courte,Mcov,Quad2) %>%
-  distinct()%>%
-  mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
-  group_by(Site,Structure2,Day_delta,saison,Years,Mcov,Micro,Quad2) %>%
-  # summarize(S=n()) %>%
-  na.omit()%>%
-  droplevels() 
-
-#fait la moyenne des quadrats
-dataR3=dataR2 %>%
-  group_by(spp,Site,Structure2,Day_delta,saison,Micro) %>%
-  summarize(Mcov2 = mean(Mcov,.by=c(Micro,Day_delta,Quad2)))   #moyenne du recouvrement des 2 quadrats/espèce/micro
-
-#fait la moyenne du recouvrement toutes espèces par micro
-dataR4=dataR3 %>%
-        group_by(Site,Structure2,Day_delta,saison,Micro) %>%
-    # group_by(Site,Structure2,Day_delta,saison,Micro) %>%
-summarize(Mcov3 = sum(Mcov2,.by=Structure2))
-    # dataR3$Mcov2= 100*dataR3$Mcov2/max(dataR3$Mcov2)
-  # summarize(Mcov3 = sum(Mcov2,.by=c(as.factor(Micro),as.factor(Site),Day_delta,as.factor(Structure2))))
-  # summarize(Mcov3 = sum(Mcov2,.by=c(Structure2,Day_delta))) %>% 
-      # group_by(Site,Structure2,Day_delta,saison) 
-  # summarize(Mcov3 = sum(Mcov2,.by=as.factor(Micro)))
-
-
-#Mcov
-dataR3$Site<-as.factor(dataR3$Site)
-dataR3$Mcov2<-as.numeric(dataR3$Mcov2)
-dataR3$saison<-as.factor(dataR3$saison)
-dataR3$Micro<-as.factor(dataR3$Micro)
-
-dataR4$Site<-as.factor(dataR4$Site)
-dataR4$Mcov3<-as.numeric(dataR4$Mcov3)
-dataR4$saison<-as.factor(dataR4$saison)
-dataR4$Micro<-as.factor(dataR4$Micro)
-str(dataR4)
+#### MCOV avec quadrat moyenné ####
+# dataR2=dataR %>% ungroup %>%
+#   select(spp,Site,Structure2,Micro,Day_delta,saison,Date_courte,Mcov,Quad2) %>%
+#   distinct()%>%
+#   mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
+#   group_by(Site,Structure2,Day_delta,saison,Years,Mcov,Micro,Quad2) %>%
+#   # summarize(S=n()) %>%
+#   na.omit()%>%
+#   droplevels() 
+# 
+# #fait la moyenne des quadrats
+# dataR3=dataR2 %>%
+#   group_by(spp,Site,Structure2,Day_delta,saison,Micro) %>%
+#   summarize(Mcov2 = mean(Mcov,.by=c(Micro,Day_delta,Quad2)))   #moyenne du recouvrement des 2 quadrats/espèce/micro
+# 
+# #fait la moyenne du recouvrement toutes espèces par micro
+# dataR4=dataR3 %>%
+#         group_by(Site,Structure2,Day_delta,saison) %>%
+#     # group_by(Site,Structure2,Day_delta,saison,Micro) %>%
+# summarize(Mcov3 = sum(Mcov2,.by=Structure2))
+#     # dataR3$Mcov2= 100*dataR3$Mcov2/max(dataR3$Mcov2)
+#   # summarize(Mcov3 = sum(Mcov2,.by=c(as.factor(Micro),as.factor(Site),Day_delta,as.factor(Structure2))))
+#   # summarize(Mcov3 = sum(Mcov2,.by=c(Structure2,Day_delta))) %>% 
+#       # group_by(Site,Structure2,Day_delta,saison) 
+#   # summarize(Mcov3 = sum(Mcov2,.by=as.factor(Micro)))
+# 
+# 
+# #Mcov
+# dataR3$Site<-as.factor(dataR3$Site)
+# dataR3$Mcov2<-as.numeric(dataR3$Mcov2)
+# dataR3$saison<-as.factor(dataR3$saison)
+# dataR3$Micro<-as.factor(dataR3$Micro)
+# 
+# dataR4$Site<-as.factor(dataR4$Site)
+# dataR4$Mcov3<-as.numeric(dataR4$Mcov3)
+# dataR4$saison<-as.factor(dataR4$saison)
+# dataR4$Micro<-as.factor(dataR4$Micro)
+# dataR4$Day_delta<-as.factor(dataR4$Day_delta)
+# 
+# str(dataR4)
 
 
 #test comparaison tous les paramètres
@@ -715,24 +723,34 @@ model111<-gam(S2~s(Day_delta)+saison,data=dataR3)
 model1111<-gam(S2~s(Day_delta)+Site,data=dataR3)
 model11111<-gam(S2~s(Day_delta)+Structure2+Site,data=dataR3)
 model111111<-gam(S2~s(Day_delta)+s(Structure2,bs="re")+s(Site,bs="re")+s(saison,bs="re")+s(Structure2,by=Site,bs='re'),data=dataR3) # avec les structures dépendantes des sites
-model111111<-gam(S2~s(Day_delta)+s(Site,bs="re")+s(saison,bs="re")+s(shannon,bs='re'),data=dataR4) #Avec shannon
-model111111<-gam(S2~s(Day_delta,k=20)+s(Site,bs="re")+s(saison,bs="re"),data=dataR3)
-model1111111<-gam(Mcov~s(Day_delta)+s(Structure2,bs='re')+s(Site,bs="re")+s(saison,bs="re"),data=dataR2)
-model11111111<-gam(Mcov2~s(Day_delta)+s(Structure2,bs='re')+s(Site,bs="re")+s(saison,bs="re"),data=dataR3)
-model111111111<-gam(Mcov3~s(Day_delta,k=27)+s(Structure2,bs='re')+s(Site,bs="re")+s(saison,bs="re"),data=dataR4)
+model111111<-gam(S2~s(Day_delta)+s(Structure2,bs="re")+s(Site,bs="re")+s(saison,bs="re")+s(Structure2,by=Site,bs='re')+Structure2*Day_delta,data=dataR3) 
+model111111<-gam(S2~s(Day_delta)+s(Structure2,bs="re")+s(Site,bs="re")+s(saison,bs="re")+s(Structure2,by=Site,bs='re')+Site*Day_delta,data=dataR3) 
+model111111<-gam(S2~s(Day_delta)+s(Structure2,bs="re")+s(Site,bs="re")+s(saison,bs="re")+s(Structure2,by=Site,bs='re')+Site*Day_delta+Structure2*Day_delta,data=dataR3) 
+
+model111111<-gam(S2~s(Day_delta)+Day_delta*Structure2,data=dataR3)
+model111111<-gam(S2~s(Day_delta)+Site*Day_delta,data=dataR3)
+
+# model111111<-gam(S2~s(Day_delta)+s(Site,bs="re")+s(saison,bs="re")+s(shannon,bs='re'),data=dataR4) #Avec shannon
+# model111111<-gam(S2~s(Day_delta,k=20)+s(Site,bs="re")+s(saison,bs="re"),data=dataR3)
+# model1111111<-gam(Mcov~s(Day_delta)+s(Structure2,bs='re')+s(Site,bs="re")+s(saison,bs="re"),data=dataR2)
+# model11111111<-gam(Mcov2~s(Day_delta)+s(Structure2,bs='re')+s(Site,bs="re")+s(saison,bs="re"),data=dataR3)
+# model111111111<-gam(Mcov3~s(Day_delta,k=27)+s(Structure2,bs='re')+s(Site,bs="re")+s(saison,bs="re"),data=dataR4)
+
 
 summary(model111111)
 
-model2<-gam(S2~Site/Day_delta+s(Day_delta,bs="re"),data=dataR3)
-model22<-gam(S2~Site/Day_delta+s(Day_delta,bs="re")+s(Structure2,bs='re'),data=dataR3)
-model222<-gam(S2~Site/Day_delta+s(Day_delta,bs="re")+s(saison,bs="re"),data=dataR3)
-model2222<-gam(S2~Site/Day_delta+s(Day_delta,bs="re")+s(Site,bs="re"),data=dataR3)
-model22222<-gam(S2~Site/Day_delta+s(Day_delta,bs="re")+s(saison,bs="re")+s(Site,bs="re"),data=dataR3)
-model222222<-gam(S2~Site/Day_delta+s(Day_delta,bs="re")+s(saison,bs="re")+s(Structure2,bs='re'),data=dataR3)
-model2222222<-gam(S2~Site/Day_delta+s(Day_delta,bs="re")+s(Structure2,bs='re')+s(Site,bs="re")+s(saison,bs="re"),data=dataR3)
+# model2<-gam(S2~Site/Day_delta+s(Day_delta,bs="re"),data=dataR3)
+# model22<-gam(S2~Site/Day_delta+s(Day_delta,bs="re")+s(Structure2,bs='re'),data=dataR3)
+# model222<-gam(S2~Site/Day_delta+s(Day_delta,bs="re")+s(saison,bs="re"),data=dataR3)
+# model2222<-gam(S2~Site/Day_delta+s(Day_delta,bs="re")+s(Site,bs="re"),data=dataR3)
+# model22222<-gam(S2~Site/Day_delta+s(Day_delta,bs="re")+s(saison,bs="re")+s(Site,bs="re"),data=dataR3)
+# model222222<-gam(S2~Site/Day_delta+s(Day_delta,bs="re")+s(saison,bs="re")+s(Structure2,bs='re'),data=dataR3)
+# model2222222<-gam(S2~Site/Day_delta+s(Day_delta,bs="re")+s(Structure2,bs='re')+s(Site,bs="re")+s(saison,bs="re"),data=dataR3)
 
 AIC(model1,model11,model111,model1111,model11111,model111111)
 AIC(model2,model22,model222,model2222,model22222,model222222,model2222222)
+
+plot_smooths(model=model111111, series=Day_delta,comparison=Structure2)+theme_bw()
 
 
 #test comparaison tous les paramètres
@@ -749,12 +767,36 @@ ggplot(data = dataR3, mapping = aes(x = Day_delta, y = S2)) +
   geom_smooth(method="gam", formula= y~s(x))+
   theme_bw()
 
-plot_smooths(model=model111111, series=Day_delta,comparison=Site)+theme_bw() #permet de mettre les gam selon les sites
+plot_smooths(model=model111111, series=Day_delta,comparison=Site)+theme_bw()+ #permet de mettre les gam selon les sites
+  (scale_y_continuous(limits=c(0,10)))+
+      (scale_x_continuous(limits=c(110,750)))+
+   # (scale_x_continuous(minor_breaks=seq(0,27,by=2)))+
+     # (scale_x_continuous(breaks=seq(0,25,by=2)))+
+  geom_vline(xintercept = 206,colour='#666666',alpha=.5)+
+  geom_vline(xintercept = 299,colour='#666666',alpha=.5)+
+  geom_vline(xintercept = 389,colour='#666666',alpha=.5)+
+  geom_vline(xintercept = 478,colour='#666666',alpha=.5)+
+  geom_vline(xintercept = 571,colour='#666666',alpha=.5)+
+  geom_vline(xintercept = 664,colour='#666666',alpha=.5)+
+#   annotate("rect",xmin=112,xmax=205.9,ymin=0,ymax=10,alpha=.1,fill="green")+
+#   annotate("rect",xmin=206,xmax=298.9,ymin=0,ymax=10,alpha=.1,fill="orange")+
+#   annotate("rect",xmin=299,xmax=388.9,ymin=0,ymax=10,alpha=.1,fill="brown")+
+#   annotate("rect",xmin=389,xmax=477.9,ymin=0,ymax=10,alpha=.1,fill="blue")+
+# annotate("rect",xmin=478,xmax=570.9,ymin=0,ymax=10,alpha=.1,fill="green")+
+#   annotate("rect",xmin=571,xmax=663.9,ymin=0,ymax=10,alpha=.1,fill="orange")+
+#   annotate("rect",xmin=664,xmax=750,ymin=0,ymax=10,alpha=.1,fill="brown")+
+annotate("text",x = c(159,252,344,433,524,617,708),y=0.3,
+           label=c("Printemps","Eté","Automne","Hiver","Printemps","Eté","Automne"),
+           colour=c("#666666","#666666","#666666","#666666","#666666","#666666","#666666"))+
+   xlab("Nombre de jours d'immersion")+
+  ylab("Richesse taxonomique moyenne")
 
 
 #### Conditions d'applications
 par(mfrow = c(2, 2))
 gam.check(model111111)
+
+
 
 ```
 
@@ -795,7 +837,7 @@ Exemple de plot de reponse
 # on reconstruit un data frame en faisant varier que la variable d'interet (fonction "evenly")
 
 Parametre1_df <- data_slice(model111111,
-                    param=evenly(param))#param à changer selon la variable à faire varier
+                    param=evenly(model111111$model$Site))#param à changer selon la variable à faire varier
 
 # On génére des predictions avec le nouveau df
 
@@ -805,7 +847,7 @@ fv_ds_distancesea <- fitted_values(model111111, data = Parametre1_df)
 # On plot le data frame
 # - si variable quantitative : geom_ribbon
 # - si variable qualitative: geom_range ou geom_bar
-# -geom_rug pour ajouter des ticks pour identifier le nombre de valeur sur un gradient quantitatif
+# - geom_rug pour ajouter des ticks pour identifier le nombre de valeur sur un gradient quantitatif
 
 
 p=ggplot() +
@@ -1013,10 +1055,6 @@ annotate("text",x = c(2.4,5.2,8.2,11.2,14.2,17.1,20.2,23.2),y=-1.9,
 ```{r}
 # Permet de calculer la distance entre le recouvrement de chaque espèce et le taux de recouvrement
 
-levels(factor(dataR$Site))
-# test=data_PQ_light %>% filter(Site=='DSC')
-
-
 # data_comp2=data_PQ_light %>% ungroup %>% 
 #   select(spp,Cov,Site,Micro,Date_courte,Structure2,Strcut_groups, Quad2) %>% 
 #   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
@@ -1042,18 +1080,22 @@ dataR$saison[dataR$saison == "2021-07" | dataR$saison == "2022-07"] <- "été"
 dataR$saison[dataR$saison == "2021-10" | dataR$saison == "2021-11"| dataR$saison == "2022-11"] <- "automne"
 dataR$saison[dataR$saison == "2022-01"] <- "hiver"
 
+dataR$Day_delta[dataR$Date_courte == "2021-10" & dataR$Site == "Fe"]<-"336"
+dataR$Day_delta[dataR$Date_courte == "2021-10" & dataR$Site == "VB"]<-"339"
+dataR$Date_courte[dataR$Date_courte == "2021-10" & dataR$Site == "Fe"]<-"2021-11"
+dataR$Date_courte[dataR$Date_courte == "2021-10" & dataR$Site == "VB"]<-"2021-11"
+
 
 data_comp2=dataR %>% ungroup %>% 
   select(spp,Mcov,Site,Micro,Date_courte,Structure2,saison,Quad2,Day_delta) %>% 
   mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
   group_by(spp,Site,Micro,Date_courte,Structure2,saison,Years,Day_delta) %>% 
+  filter(!Site == 'Fe') %>% 
   distinct() %>% drop_na() %>% 
   summarize(Mcov2 = mean(Mcov,.by=c(spp,Micro,Day_delta,Quad2))) %>%
   spread(spp,Mcov2) %>% ungroup() %>% 
   mutate(across(everything(.), ~replace_na(., 0))) %>% 
   mutate(Compsite_date=paste(Site,Date_courte,sep=","))
-
-
 
 # data_comp2$nouvelle<-ifelse(data_comp2$Structure2 == "Pillars" | data_comp2$Structure2 == "Columns", "Pillars", "Autres")
 # data_comp2$nouvelle<-ifelse(data_comp2$Structure2 == "Pillars", "Pillars", "Autres")
@@ -1094,8 +1136,6 @@ pcoa_tot_SS<- cmdscale(d = as.matrix(distdataR), k=10, eig = T)
 x=pcoa_tot_SS$points[,1]
 y=pcoa_tot_SS$points[,2]
 
-plot(x,y) 
-
 PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
                    Structure=Meta_data$Structure2,
                    Site=Meta_data$Site,
@@ -1124,7 +1164,7 @@ ggplot(data=PCOA_df,aes(x,y, col=Years))+ # <- Ici on explore avec col les varia
 #PCoA avec les barycentres
 # s.class(PCOA_df[c(1:2)],as.factor(PCOA_df$Site),col=c("#fb746b","#7cab04","#00bfc4","#c77cff"),ellipseSize=0) # permet de faire le graph de la PCoA avec des barycentres
 # s.class(PCOA_df[c(1:2)],droplevels(as.factor(PCOA_df$Structure)),col=c("#fb746b","#7cab04","#00bfc4","#c77cff"),ellipseSize=0)
-# s.class(PCOA_df[c(1:2)],droplevels(as.factor(PCOA_df$Date)),col=c("#000099","#0000FF","#6666FF","#99CCFF","#006600","#33CC33","#99FF00","#CCFF33"),ellipseSize=0)
+# s.class(PCOA_df[c(1:2)],droplevels(as.factor(PCOA_df$Date)),col=c("#000099","#0000FF","#6666FF","#99CCFF","#006600","#33CC33","#99FF00"),ellipseSize=0)
 # 
 # s.class(PCOA_df[c(1:2)],droplevels(as.factor(PCOA_df$Compsite_date)),ellipseSize=0,col=c("#000099","#0000FF","#6666FF","#99CCFF","#006600","#33CC33","#99FF00","#CCFF33"))
 
@@ -1132,50 +1172,146 @@ ggplot(data=PCOA_df,aes(x,y, col=Years))+ # <- Ici on explore avec col les varia
 #### Barycentre avec ggplot
   ######## trajectoires sites ##########
 load("PCOA_df")
-barycenters <- aggregate(cbind(x,y) ~ Site, PCOA_df, mean)
 
-ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,sep="_"))) +
+## PCoA Sites ##
+barycenters <- aggregate(cbind(x,y) ~ Site, PCOA_df, mean)
+# paste(Site,Date,sep="_")
+ggplot(PCOA_df, aes(x = x, y = y,colour =Site )) +
   geom_point(alpha=.2) +
   # Ajouter les barycentres
   # geom_point(data = barycenters, aes(x = x, y = y, colour = paste(Site,Date,sep="_")), size = 3, shape = 17) +
   # Ajout lignes entre les barycentres et les points
   geom_segment(data = merge(PCOA_df, barycenters, by ="Site", suffixes = c("",".bary")),
-               aes(x = x, y = y, xend = x.bary, yend = y.bary, color = Site),alpha=.4)
+               aes(x = x, y = y, xend = x.bary, yend = y.bary, color = Site),alpha=.3)+
+  theme_bw()+theme(legend.position = "none")+labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+
+  geom_label(
+    label="Bizeux", x=barycenters$x[which(barycenters$Site=="Bi")], y=barycenters$y[which(barycenters$Site=="Bi")],
+    label.padding = unit(0.25, "lines"), # Rectangle size around label
+    label.size = 0.35,color = "orange",fill="white")+
+  geom_label(
+    label="Buharats", x=barycenters$x[which(barycenters$Site=="Bu")], y=barycenters$y[which(barycenters$Site=="Bu")],
+    label.padding = unit(0.25, "lines"), 
+    label.size = 0.35,color = "#66CC00",fill="white")+
+  # geom_label(
+  #   label="Fetlar", x=barycenters$x[which(barycenters$Site=="Fe")], y=barycenters$y[which(barycenters$Site=="Fe")],
+  #   label.padding = unit(0.25, "lines"), 
+  #   label.size = 0.35,color = "#00CCCC",fill="white")+
+  geom_label(
+    label="Vieux-Bancs", x=barycenters$x[which(barycenters$Site=="VB")], y=barycenters$y[which(barycenters$Site=="VB")],
+    label.padding = unit(0.25, "lines"), 
+    label.size = 0.35,color = "#00CCCC",fill="white")
+  
+
+  
+
+## PCoA Structures ##
+load("PCOA_df")
+barycenters <- aggregate(cbind(x,y) ~ Structure, PCOA_df, mean)
+# paste(Site,Date,sep="_")
+ggplot(PCOA_df, aes(x = x, y = y,colour =Structure )) +
+  geom_point(alpha=.2) +
+  # Ajouter les barycentres
+  # geom_point(data = barycenters, aes(x = x, y = y, colour = paste(Site,Date,sep="_")), size = 3, shape = 17) +
+  # Ajout lignes entre les barycentres et les points
+  geom_segment(data = merge(PCOA_df, barycenters, by ="Structure", suffixes = c("",".bary")),
+               aes(x = x, y = y, xend = x.bary, yend = y.bary, color = Structure),alpha=.3)+
+  theme_bw()+theme(legend.position = "none")+
+  geom_label(
+    label="Disc", x=barycenters$x[which(barycenters$Structure=="Disc")], y=barycenters$y[which(barycenters$Structure=="Disc")],
+    label.padding = unit(0.25, "lines"), # Rectangle size around label
+    label.size = 0.35,color = "orange",fill="white")+
+  geom_label(
+    label="Columns", x=barycenters$x[which(barycenters$Structure=="Columns")], y=barycenters$y[which(barycenters$Structure=="Columns")],
+    label.padding = unit(0.25, "lines"), 
+    label.size = 0.35,color = "#66CC00",fill="white")+
+  geom_label(
+    label="Pillars", x=barycenters$x[which(barycenters$Structure=="Pillars")], y=barycenters$y[which(barycenters$Structure=="Pillars")],
+    label.padding = unit(0.25, "lines"), 
+    label.size = 0.35,color = "#00CCCC",fill="white")+
+  geom_label(
+    label="Inner_slots", x=barycenters$x[which(barycenters$Structure=="Inner_slots")], y=barycenters$y[which(barycenters$Structure=="Inner_slots")],
+    label.padding = unit(0.25, "lines"), 
+    label.size = 0.35,color = "purple",fill="white")+
+  labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")
 
 
-  ######## trajectoires sites-dates 2021 et 2022 ##########
+## PCoA Dates ##
+load("PCOA_df")
+barycenters <- aggregate(cbind(x,y) ~ Date, PCOA_df, mean)
+# paste(Site,Date,sep="_")
+ggplot(PCOA_df, aes(x = x, y = y,colour =Date )) +
+  geom_point(alpha=.2) +
+  # Ajouter les barycentres
+  # geom_point(data = barycenters, aes(x = x, y = y, colour = paste(Site,Date,sep="_")), size = 3, shape = 17) +
+  # Ajout lignes entre les barycentres et les points
+  geom_segment(data = merge(PCOA_df, barycenters, by ="Date", suffixes = c("",".bary")),
+               aes(x = x, y = y, xend = x.bary, yend = y.bary, color = Date),alpha=.3)+
+  theme_bw()+theme(legend.position = "none")+
+  geom_label(
+    label="2021-04", x=barycenters$x[which(barycenters$Date=="2021-04")], y=barycenters$y[which(barycenters$Date=="2021-04")],
+    label.padding = unit(0.25, "lines"), # Rectangle size around label
+    label.size = 0.35,color = "red",fill="white")+
+  geom_label(
+    label="2021-07", x=barycenters$x[which(barycenters$Date=="2021-07")], y=barycenters$y[which(barycenters$Date=="2021-07")],
+    label.padding = unit(0.25, "lines"), 
+    label.size = 0.35,color = "orange",fill="white")+
+  geom_label(
+    label="2021-11", x=barycenters$x[which(barycenters$Date=="2021-11")], y=barycenters$y[which(barycenters$Date=="2021-11")],
+    label.padding = unit(0.25, "lines"), 
+    label.size = 0.35,color = "#66CC00",fill="white")+
+  geom_label(
+    label="2022-01", x=barycenters$x[which(barycenters$Date=="2022-01")], y=barycenters$y[which(barycenters$Date=="2022-01")],
+    label.padding = unit(0.25, "lines"), 
+    label.size = 0.35,color = "#009966",fill="white")+
+geom_label(
+    label="2022-04", x=barycenters$x[which(barycenters$Date=="2022-04")], y=barycenters$y[which(barycenters$Date=="2022-04")],
+    label.padding = unit(0.25, "lines"), 
+    label.size = 0.35,color = "#00CCCC",fill="white")+
+  geom_label(
+    label="2022-07", x=barycenters$x[which(barycenters$Date=="2022-07")], y=barycenters$y[which(barycenters$Date=="2022-07")],
+    label.padding = unit(0.25, "lines"), 
+    label.size = 0.35,color = "purple",fill="white")+
+  geom_label(
+    label="2022-11", x=barycenters$x[which(barycenters$Date=="2022-11")], y=barycenters$y[which(barycenters$Date=="2022-11")],
+    label.padding = unit(0.25, "lines"), 
+    label.size = 0.35,color = "pink",fill="white")+
+  labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")
+
+
+######## trajectoires sites-dates 2021 et 2022 ##########
 load("PCOA_df")
 
 barycenters <- aggregate(cbind(x,y) ~ Site+Date, PCOA_df, mean)
-
 ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,sep="_"))) +
   geom_point(alpha=.2) +
      # Ajouter les barycentres
   geom_point(data = barycenters, aes(x = x, y = y, colour = paste(Site,Date,sep="_")), size = 3, shape = 17) +
+
+  
      # Ajout lignes entre les barycentres et les points
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="pink")+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="blue",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="blue",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="blue",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="blue",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="blue",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
   labs(color="Sites et dates")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+theme_bw() 
   
 
@@ -1192,29 +1328,29 @@ ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,Structure,sep="_"))) +
     # Ajout les barycentres
   geom_point(data = barycenters, aes(x = x, y = y, colour = paste(Site,Date,Structure,sep="_")), size = 3, shape = 17) +
     # Ajout lignes entre les barycentres et les points
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Disc"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Disc"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Disc"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Disc"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Disc"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Disc"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Disc"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Disc"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Disc"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Disc"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Disc"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Disc"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Disc"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Disc"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Disc"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Disc"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="pink")+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Disc"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Disc"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Disc"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Disc"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Disc"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Disc"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Disc"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Disc"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Disc"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Disc"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Disc"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Disc"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Disc"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Disc"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Disc"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Disc"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="purple")+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
   labs(color="Sites et dates")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+ theme_bw() 
 
 
@@ -1225,35 +1361,34 @@ PCOA_df=PCOA_df %>% filter(Structure == "Columns")
 
 barycenters <- aggregate(cbind(x,y) ~ Site+Date+Structure, PCOA_df, mean)
 
-
 ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,Structure,sep="_"))) +
   geom_point(alpha=.2) +
     # Ajout les barycentres
   geom_point(data = barycenters, aes(x = x, y = y, colour = paste(Site,Date,Structure,sep="_")), size = 3, shape = 17) +
     # Ajout lignes entre les barycentres et les points
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Columns"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Columns"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Columns"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Columns"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Columns"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Columns"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Columns"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Columns"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Columns"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Columns"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Columns"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Columns"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Columns"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Columns"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Columns"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Columns"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="pink")+
+   geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Columns"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Columns"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Columns"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Columns"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Columns"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Columns"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Columns"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Columns"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Columns"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Columns"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Columns"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Columns"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Columns"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Columns"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Columns"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Columns"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="purple")+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
   labs(color="Sites et dates")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+ theme_bw() 
 
 
@@ -1270,30 +1405,30 @@ ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,Structure,sep="_"))) +
     # Ajout les barycentres
   geom_point(data = barycenters, aes(x = x, y = y, colour = paste(Site,Date,Structure,sep="_")), size = 3, shape = 17) +
     # Ajout lignes entre les barycentres et les points
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Pillars"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Pillars"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Pillars"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Pillars"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Pillars"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Pillars"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Pillars"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Pillars"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Pillars"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Pillars"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Pillars"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Pillars"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Pillars"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Pillars"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Pillars"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Pillars"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="pink")+
-  labs(color="Sites et dates")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+ theme_bw() 
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Pillars"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Pillars"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Pillars"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Pillars"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Pillars"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Pillars"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Pillars"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Pillars"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Pillars"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Pillars"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Pillars"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Pillars"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Pillars"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Pillars"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Pillars"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Pillars"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="purple")+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  labs(color="Sites et dates")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+ theme_bw()  
 
 
 ##### Inner_slots
@@ -1308,30 +1443,37 @@ ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,Structure,sep="_"))) +
     # Ajout les barycentres
   geom_point(data = barycenters, aes(x = x, y = y, colour = paste(Site,Date,Structure,sep="_")), size = 3, shape = 17) +
     # Ajout lignes entre les barycentres et les points
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Inner_slots"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Inner_slots"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Inner_slots"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Inner_slots"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Inner_slots"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Inner_slots"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="orange")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Inner_slots"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Inner_slots"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Inner_slots"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Inner_slots"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Inner_slots"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="darkgreen")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Inner_slots"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Inner_slots"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Inner_slots"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Inner_slots"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Inner_slots"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="blue")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="pink")+
-  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="pink")+
-  labs(color="Sites et dates")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+ theme_bw() 
+   geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Inner_slots"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Inner_slots"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Inner_slots"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Inner_slots"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Inner_slots"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bi" & barycenters$Structure=="Inner_slots"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="orange",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Inner_slots"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Inner_slots"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Inner_slots"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Inner_slots"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Bu" & barycenters$Structure=="Inner_slots"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="darkgreen",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Inner_slots"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Inner_slots"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Inner_slots"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Inner_slots"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="Fe" & barycenters$Structure=="Inner_slots"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="pink",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="purple")+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="purple",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  labs(color="Sites et dates")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+ theme_bw()  
+
+# geom_path(data=barycenters[which(barycenters$Site == "Bi"),],group=1,aes(color=Site),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+# geom_path(data=barycenters[which(barycenters$Site == "Bu"),],group=1,aes(color=Site),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+# geom_path(data=barycenters[which(barycenters$Site == "Fe"),],group=1,aes(color=Site),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+# geom_path(data=barycenters[which(barycenters$Site == "VB"),],group=1,aes(color=Site),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))
+
+
 
 
 
@@ -1355,12 +1497,20 @@ spp.scrs <- as.data.frame(scores(vf, display = "vectors"))
 spp.scrs2 <-(spp.scrs[which(vf$vectors$pvals<0.01),])
 spp.scrs3 <- cbind(spp.scrs2, Abb = rownames(spp.scrs2))
 
-ggplot(data=spp.scrs3,aes(x=Dim1,y=Dim2,col=Abb))+
-  geom_point()
 
-ggplot(data=PCOA_df,aes(x=x,y=y))+
-  geom_point()+
-  geom_point(data=spp.scrs3,aes(x=Dim1,y=Dim2,col=Abb))
+ggplot(PCOA_df, aes(x = x, y = y)) +
+  geom_point(colour="black",alpha=.2)+
+  geom_point(spp.scrs3,mapping=aes(x=Dim1,y=Dim2,colour=Abb),size=2)+
+    labs(color="Taxons significatifs")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,1%)")+
+  theme_bw() + geom_label(data=spp.scrs3,label=Abb, nudge_x = 0.25, nudge_y = 0.25, 
+    check_overlap = T)
+
+
+geom_label(
+    label="2022-11", x=barycenters$x[which(barycenters$Date=="2022-11")], y=barycenters$y[which(barycenters$Date=="2022-11")],
+    label.padding = unit(0.25, "lines"), 
+    label.size = 0.35,color = "pink",fill="white")+
+  labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")
 
 ```
 
@@ -1875,13 +2025,27 @@ colnames(Piélouind2)[3]<-"Piélou"
 
 #plot Piélou
 ggplot(Piélouind2, aes(Day_delta,Piélou, col=Site))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
-  xlab("Jour depuis immersion")+
-  ylab("Indice de Shannon")+
+  xlab("Nombre de jours d'immersion")+
+  ylab("Indice de Piélou")+
   # geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
   # geom_boxplot()+
   geom_line(aes(group=Site))+
   geom_point()+
-  theme_bw() 
+  theme_bw() +
+    (scale_y_continuous(limits=c(0.4,0.9)))+
+      (scale_x_continuous(limits=c(110,750)))+
+   # (scale_x_continuous(minor_breaks=seq(0,27,by=2)))+
+     # (scale_x_continuous(breaks=seq(0,25,by=2)))+
+  annotate("rect",xmin=112,xmax=205.9,ymin=0.4,ymax=0.9,alpha=.1,fill="green")+
+  annotate("rect",xmin=206,xmax=298.9,ymin=0.4,ymax=0.9,alpha=.1,fill="orange")+
+  annotate("rect",xmin=299,xmax=388.9,ymin=0.4,ymax = 0.9,alpha=.1,fill="brown")+
+  annotate("rect",xmin=389,xmax=477.9,ymin=0.4,ymax = 0.9,alpha=.1,fill="blue")+
+annotate("rect",xmin=478,xmax=570.9,ymin=0.4,ymax = 0.9,alpha=.1,fill="green")+
+  annotate("rect",xmin=571,xmax=663.9,ymin=0.4,ymax = 0.9,alpha=.1,fill="orange")+
+  annotate("rect",xmin=664,xmax=750,ymin=0.4,ymax = 0.9,alpha=.1,fill="brown")+
+annotate("text",x = c(159,252,344,433,524,617,708),y=0.45,
+           label=c("Printemps","Eté","Automne","Hiver","Printemps","Eté","Automne"),
+           colour=c("green","orange","brown","blue","green","orange","brown"))
 
 ```
 
@@ -1976,14 +2140,14 @@ datatern<-cbind(datadissi[,-c(9)],Similarité=(1-datadissi[,9]),Remplacement=dat
 
 ########## Test package gg plot ########## #http://www.ggtern.com/d/2.2.0/
 datatern2=datatern %>%
-  filter(Structure1 == 'Inner_slots') %>%
+  filter(Structure1 == 'Disc') %>%
   # filter(Site1 == 'Bi') %>%
   # filter(Site1 == Site2,
          # Saison1 == Saison2
          # ) %>%
   # filter(Structure1!=Structure2) %>%
   filter(Structure1 == Structure2) %>%
-  filter(Site2 == 'Fe') %>%
+  # filter(Site2 == 'Fe') %>%
   # filter(Date1!=Date2) %>%
   filter(Date1==Date2) %>%
   # filter(Date1 == '2022-01') %>%
@@ -2014,19 +2178,18 @@ datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
 datatern2=datatern2 %>% mutate(Site_Years=paste(Compasite,Years))
 datatern2=datatern2 %>% mutate(Compastruct_date=paste(Compadate,Compastruct))
 
-
-datamean<-datatern2 %>%  group_by(Compasite,Compastruct_date) %>%  #permet de faire la moyenne de chaque colonne par site/struct
+datamean<-datatern2 %>%  group_by(Comp_site,Compasitedate,Comp_struct) %>%  #permet de faire la moyenne de chaque colonne par site/struct
   #  Compastruct,,Comp_site,Compadate,Compadate,Compadate,Compastruct,Compastruct,Site_Years <-à utiliser dans la ligne d'avant afin de faire les comparaisons voulues
   dplyr::summarize(Similarité=mean(Similarité),
             Remplacement=mean(Remplacement),
             Richesse=mean(Richesse))
 
-ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement,group=Compastruct_date)) +
+ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement,group=Compasitedate)) +
   # geom_point(aes(colour=Compasite), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3) +
     # geom_point(aes(colour=Compastruct), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3) +
       # geom_point(aes(colour=Compasitedate), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.2) +
-  geom_point(aes(color=Compastruct_date),position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.1)+
-        geom_point(data=datamean,aes(color=Compastruct_date)) +
+  geom_point(aes(color=Compasitedate),position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.1)+
+        geom_point(data=datamean,aes(color=Compasitedate)) +
   # stat_density_tern( #ajout de la densité
             # geom="polygon",aes(fill=after_stat(level)),bins=10,color='grey')+
             # geom="polygon",aes(fill=Structure1),bins=10,color='grey')+
@@ -2039,26 +2202,27 @@ ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement,group=Compast
   # geom_crosshair_tern(data=datamean,aes(color=Compasitedate))+
   # facet_wrap(.~Comp_site)+
   # facet_wrap(.~Compasite)+
-    facet_wrap(.~Compasite)+
-  labs(title="")
+    facet_wrap(.~Compastruct)+
+  labs(title="")+
   # labs(color = "Structures comparées")+
 
-  geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Compastruct=="Disc/Disc"),],group=1,aes(color=Compasite_struct))+
-    geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Compastruct=="Disc/Disc"),],group=1,aes(color=Compasite_struct))+
-    geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Compastruct=="Disc/Disc"),],group=1,aes(color=Compasite_struct))+
-    geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Compastruct=="Disc/Disc"),],group=1,aes(color=Compasite_struct))+
-  geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Compastruct=="Columns/Columns"),],group=1,aes(color=Compasite_struct))+
-    geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Compastruct=="Columns/Columns"),],group=1,aes(color=Compasite_struct))+
-    geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Compastruct=="Columns/Columns"),],group=1,aes(color=Compasite_struct))+
-    geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Compastruct=="Columns/Columns"),],group=1,aes(color=Compasite_struct))+
-  geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Compastruct=="Pillars/Pillars"),],group=1,aes(color=Compasite_struct))+
-    geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Compastruct=="Pillars/Pillars"),],group=1,aes(color=Compasite_struct))+
-    geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Compastruct=="Pillars/Pillars"),],group=1,aes(color=Compasite_struct))+
-    geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Compastruct=="Pillars/Pillars"),],group=1,aes(color=Compasite_struct))+
-  geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Compastruct=="Inner_slots/Inner_slots"),],group=1,aes(color=Compasite_struct))+
-    geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Compastruct=="Inner_slots/Inner_slots"),],group=1,aes(color=Compasite_struct))+
-    geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Compastruct=="Inner_slots/Inner_slots"),],group=1,aes(color=Compasite_struct))+
-    geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Compastruct=="Inner_slots/Inner_slots"),],group=1,aes(color=Compasite_struct))
+  geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Comp_struct=="Disc"),],group=1,aes(color=Compasitedate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+    geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Comp_struct=="Disc"),],group=1,aes(color=Compasitedate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+    geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Comp_struct=="Disc"),],group=1,aes(color=Compasitedate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+    geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Comp_struct=="Disc"),],group=1,aes(color=Compasitedate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))
+  # geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Compastruct=="Columns/Columns"),],group=1,aes(color=Compasite_struct))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Compastruct=="Columns/Columns"),],group=1,aes(color=Compasite_struct))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Compastruct=="Columns/Columns"),],group=1,aes(color=Compasite_struct))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Compastruct=="Columns/Columns"),],group=1,aes(color=Compasite_struct))+
+  # geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Compastruct=="Pillars/Pillars"),],group=1,aes(color=Compasite_struct))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Compastruct=="Pillars/Pillars"),],group=1,aes(color=Compasite_struct))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Compastruct=="Pillars/Pillars"),],group=1,aes(color=Compasite_struct))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Compastruct=="Pillars/Pillars"),],group=1,aes(color=Compasite_struct))+
+  # geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Compastruct=="Inner_slots/Inner_slots"),],group=1,aes(color=Compasite_struct))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Compastruct=="Inner_slots/Inner_slots"),],group=1,aes(color=Compasite_struct))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Compastruct=="Inner_slots/Inner_slots"),],group=1,aes(color=Compasite_struct))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Compastruct=="Inner_slots/Inner_slots"),],group=1,aes(color=Compasite_struct))
+
 
 
   # geom_segment(data = datamean[which(datamean$Comp_site == "Bi" & datamean$Comp_struct=="Columns"),],
@@ -2139,18 +2303,73 @@ ggplot(dataR3, aes(Day_delta,Mcov3, col=Site))+
   geom_line(aes(group=Site))+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-annotate("rect",xmin=112,xmax=205,ymin=-1,ymax = 32,alpha=.2,fill="green")+
-  annotate("rect",xmin=206,xmax=298,ymin=-1,ymax = 32,alpha=.2,fill="orange")+
-  annotate("rect",xmin=299,xmax=388,ymin=-1,ymax = 32,alpha=.2,fill="brown")+
-  annotate("rect",xmin=389,xmax=477,ymin=-1,ymax = 32,alpha=.2,fill="blue")+
-annotate("rect",xmin=478,xmax=570,ymin=-1,ymax = 32,alpha=.2,fill="green")+
-  annotate("rect",xmin=571,xmax=663,ymin=-1,ymax = 32,alpha=.2,fill="orange")+
-  annotate("rect",xmin=664,xmax=752,ymin=-1,ymax = 32,alpha=.2,fill="brown")+
-  annotate("rect",xmin=753,xmax=800,ymin=-1,ymax = 32,alpha=.2,fill="blue")+
+annotate("rect",xmin=112,xmax=205,ymin=-1,ymax = 32,alpha=.1,fill="green")+
+  annotate("rect",xmin=206,xmax=298,ymin=-1,ymax = 32,alpha=.1,fill="orange")+
+  annotate("rect",xmin=299,xmax=388,ymin=-1,ymax = 32,alpha=.1,fill="brown")+
+  annotate("rect",xmin=389,xmax=477,ymin=-1,ymax = 32,alpha=.1,fill="blue")+
+annotate("rect",xmin=478,xmax=570,ymin=-1,ymax = 32,alpha=.1,fill="green")+
+  annotate("rect",xmin=571,xmax=663,ymin=-1,ymax = 32,alpha=.1,fill="orange")+
+  annotate("rect",xmin=664,xmax=752,ymin=-1,ymax = 32,alpha=.1,fill="brown")+
+  annotate("rect",xmin=753,xmax=800,ymin=-1,ymax = 32,alpha=.1,fill="blue")+
 annotate("text",x = c(158,252,343,433,524,617,708),y=0,
            label=c("Printemps","Eté","Automne","Hiver","Printemps","Eté","Automne"),
            colour=c("green","orange","brown","blue","green","orange","brown"))
 
+
+
+#### Test Gam recouvrement roche nue
+dataR<-data_PQ_light
+dataR$saison<-dataR$Date_courte
+dataR$saison[dataR$saison == "2021-04" | dataR$saison == "2022-04"] <- "printemps"
+dataR$saison[dataR$saison == "2021-07" | dataR$saison == "2022-07"] <- "été"
+dataR$saison[dataR$saison == "2021-10" | dataR$saison == "2021-11"| dataR$saison == "2022-11"] <- "automne"
+dataR$saison[dataR$saison == "2022-01"] <- "hiver"
+
+dataR2=dataR %>% ungroup %>%
+  filter(spp == "NI") %>%
+  filter(!Micro %in% c('C2P3.rndpts.csv','C2P4.rndpts.csv','C2P6.rndpts.csv')) %>% 
+  filter(!Site == ("DSC"))%>%
+  filter(!Structure2 %in% c('Holes','Upper_slots','Dome')) %>% 
+  filter(!Date_courte == '2021-01') %>% 
+  select(Site,Day_delta,Structure2,Micro,Quad2,Mcov,saison) %>% 
+  group_by(Site,Day_delta,Structure2,Micro,Quad2,Mcov,saison) %>% 
+  na.omit() %>% 
+  as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by = c(Day_delta,Site,Structure2,Micro,saison)) 
+
+dataR3=dataR2 %>% as.data.frame() %>% 
+  summarize(Mcov3=mean(Mcov2),.by = c(Day_delta,Site,Structure2,saison)) 
+
+# dataR3=dataR2 %>% as.data.frame() %>% 
+#   summarize(Mcov3=mean(Mcov2),.by = c(Day_delta,Site)) 
+dataR3$Site<-as.factor(dataR3$Site)
+dataR3$saison<-as.factor(dataR3$saison)
+
+model111111<-gam(Mcov3~s(Day_delta)+s(Structure2,bs="re")+s(Site,bs="re")+s(saison,bs="re")+s(Structure2,by=Site,bs='re'),data=dataR3) 
+summary(model111111)
+
+plot_smooths(model=model111111, series=Day_delta,comparison=Site)+theme_bw()+ #permet de mettre les gam selon les sites
+  # (scale_y_continuous(limits=c(0,60)))+
+      (scale_x_continuous(limits=c(110,750)))+
+   # (scale_x_continuous(minor_breaks=seq(0,27,by=2)))+
+     # (scale_x_continuous(breaks=seq(0,25,by=2)))+
+  geom_vline(xintercept = 206,colour='#666666',alpha=.5)+
+  geom_vline(xintercept = 299,colour='#666666',alpha=.5)+
+  geom_vline(xintercept = 389,colour='#666666',alpha=.5)+
+  geom_vline(xintercept = 478,colour='#666666',alpha=.5)+
+  geom_vline(xintercept = 571,colour='#666666',alpha=.5)+
+  geom_vline(xintercept = 664,colour='#666666',alpha=.5)+
+#   annotate("rect",xmin=112,xmax=205.9,ymin=0,ymax=10,alpha=.1,fill="green")+
+#   annotate("rect",xmin=206,xmax=298.9,ymin=0,ymax=10,alpha=.1,fill="orange")+
+#   annotate("rect",xmin=299,xmax=388.9,ymin=0,ymax=10,alpha=.1,fill="brown")+
+#   annotate("rect",xmin=389,xmax=477.9,ymin=0,ymax=10,alpha=.1,fill="blue")+
+# annotate("rect",xmin=478,xmax=570.9,ymin=0,ymax=10,alpha=.1,fill="green")+
+#   annotate("rect",xmin=571,xmax=663.9,ymin=0,ymax=10,alpha=.1,fill="orange")+
+#   annotate("rect",xmin=664,xmax=750,ymin=0,ymax=10,alpha=.1,fill="brown")+
+annotate("text",x = c(159,252,344,433,524,617,708),y=60,
+           label=c("Printemps","Eté","Automne","Hiver","Printemps","Eté","Automne"),
+           colour=c("#666666","#666666","#666666","#666666","#666666","#666666","#666666"))+
+   xlab("Nombre de jours d'immersion")+
+  ylab("Pourcentage de roche nue sur le récif")
 
 ```
 
