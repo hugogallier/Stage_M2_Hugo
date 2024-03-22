@@ -166,12 +166,13 @@ rename('spp'='spp.Name',
   left_join(MPhoto, by=c('Micro')) %>%
   mutate(Structure2=recode_factor(Structure,
    "Bandes"="Dome",
-   "Bandes.C1"="Disc",
-   "Faille"="Inner_slots",
+   "Bandes.C1"="Disque 1",
+   "Bandes.C2"="Disque 2",
+   "Faille"="Faille",
    "Faille_coupole"="Upper_slots",
-   "Pilier.C2"="Columns",
+   "Pilier.C2"="Colonne",
    "Trous"="Holes",
-   "Pieds"="Pillars"))%>% 
+   "Pieds"="Pilier"))%>% 
   mutate(Strcut_groups=case_when(
   Structure2 %in% c('Dome','Upper_slots')~'Horizontal_section',
  Structure2 %in% c('Disc','Columns','Pillars')~'Vertical_section',
@@ -188,7 +189,6 @@ corresp=data_PQ_light %>% select(spp,abb)%>% unique()
 
 # #######################
 
-
 # ###### Partie Hugo ######
 # Formatage du jeu de données 
 ```{r}
@@ -199,9 +199,8 @@ data_PQ_light=data_PQ_light %>%
 
 dataR1<-data_PQ_light
 dataR=dataR1 %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte",'NA','None')) %>%
-    # filter(!Structure2 %in% c('Holes','Upper_slots','Inner_slots','Dome')) %>% 
-    filter(!Structure2 %in% c('Holes','Upper_slots','Dome','Bandes.C2')) %>% 
-  select (spp,abb,Site,Micro,Date_courte,Mcov,Structure2,Day_delta)
+    filter(!Structure2 %in% c('Holes','Upper_slots','Dome')) %>% 
+  select (spp,abb,Site,Micro,Date_courte,Mcov,Structure2,Day_delta) 
 
 ```
 
@@ -232,7 +231,6 @@ dataR2=dataR %>%
 
 length(unique(dataR1$spp))#permet de savoir le nombre de variable différente dans la colonne spp (mais ne prend pas en compte la suppression des N)
 
-
 ```
 
 # ### Indice Alpha 
@@ -241,20 +239,44 @@ length(unique(dataR1$spp))#permet de savoir le nombre de variable différente da
 ```{r}
 
 dataR2=dataR %>% ungroup %>% 
-  select(spp,Site,Structure2,Micro,Date_courte) %>%
+  select(spp,Site,Micro,Day_delta) %>%
   distinct()%>%
-  group_by(Site,Structure2,Micro,Date_courte) %>%
+  group_by(Site,Micro,Day_delta) %>%
   summarize(S=n()) %>%
   na.omit()
 
 dataR3=dataR2 %>%
-  group_by(Site,Date_courte,Structure2) %>%
+  group_by(Site,Day_delta) %>%
   summarize(S2 = mean(S))
   
-dataR3$S2[which(dataR3$Structure2=='Pillars')]<-(dataR3$S2[which(dataR3$Structure2=='Pillars')]/2)
+dataR3$S2[which(dataR3$Structure2=='Pilier')]<-(dataR3$S2[which(dataR3$Structure2=='Pilier')]/2)
 
-ggplot(dataR3, aes(Date_courte,S2, col=Site))+# Avec "fill" ou "col" tu peux ajouter une séparation de tes données par facteur
-  xlab("Date")+
+ggplot(dataR3, aes(Day_delta, S2, col=Site))+# Avec "fill" ou "col" tu peux ajouter une séparation de tes données par facteur
+  xlab("Jours depuis immersion")+
+  ylab("Richesse taxonomique")+
+  geom_point()+
+  geom_line(aes(group=Site))+
+  # facet_wrap(.~Site)+ # <- cette fonction permet de réaliser les geoms précedents mais pour différentes catégories (ici j'ai choisi les micro habitat, mais on aurait pu le faire pour les sites par exemples)
+  theme_bw()+
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # <- rotation des dates pour qu'elles soient lisibles
+
+
+
+
+dataR2=dataR %>% ungroup %>% 
+  select(spp,Site,Day_delta) %>%
+  distinct()%>%
+  group_by(Site,Day_delta) %>%
+  summarize(S=n()) %>%
+  na.omit()
+
+dataR3=dataR2 %>%
+  group_by(Site,Day_delta) %>%
+  summarize(S2 = n(S,.by=Site))
+
+
+ggplot(dataR2, aes(Day_delta, S, col=Site))+# Avec "fill" ou "col" tu peux ajouter une séparation de tes données par facteur
+  xlab("Jours depuis immersion")+
   ylab("Richesse taxonomique")+
   geom_point()+
   geom_line(aes(group=Site))+
@@ -278,11 +300,11 @@ dataR3=dataR2 %>%
   group_by(Site,Date_courte,Structure2) %>%
   summarize(S2 = mean(S))
 
-dataR3$S2[which(dataR3$Structure2=='Pillars')]<-(dataR3$S2[which(dataR3$Structure2=='Pillars')]/2)
+dataR3$S2[which(dataR3$Structure2=='Pilier')]<-(dataR3$S2[which(dataR3$Structure2=='Pilier')]/2)
 
 ggplot(dataR3, aes(Structure2,S2, fill=Site))+ 
   xlab("Structure")+
-  ylab("Richesse taxonomique")+
+  ylab("Richesse taxonomique moyenne")+
   geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
   geom_boxplot()+
   theme_bw()
@@ -312,11 +334,16 @@ dataR3=dataR2 %>%
 test_anova<-aov(S2~factor(Site)*factor(Date_courte),data=dataR3)#anova en prenant la date ainsi que les sites comme facteur
 test_anova<-aov(S2~factor(Site)*factor(Micro),data=dataR3)
 test_anova<-aov(S2~factor(Site),data=dataR3)
-test_anova<-aov(S2~factor(Site)+Error(Date_courte),data=dataR3)
 test_anova<-aov(S2~factor(Micro),data=dataR3)
 test_anova<-aov(S2~factor(Structure2)+Error(Date_courte),data=dataR3)
 test_anova<-aov(S2~factor(Structure2),data=dataR3)
-                
+             
+test_anova<-aov(S2~factor(Site)+Error(Date_courte),data=dataR3)
+   
+test_anova<-aov(S2~factor(Date_courte)+factor(Structure2)+factor(Site)+factor(saison),data=dataR3)
+test_anova<-aov(S2~Site*Structure2+factor(Date_courte)+factor(Structure2)+factor(Site)+factor(saison),data=dataR3)
+test_anova<-aov(S2~Site*Structure2+Date_courte+saison,data=dataR3)
+
 summary(test_anova)
 
 ```
@@ -339,7 +366,8 @@ dataR3=dataR2 %>%
   group_by(Site,Structure2,Date_courte,saison) %>% 
   summarize(S2 = mean(S))
 
-mixed.lmer <- lmer(S2 ~ Site + (1|Structure2/saison), data = dataR3) #compare les données de richesse taxo avec les variables aléatoires qui sont Micro et date courte
+mixed.lmer <- lmer(S2 ~ Site + (1|Structure2/saison)+(1|Structure2)+(1|saison), data = dataR3) #compare les données de richesse taxo avec les variables aléatoires qui sont Micro et date courte
+mixed.lmer <- lmer(S2 ~ Site +(1|Structure2)+(1|saison), data = dataR3)
 summary(mixed.lmer)
 plot_model(mixed.lmer,show.values = T,show.p = T)#montre que par rapport à un site de réference (ici Bi), les autres sites sont différents. Ici Fetlar a plutot une diversité moindre que Bi mais est le plus proche. 
 tab_model(mixed.lmer)
@@ -386,30 +414,19 @@ dataR3$Years<-as.factor(dataR3$Years)
 
 
 #test comparaison tous les paramètres
-model1<-gam(S2~s(Day_delta)+Site,data=dataR3)
-model11<-gam(S2~s(Day_delta)+Years,data=dataR3)
+model1<-gam(S~s(Day_delta)+Site,data=dataR2)
+model11<-gam(S~s(Day_delta)+Years,data=dataR2)
 model111<-gam(S2~s(Day_delta)+Structure2,data=dataR3)
 model1111<-gam(S2~s(Day_delta)+saison,data=dataR3)
 model11111<-gam(S2~s(Day_delta)+Site+saison,data=dataR3)
 model111111<-gam(S2~s(Day_delta)+Structure2+saison,data=dataR3)
 model1111111<-gam(S2~s(Day_delta)+Structure2+Site,data=dataR3)
 model11111111<-gam(S2~s(Day_delta)+Structure2+Site+saison,data=dataR3)
+model111111<-gam(S2~s(Day_delta)+s(Structure2,bs="re")+s(Site,bs="re")+s(saison,bs="re")+s(Structure2,by=Site,bs='re'),data=dataR3) # avec les structures dépendantes des sites
 
 gam.check(model1)#permet de voir si le nombre de fonction simple utilisé est suffisant (si pvalue trop petite alors utiliser plus)
 summary(model1)
 
-model2<-gam(S2~Site/Day_delta+Day_delta,data=dataR3)
-model22<-gam(S2~Site/Day_delta+Day_delta+Structure2,data=dataR3)
-model222<-gam(S2~Site/Day_delta+Day_delta+saison,data=dataR3)
-model2222<-gam(S2~Site/Day_delta+Day_delta+Site,data=dataR3)
-model22222<-gam(S2~Site/Day_delta+Day_delta+Years,data=dataR3)
-model222222<-gam(S2~Site/Day_delta+Day_delta+saison+Years,data=dataR3)
-model2222222<-gam(S2~Site/Day_delta+Day_delta+saison+Site,data=dataR3)
-model22222222<-gam(S2~Site/Day_delta+Day_delta+saison+Structure2,data=dataR3)
-model222222222<-gam(S2~Site/Day_delta+Day_delta+Years+Site,data=dataR3)
-model2222222222<-gam(S2~Site/Day_delta+Day_delta+Years+Structure2,data=dataR3)
-model22222222222<-gam(S2~Site/Day_delta+Day_delta+Structure2+Site,data=dataR3)
-model222222222222<-gam(S2~Site/Day_delta+Day_delta+Structure2+Site+saison+Years,data=dataR3)
 
 #comparaison des modèles
 AICc(model1,model11,model111,model1111,model11111,model111111,model1111111,model11111111)
@@ -527,27 +544,6 @@ ggradar(resultat2ref3[,-1],grid.min = 0,grid.mid=3,grid.max =5,values.radar = c(
 ```{r}
 # Permet de calculer la distance entre le recouvrement de chaque espèce et le taux de recouvrement
 
-levels(factor(dataR$Site))
-# test=data_PQ_light %>% filter(Site=='DSC')
-
-
-# data_comp2=data_PQ_light %>% ungroup %>% 
-#   select(spp,Cov,Site,Micro,Date_courte,Structure2,Strcut_groups, Quad2) %>% 
-#   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte')) %>%
-#   filter(!Structure2 %in% c('Dome','Holes','Upper_slots','Inner_slots')) %>% 
-#   group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
-#   filter(!Structure2 %in% c('Dome','Upper_slots' )) %>% 
-#     filter(!Site %in% c('Fe','DSC' )) %>% 
-#   mutate(Sample=paste0(Site,'_',Date_courte,'_',
-#                        Micro,'_',Quad2)) %>% 
-#   group_by(Sample,Site,spp, Micro,Structure2,Strcut_groups, Date_courte) %>% 
-#   dplyr::summarize(Mcov=mean(Cov)) %>% 
-# 
-#   group_by(Sample,Site,Micro,Date_courte,Structure2) %>% 
-#   distinct() %>% drop_na() %>% 
-#     spread(spp,Mcov) %>% ungroup() %>% 
-#       mutate(across(everything(.), ~replace_na(., 0))) 
-
 dataR$saison<-dataR$Date_courte
 dataR$saison[dataR$saison == "2023-07"] <- "été"
 dataR$saison[dataR$saison == "2022-09" | dataR$saison == "2023-09"] <- "automne"
@@ -569,7 +565,6 @@ Meta_data=data_comp2 %>% select(Site,Micro,Structure2,Date_courte,saison) #crée
 
 distdataR<-vegdist(Comp_mat, method='bray') #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme plus efficace pour les données écologiques
 
-
 ```
 
 ##  PCoA
@@ -580,43 +575,175 @@ pcoa_tot_SS<- cmdscale(d = as.matrix(distdataR),k=10, eig = T)
 x=pcoa_tot_SS$points[,1]
 y=pcoa_tot_SS$points[,2]
 
-plot(x,y) # <- ça fonctionne
+plot(x,y) 
 
-
-
-# # Data frame pour rassembler les coordonnées de la PCOA + les metadata
-# PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
-#            Structure=Meta_data$Structure2,
-#  Eig=pcoa_tot_SS$eig[1:2]/sum(pcoa_tot_SS$eig)
-#
-
-# ggplot(data=PCOA_df,aes(x,y, col=Struc_group))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
-#   # geom_point(aes(col=Site), size=1, alpha=.6)+
-#   geom_point()+
-#   geom_point(data=PCOA_df_mean,aes(Mx,My), size=5)+
-#   geom_hline(yintercept=0)+
-#   geom_vline(xintercept=0)+
-#   theme_bw()
-
- 
 PCOA_df=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
                    Structure=Meta_data$Structure2,
                    Site=Meta_data$Site,
                    Date=Meta_data$Date_courte,
                    Saison=Meta_data$saison)
+# save(PCOA_df,file="PCOA_df2")
 
-ggplot(data=PCOA_df,aes(x,y,colour=Site))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
+
+
+ggplot(data=PCOA_df,aes(x,y,colour=Structure))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
   # geom_point(aes(col=Site), size=1, alpha=.6)+
   geom_point()+
   labs(x="Axe 1 (29.6%)",y="Axe 2 (22.2%)")+
   geom_hline(yintercept=0)+
   geom_vline(xintercept=0)+
-  theme_bw()
+  theme_bw()+
+  geom_mark_ellipse(aes(fill=Structure,group=Structure),tol=1)+
+  (scale_y_continuous(limits=c(-0.75,0.75)))+
+  (scale_x_continuous(limits=c(-0.5,0.75)))
 
 #PCoA avec les barycentres
 s.class(PCOA_df[c(1:2)],as.factor(PCOA_df$Site),col=c("#f8766d","#619cff","#00ba38"),ellipseSize=0) # permet de faire le graph de l'PCoA avec des barycentres
-s.class(PCOA_df[c(1:2)],droplevels(as.factor(PCOA_df$Structure)),col=c("#f8766d","#a4a304","#00b0f6","#e76bf3"),ellipseSize=0)
+s.class(PCOA_df[c(1:2)],droplevels(as.factor(PCOA_df$Structure)),col=c("#f8766d","#00ba38","#a4a304","#00b0f6","#e76bf3"),ellipseSize=0)
 s.class(PCOA_df[c(1:2)],droplevels(as.factor(PCOA_df$Date)),col=c("#f8766d","#619cff","#00ba38"),ellipseSize=0)
+
+
+#### Barycentre avec ggplot
+  ######## trajectoires sites ##########
+load("PCOA_df2")
+barycenters <- aggregate(cbind(x,y) ~ Site, PCOA_df, mean)
+
+ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,sep="_"))) +
+  geom_point(aes(colour=Site),alpha=.2) +
+  # Ajouter les barycentres
+  # geom_point(data = barycenters, aes(x = x, y = y, colour = paste(Site,Date,sep="_")), size = 3, shape = 17) +
+  # Ajout lignes entre les barycentres et les points
+  geom_segment(data = merge(PCOA_df, barycenters, by ="Site", suffixes = c("",".bary")),
+               aes(x = x, y = y, xend = x.bary, yend = y.bary, color = Site),alpha=.4)+
+  labs(color="Sites")+ labs(x="Axe 1 (29,6%)",y="Axe 2 (22,2%)")+theme_bw()
+
+
+  ######## trajectoires sites-dates 2021 et 2022 ##########
+load("PCOA_df2")
+
+barycenters <- aggregate(cbind(x,y) ~ Site+Date, PCOA_df, mean)
+
+ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,sep="_"))) +
+  geom_point(alpha=.2) +
+     # Ajouter les barycentres
+  geom_point(data = barycenters, aes(x = x, y = y, colour = paste(Site,Date,sep="_")), size = 3, shape = 17) +
+     # Ajout lignes entre les barycentres et les points
+  geom_segment(data = barycenters[which(barycenters$Site=="recif1"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif1"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif1"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif1"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif1"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif1"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="darkgreen")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="darkgreen")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="darkgreen")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="darkgreen")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="darkgreen")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif3"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="blue")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif3"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="blue")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif3"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="blue")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif3"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="blue")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif3"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="blue")+
+  labs(color="Sites et dates")+ labs(x="Axe 1 (29,6%)",y="Axe 2 (22,2%)")+theme_bw() 
+  
+
+  ######## trajectoires sites-dates-structures 2021 et 2022 ##########
+##### Disc
+load("PCOA_df2")
+PCOA_df=PCOA_df %>% filter(Structure == "Disc")
+
+barycenters <- aggregate(cbind(x,y) ~ Site+Date+Structure, PCOA_df, mean)
+
+
+ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,Structure,sep="_"))) +
+  geom_point(alpha=.2) +
+    # Ajout les barycentres
+  geom_point(data = barycenters, aes(x = x, y = y, colour = paste(Site,Date,Structure,sep="_")), size = 3, shape = 17) +
+    # Ajout lignes entre les barycentres et les points
+  geom_segment(data = barycenters[which(barycenters$Site=="recif1"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif1"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif1"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif1"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif1"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif1"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="darkgreen")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="darkgreen")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="darkgreen")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="darkgreen")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="darkgreen")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif3"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="blue")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif3"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="blue")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif3"),],aes(x=x[3],y=y[3],xend=x[4],yend=y[4]),color="blue")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif3"),],aes(x=x[4],y=y[4],xend=x[5],yend=y[5]),color="blue")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif3"),],aes(x=x[5],y=y[5],xend=x[6],yend=y[6]),color="blue")+
+  labs(color="Sites et dates")+ labs(x="Axe 1 (29,6%)",y="Axe 2 (22,2%)")+theme_bw() 
+
+
+
+##### Colonnes
+load("PCOA_df2")
+PCOA_df=PCOA_df %>% filter(Structure == "Columns")
+
+barycenters <- aggregate(cbind(x,y) ~ Site+Date+Structure, PCOA_df, mean)
+
+
+ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,Structure,sep="_"))) +
+  geom_point(alpha=.2) +
+    # Ajout les barycentres
+  geom_point(data = barycenters, aes(x = x, y = y, colour = paste(Site,Date,Structure,sep="_")), size = 3, shape = 17) +
+    # Ajout lignes entre les barycentres et les points
+ geom_segment(data = barycenters[which(barycenters$Site=="recif1"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif1"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="darkgreen")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="darkgreen")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif3"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="blue")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif3"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="blue")+
+  labs(color="Sites et dates")+ labs(x="Axe 1 (29,6%)",y="Axe 2 (22,2%)")+theme_bw() 
+
+
+
+##### Piliers
+load("PCOA_df2")
+PCOA_df=PCOA_df %>% filter(Structure == "Pillars")
+
+barycenters <- aggregate(cbind(x,y) ~ Site+Date+Structure, PCOA_df, mean)
+
+
+ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,Structure,sep="_"))) +
+  geom_point(alpha=.2) +
+    # Ajout les barycentres
+  geom_point(data = barycenters, aes(x = x, y = y, colour = paste(Site,Date,Structure,sep="_")), size = 3, shape = 17) +
+    # Ajout lignes entre les barycentres et les points
+  geom_segment(data = barycenters[which(barycenters$Site=="recif1"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif1"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="darkgreen")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="darkgreen")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif3"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="blue")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif3"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="blue")+
+  labs(color="Sites et dates")+ labs(x="Axe 1 (29,6%)",y="Axe 2 (22,2%)")+theme_bw() 
+
+
+##### Inner_slots
+load("PCOA_df2")
+PCOA_df=PCOA_df %>% filter(Structure == "Inner_slots")
+
+barycenters <- aggregate(cbind(x,y) ~ Site+Date+Structure, PCOA_df, mean)
+
+
+ggplot(PCOA_df, aes(x = x, y = y,colour = paste(Site,Date,Structure,sep="_"))) +
+  geom_point(alpha=.2) +
+    # Ajout les barycentres
+  geom_point(data = barycenters, aes(x = x, y = y, colour = paste(Site,Date,Structure,sep="_")), size = 3, shape = 17) +
+    # Ajout lignes entre les barycentres et les points
+  geom_segment(data = barycenters[which(barycenters$Site=="recif1" & barycenters$Structure=="Inner_slots"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif1" & barycenters$Structure=="Inner_slots"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="orange")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2" & barycenters$Structure=="Inner_slots"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="darkgreen")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2" & barycenters$Structure=="Inner_slots"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="darkgreen")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2" & barycenters$Structure=="Inner_slots"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="blue")+
+  geom_segment(data = barycenters[which(barycenters$Site=="recif2" & barycenters$Structure=="Inner_slots"),],aes(x=x[2],y=y[2],xend=x[3],yend=y[3]),color="blue")+
+  labs(color="Sites et dates")+ labs(x="Axe 1 (29,6%)",y="Axe 2 (22,2%)")+theme_bw() 
+
+
 
 
 # Apport de variance selon les axes
@@ -632,8 +759,13 @@ plot(summaryPCOA$PCTVAR[1:100],ylim=c(0,30),
 # Test importance des espèces dans l'explication de la variance 
 vf <- envfit(pcoa_tot_SS, data_comp2, perm = 999)
 spp.scrs <- as.data.frame(scores(vf, display = "vectors"))
-spp.scrs2 <-(spp.scrs[which(vf$vectors$pvals<0.01),])
+spp.scrs2 <-(spp.scrs[which(vf$vectors$pvals<0.002),])
 spp.scrs3 <- cbind(spp.scrs2, Abb = rownames(spp.scrs2))
+
+ggplot(PCOA_df, aes(x = x, y = y)) +
+  geom_point(colour="black",alpha=.2)+
+  geom_point(spp.scrs3,mapping=aes(x=Dim1,y=Dim2,colour=Abb),size=2)+
+    labs(color="Taxons significatifs")+ labs(x="Axe 1 (29,6%)",y="Axe 2 (22,2%)")+theme_bw() 
 
 ```
 
@@ -642,15 +774,15 @@ spp.scrs3 <- cbind(spp.scrs2, Abb = rownames(spp.scrs2))
 # Permet de voir s'il y a possibilité de regrouper les structures
 
 data_comp2=dataR %>% ungroup %>% 
-  select(spp,Mcov,Site,Micro,Date_courte,Structure2) %>% 
-  group_by(spp,Site,Micro,Date_courte,Structure2) %>% 
+  select(spp,Mcov,Site,Micro,Date_courte,Structure2,saison) %>% 
+  group_by(spp,Site,Micro,Date_courte,Structure2,saison) %>% 
   distinct() %>% drop_na() %>% 
   spread(spp,Mcov) %>% ungroup() %>% 
   mutate(across(everything(.), ~replace_na(., 0))) 
 
 distdataR<-vegdist(Comp_mat, method='bray')
 
-adonis2(distdataR~Structure2,data=data_comp2,permutations=999)
+adonis2(distdataR~Structure2+Site+Date_courte+saison+Structure2*Site,data=data_comp2,permutations=999)
 
 ```
 
@@ -752,7 +884,49 @@ legend(x = "bottomright", legend = c("récif 1","récif 2","récif 3"),lty = 1, 
 ```
 
 
+```{r}
+# Quelle est l'évolution de la colonisation de la roche nue au fil du temps?
+# Est ce que la diminution de la richesse taxonomique en hiver est démontrée par un nombre d'espèces plus faibles? Par une diminution de la colonisation du récif (augmentation du taux de roche nue(mortalité de la flore/faune sessile))?
 
+dataR2=data_PQ_light %>% ungroup %>%
+  filter(spp == "NI") %>%
+  filter(!Micro %in% c('C2P3.rndpts.csv','C2P4.rndpts.csv','C2P6.rndpts.csv')) %>% 
+  filter(!Site == ("DSC"))%>%
+  filter(!Structure2 %in% c('Holes','Upper_slots','Dome')) %>% 
+  select(Site,Day_delta,Mcov) %>% 
+  group_by(Site,Day_delta,Mcov) %>% 
+  na.omit()  
+ 
+
+ggplot(dataR3, aes(Structure2,Mcov3, fill=Site))+
+  xlab("Structure")+
+  ylab("Taux de roche nue")+
+  geom_jitter(alpha=.3)+  
+  geom_boxplot()+
+  theme_bw()  
+
+#Evolution temporelle
+ggplot(dataR2, aes(Day_delta,Mcov, col=Site))+
+  xlab("Nombre de jours d'immersion")+
+  ylab("Pourcentage de non-recouvrement du récif (%)")+
+  geom_point()+
+  geom_line(aes(group=Site))+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+annotate("rect",xmin=112,xmax=205,ymin=-1,ymax = 32,alpha=.2,fill="green")+
+  annotate("rect",xmin=206,xmax=298,ymin=-1,ymax = 32,alpha=.2,fill="orange")+
+  annotate("rect",xmin=299,xmax=388,ymin=-1,ymax = 32,alpha=.2,fill="brown")+
+  annotate("rect",xmin=389,xmax=477,ymin=-1,ymax = 32,alpha=.2,fill="blue")+
+annotate("rect",xmin=478,xmax=570,ymin=-1,ymax = 32,alpha=.2,fill="green")+
+  annotate("rect",xmin=571,xmax=663,ymin=-1,ymax = 32,alpha=.2,fill="orange")+
+  annotate("rect",xmin=664,xmax=752,ymin=-1,ymax = 32,alpha=.2,fill="brown")+
+  annotate("rect",xmin=753,xmax=800,ymin=-1,ymax = 32,alpha=.2,fill="blue")+
+annotate("text",x = c(158,252,343,433,524,617,708),y=0,
+           label=c("Printemps","Eté","Automne","Hiver","Printemps","Eté","Automne"),
+           colour=c("green","orange","brown","blue","green","orange","brown"))
+
+
+```
 
 # Test comparaison site MARINEFF et GOELO
 
@@ -882,9 +1056,6 @@ data_comp_mat=dataR2 %>% dplyr::select(-c(Site,Micro,Date_courte,Structure2,Name
 databetadiv2<-beta.div.comp(data_comp_mat,coef="S")
 
 
-
-
-
 # Extraction des matrices
 mat.D=as.matrix(databetadiv2$D)
 mat.D[upper.tri(mat.D)]<-NA
@@ -952,15 +1123,17 @@ datatern<-cbind(datadissi[,-c(7)],Similarité=(1-datadissi[,7]),Remplacement=dat
 
 datatern2=datatern %>%
   # filter(Structure1 == 'Disc') %>% 
-  # filter(Site1 == 'Bi') %>%
+  filter(Site1 == 'recif2') %>%
   filter(Site1 == Site2,
+         Date1==Date2,
          # Structure1==Structure2
          ) %>%
-     filter(Structure1!=Structure2) %>%
+     # filter(Structure1!=Structure2) %>%
+     filter(Structure1==Structure2) %>%
   # filter(Site2 == 'VB')
-  # filter(Structure1 == "Di") %>% 
-  filter(Date1 == '2022-09') %>%
-  filter(Date2 == '2022-09') %>% 
+  # filter(Structure1 == "Di") %>%
+  filter(Date1 == '2023-07') %>%
+  # filter(Date2 == '2022-09') %>%
   mutate(Comp_site=Site1,
          Comp_struct=Structure1) 
 # %>% 
@@ -968,12 +1141,17 @@ datatern2=datatern %>%
 
 datatern2=datatern2 %>% 
  mutate(Compasite<-paste(Site1,Site2,sep="/")) %>% 
-  mutate(Compastruct<-paste(Structure1,Structure2,sep="/"))
+  mutate(Compastruct<-paste(Structure1,Structure2,sep="/")) %>% 
+  mutate(Compasite_date<-paste(Site1,Date1,sep="/")) %>% 
+  mutate(Compadate<-paste(Date1,Date2,sep="/"))
 colnames(datatern2)[12]<-"Compasite"
 colnames(datatern2)[13]<-"Compastruct"
+colnames(datatern2)[14]<-"Compasite_date"
+colnames(datatern2)[15]<-"Compadate"
 
 
-datamean<-datatern2 %>%  group_by(Comp_site,Comp_struct,Compastruct) %>%  #permet de faire la moyenne de chaque colonne par site/struct
+
+datamean<-datatern2 %>%  group_by(Compadate,Compasite) %>%  #permet de faire la moyenne de chaque colonne par site/struct
   dplyr::summarize(Similarité=mean(Similarité),
             Remplacement=mean(Remplacement),
             Richesse=mean(Richesse))
@@ -981,13 +1159,15 @@ datamean<-datatern2 %>%  group_by(Comp_site,Comp_struct,Compastruct) %>%  #perme
 # datamean<-as.data.frame(t(colMeans(datatern2[,c(6:8)]))) # faire la moyenne par rapport à une seule valeur
 
 
-ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement)) +
-  geom_point(aes(colour=Compastruct), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3) +
-    # geom_point(aes(fill=Comp_struct), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.1) +
-  # stat_density_tern( #ajout de la densité
+ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement,colour=Site1)) +
+  # geom_point(aes(colour=Date1), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.2) +
+    geom_point(position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.2,colour="black")+
+    # geom_point(aes(fill=Date1), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.1) +
+          # geom_point(data=datamean,aes(color=Compasite_date),alpha=.7) +
+  stat_density_tern( #ajout de la densité
            # geom="polygon",aes(fill=after_stat(level)),bins=10,color='grey')+
            # geom="polygon",aes(fill=(..level..)),bins=10,color='grey')+
-           # geom="polygon",aes(fill=Structure1),bins=10,color='grey')+
+           geom="polygon",aes(fill=Site1),bins=10,color='grey',h=0.5)+
            # geom="polygon",aes(fill=Compasite),bins=10,color='grey')+
   labs(title="")+
 # theme_custom(  #https://rdrr.io/cran/ggtern/man/ggtern_themes.html
@@ -1002,8 +1182,24 @@ ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement)) +
 # )+
   theme_hidetitles()+ #enlève le nom des axes
   theme_showarrows()+
-  geom_crosshair_tern(data=datamean,aes(color=Compastruct))+
-  facet_wrap(.~Comp_site)+
+  # geom_crosshair_tern(data=datamean,aes(color=Compasite_date))+
+  facet_wrap(.~Compadate)+
   labs(color = "Structures comparées")
+
+ # geom_path(data=datamean[which(datamean$Comp_site == "recif1" & datamean$Comp_struct=="Disque 1"),],group=1,aes(color=Compasite_date))+
+ # geom_path(data=datamean[which(datamean$Comp_site == "recif2" & datamean$Comp_struct=="Disque 1"),],group=1,aes(color=Compasite_date))+
+ #   geom_path(data=datamean[which(datamean$Comp_site == "recif3" & datamean$Comp_struct=="Disque 1"),],group=1,aes(color=Compasite_date))+
+ #   geom_path(data=datamean[which(datamean$Comp_site == "recif1" & datamean$Comp_struct=="Disque 2"),],group=1,aes(color=Compasite_date))+
+ #   geom_path(data=datamean[which(datamean$Comp_site == "recif2" & datamean$Comp_struct=="Disque 2"),],group=1,aes(color=Compasite_date))+
+ #   geom_path(data=datamean[which(datamean$Comp_site == "recif3" & datamean$Comp_struct=="Disque 2"),],group=1,aes(color=Compasite_date))+
+ #   geom_path(data=datamean[which(datamean$Comp_site == "recif1" & datamean$Comp_struct=="Colonne"),],group=1,aes(color=Compasite_date))+
+ #   geom_path(data=datamean[which(datamean$Comp_site == "recif2" & datamean$Comp_struct=="Colonne"),],group=1,aes(color=Compasite_date))+
+ #   geom_path(data=datamean[which(datamean$Comp_site == "recif3" & datamean$Comp_struct=="Colonne"),],group=1,aes(color=Compasite_date))+
+ #   geom_path(data=datamean[which(datamean$Comp_site == "recif1" & datamean$Comp_struct=="Faille"),],group=1,aes(color=Compasite_date))+
+ #   geom_path(data=datamean[which(datamean$Comp_site == "recif2" & datamean$Comp_struct=="Faille"),],group=1,aes(color=Compasite_date))+
+ #   geom_path(data=datamean[which(datamean$Comp_site == "recif3" & datamean$Comp_struct=="Faille"),],group=1,aes(color=Compasite_date))+
+ #  geom_path(data=datamean[which(datamean$Comp_site == "recif1" & datamean$Comp_struct=="Pilier"),],group=1,aes(color=Compasite_date))+
+ #   geom_path(data=datamean[which(datamean$Comp_site == "recif2" & datamean$Comp_struct=="Pilier"),],group=1,aes(color=Compasite_date))+
+ #   geom_path(data=datamean[which(datamean$Comp_site == "recif3" & datamean$Comp_struct=="Pilier"),],group=1,aes(color=Compasite_date))
 
 ```
