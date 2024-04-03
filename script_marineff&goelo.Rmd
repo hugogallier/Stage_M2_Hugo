@@ -1,0 +1,701 @@
+---
+title: "script_marineffvsgoelo"
+author: "Hugo Gallier"
+date: "2024-03-15"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+rm(list=ls())
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(here)
+library(vegan)
+library(scales)
+library(fmsb)
+library(FactoMineR)
+library(ecodist)
+library(ade4)
+library(lme4)
+library(Matrix)
+library(sjPlot)
+library(RColorBrewer)
+library(iNEXT)
+library(rstatix)
+library(ggradar)
+library(pairwiseAdonis)
+library(ecole)
+library(tidyverse)
+library(mgcv)
+library(ggforce)
+library(tidymv)
+library(ggtern)
+library(codyn)
+library(adespatial)
+library(ggdendro)
+library(car)
+library(adegraphics)
+library(gratia)
+library(ggpubr)
+library(indicspecies)
+
+```
+
+
+# ###Données GOELO###
+#################### Importation du data et chargement ###################
+
+Identification des fichiers à charger
+```{r}
+setwd(here::here())
+
+MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
+  mutate(Micro=sub("\\_.*", "", Code_struct))
+  
+```
+
+## Chargement data
+Boucle de chargement des fichiers csv 
+```{r}
+
+setwd('D:/Hugo/Recif_Goelo/') # à modifier avec nom de ton DD
+
+data_list=list.files(pattern =".csv", recursive=T)
+
+L=list()
+for( i in 1: length(data_list)){
+  
+  Nome_tot=data_list[i]
+  
+  str_split(Nome_tot,"/")
+    Name_file=basename(data_list[i])
+    
+data=read.csv(data_list[i], sep=',', header=T, fileEncoding="latin1") %>%
+  mutate(Name_file=rep(basename(data_list[i]), n()),
+         recif=str_split(Nome_tot,"/")[[1]][4],
+         recif=case_when(recif == 'Récif 01-12'~ 'recif1',
+                         recif == 'Récif 13-24'~ 'recif2',
+                         recif == 'Récif 25-36'~ 'recif3',
+                         TRUE~NA)) 
+
+L[[i]]<-data
+
+}
+
+# fileEncoding="latin1"
+```
+
+## Date d'immersion
+Ajout des dates d'immersion des différents récifs
+```{r}
+Immer_site=data.frame(Site=c('recif2','recif1','recif3'), Date=c(as.Date('2022-06-22'),as.Date('2022-06-22'),as.Date('2022-06-22'))) %>%
+       mutate( Date_imm_ok=format(as.POSIXlt(Date,  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT")) %>% select(Site, Date_imm_ok)
+```
+
+## Saison - date
+
+Data frame d'identification des saisons
+```{r}
+Date_sais=data.frame(
+           start=c(
+             format(as.POSIXlt(as.Date('2021-03-20'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+             format(as.POSIXlt(as.Date('2021-06-21'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+             format(as.POSIXlt(as.Date('2021-09-22'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+             format(as.POSIXlt(as.Date('2021-12-21'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+      format(as.POSIXlt(as.Date('2022-03-20'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+      format(as.POSIXlt(as.Date('2022-06-21'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+       format(as.POSIXlt(as.Date('2022-09-22'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT")))
+```
+
+
+## Mise en forme des données
+
+Mise en forme des fichiers chargés:
+
+-Ajout de métadata à partir du nom du fichier: site, date , micro env., Num quadrat ...
+- Transformation format Date
+- Correction nom taxon érroné
+- Changements de noms des micro env.
+- Regroupement des micro env dans structure internes vs externes
+```{r}
+# data_PQ[grepl('rndpts.csv.rndpts',data_PQ$Name_file),]
+
+## ajout de categories à partir du nom de fichier
+    
+data_PQ=do.call(rbind,L) %>%
+  mutate(Site=substr(Name_file, start = 1, stop = 2)) %>%
+  separate(col = Name_file, into = c('Date','Micro','Quad'), sep = '_') %>%
+  mutate(Micro=stringr::str_replace_all(Micro, ".rndpts.csv", ""),
+    Quad2=substr(Quad, start = 1, stop = 1),
+          Month_str=gsub("-.*", "", Date,perl=TRUE),
+          YY=gsub(".*-", "", Date,perl=TRUE),
+          Month=case_when( Month_str=='Avri'~'04',
+                           Month_str=="Janv"~'01',
+                           Month_str=='Juill'~'07',
+                           Month_str=='Sept'~'09',
+                           Month_str=='Oct'~'10',
+                           Month_str=='Nov'~'11'),
+          Date_ok=format(as.POSIXlt(paste0('01/',Month,'/',YY),  format = "%d/%m/%y"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+          Date_courte=format(as.POSIXlt(paste0('01/',Month,'/',YY),  format = "%d/%m/%y"), format="%Y-%m", tz="GMT"),
+          Week=strftime(Date_ok, format = "%V")) %>%
+  mutate(spp.Name= ifelse(spp.Name == 'Tubularia indivisa ','Tubularia indivisa',spp.Name),
+         spp.Name=ifelse(spp.Name == 'Unidentified','NI',spp.Name))
+  
+
+# Version synthétique du df
+
+data_PQ_light=data_PQ %>% dplyr::select(Image, spp.Name,spp.ID,N.pts.per.species,Cov..per.species,
+               N.pts.ALL.species,Cov..ALL.species,Date_ok,Micro,Quad2,
+               Week,Date_courte,Month_str,recif)%>%
+rename('spp'='spp.Name',
+       'Count'='N.pts.per.species',
+       'Cov'='Cov..per.species',
+       'Count_all'='N.pts.ALL.species',
+       'Cov_all'='Cov..ALL.species',
+       'Site'='recif')%>%
+  mutate(abb=abbreviate(spp))%>%
+   group_by(spp,abb,Site,Micro,Date_courte,Date_ok) %>% 
+  summarize(Mcov=mean(Cov)) %>% 
+  left_join(MPhoto, by=c('Micro')) %>%
+  mutate(Structure2=recode_factor(Structure,
+   "Bandes"="Dome",
+   "Bandes.C1"="Disc",
+   "Faille"="Inner_slots",
+   "Faille_coupole"="Upper_slots",
+   "Pilier.C2"="Columns",
+   "Trous"="Holes",
+   "Pieds"="Pillars"))%>% 
+  mutate(Strcut_groups=case_when(
+  Structure2 %in% c('Dome','Upper_slots')~'Horizontal_section',
+ Structure2 %in% c('Disc','Columns','Pillars')~'Vertical_section',
+  Structure2 %in% c('Inner_slots','Holes')~'Inner_section',
+ TRUE ~ 'NA')) %>%
+  mutate(M_ensemble=ifelse(Micro %in% c("P1","P2","P3","T1","T2","T3","T4"),substr(Micro, start = 1, stop = 1),substr(Micro, start = 1, stop = 3)),
+         M_ensemble2=ifelse(M_ensemble == 'DPF','DGF',M_ensemble))%>%
+  left_join(Immer_site, by='Site') 
+
+
+knitr::kable(data_PQ_light %>% select(spp,abb)%>% unique())
+corresp=data_PQ_light %>% select(spp,abb)%>% unique()
+```
+
+
+
+
+## Formatage du jeu de données 
+```{r}
+
+#Calcul du temps depuis l'immersion
+data_PQ_light=data_PQ_light %>% 
+   mutate(Day_delta=as.numeric(abs(difftime(Date_ok,Date_imm_ok,units='days'))))
+
+dataR1<-data_PQ_light
+dataRG=dataR1 %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte",'NA','None')) %>%
+    # filter(!Structure2 %in% c('Holes','Upper_slots','Inner_slots','Dome')) %>% 
+    filter(!Structure2 %in% c('Holes','Upper_slots','Dome','Bandes.C2')) %>% 
+  select (Date_ok,spp,abb,Site,Micro,Date_courte,Structure2,Mcov,Day_delta)
+
+```
+
+
+
+# ###Données MARINEFF ###
+```{r}
+#Chargement des photos associées à chaque cadrats
+
+setwd(here::here())
+
+MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
+  # mutate(Micro=) %>%
+  mutate(Micro=sub("\\_.*", "", Code_struct))
+  
+```
+
+## Chargement data
+
+```{r}
+#Chargement des jeux de données
+
+setwd('D:/Hugo/suivi_scientifique') # à modifier avec nom de ton DD
+# setwd('E:/Marineff/suivi_scientifique')
+
+data_list=list.files(pattern =".csv", recursive=T)
+
+L=list()
+for( i in 1: length(data_list)){
+  
+    Name_file=basename(data_list[i])
+
+data=read.csv(data_list[i], sep=',', header=T, fileEncoding="latin1") %>%
+  mutate(Name_file=rep(basename(data_list[i]), n()))
+
+L[[i]]<-data
+}
+
+
+test_data_list=data_list[grepl('DSC',data_list)]
+
+
+# fileEncoding="latin1"
+```
+
+## Date d'immersion
+
+```{r}
+# Ajout des dates d'immersion des différents récifs
+
+Immer_site=data.frame(Site=c('Bi','Bu','VB','Fe'), Date=c(as.Date('2020-10-30'),as.Date('2020-11-26'),as.Date('2020-11-27'),as.Date('2020-11-30'))) %>%
+       mutate(Date_imm_ok=format(as.POSIXlt(Date,  format = "%Y-%m-%d"), format="%Y-%m-%d", tz="GMT")) %>% select(Site, Date_imm_ok)
+     
+# Date=c(as.Date('2020-10-30'),as.Date('2020-11-26'),as.Date('2020-11-27'),as.Date('2020-11-30'))) %>%
+       # mutate(Date_imm_ok=format(as.POSIXlt(Date,  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT")) %>% select(Site, Date_imm_ok)    
+```
+
+
+## Saison - date
+
+```{r}
+# Ajout de dates correspondant aux différentes saisons
+Date_sais=data.frame(
+           start=c(
+             format(as.POSIXlt(as.Date('2021-03-20'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+             format(as.POSIXlt(as.Date('2021-06-21'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+             format(as.POSIXlt(as.Date('2021-09-22'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+             format(as.POSIXlt(as.Date('2021-12-21'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+             format(as.POSIXlt(as.Date('2022-03-20'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+             format(as.POSIXlt(as.Date('2022-06-21'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+             format(as.POSIXlt(as.Date('2022-09-22'),  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT")))
+```
+
+
+
+## Mise en forme des données
+
+```{r}
+# Ajout de méta données à partir du nom de fichier (site,data,micro,n° de quadrat)
+# Correction et abbréviation des noms de taxons
+# Changements des noms des microhabitats
+# Changements du format des dates
+
+
+data_PQ=do.call(rbind,L) %>%
+  mutate(Site=substr(Name_file, start = 1, stop = 2)) %>%
+  separate(col = Name_file, into = c('Site','Date','Micro','truc','Quad'), sep = '_') %>%
+  mutate( Site=ifelse(Site=='FR','Fe',Site),
+          Quad=ifelse(is.na(Quad),truc,Quad),
+          Quad2=substr(Quad, start = 1, stop = 2),
+          Month_str=gsub("-.*", "", Date,perl=TRUE),
+          YY=gsub(".*-", "", Date,perl=TRUE),
+          Month=case_when( Month_str=='Avri'~'04',
+                           Month_str=='avri'~'04',
+                           Month_str=="Janv"~'01',
+                           Month_str=='Juil'~'07',
+                           Month_str=='Oct'~'10',
+                           Month_str=='Nov'~'11'),
+          Date_ok=format(as.POSIXlt(paste0('01/',Month,'/',YY),  format = "%d/%m/%y"), format="%Y-%m-%d %%H:%M:%S", tz="GMT"),
+          Date_courte=format(as.POSIXlt(paste0('01/',Month,'/',YY),  format = "%d/%m/%y"), format="%Y-%m", tz="GMT"),
+          Week=strftime(Date_ok, format = "%V")) %>%
+  mutate(spp.Name= ifelse(spp.Name == 'Tubularia indivisa ', 'Tubularia indivisa',spp.Name),
+         spp.Name=ifelse(spp.Name == 'Unidentified','NI',spp.Name))
+  
+
+
+
+# Version synthétique du df
+
+data_PQ_light=data_PQ %>% dplyr::select(Image, spp.Name,spp.ID,N.pts.per.species,Cov..per.species,
+               N.pts.ALL.species,Cov..ALL.species, Site,Date_ok,Micro,Quad2,
+               Week,Date_courte,Month_str )%>%
+rename('spp'='spp.Name',
+       'Count'='N.pts.per.species',
+       'Cov'='Cov..per.species',
+       'Count_all'='N.pts.ALL.species',
+       'Cov_all'='Cov..ALL.species')%>%
+  mutate(abb=abbreviate(spp))%>%
+   group_by(spp,abb,Site,Micro,Date_courte,Date_ok,Quad2) %>%
+  summarize(Mcov=mean(Cov)) %>%
+  # summarize(MCount=mean(Count)) %>%
+  left_join(MPhoto, by=c('Micro')) %>%
+  mutate(Structure2=recode_factor(Structure,
+   "Bandes"="Dome",
+   "Bandes.C1"="Disc",
+   "Faille"="Inner_slots",
+   "Faille_coupole"="Upper_slots",
+   "Pilier.C2"="Columns",
+   "Trous"="Holes",
+   "Pieds"="Pillars"))%>% 
+  mutate(Strcut_groups=case_when(
+  Structure2 %in% c('Dome','Upper_slots')~'Horizontal_section',
+ Structure2 %in% c('Disc','Columns','Pillars')~'Vertical_section',
+  Structure2 %in% c('Inner_slots','Holes')~'Inner_section', TRUE ~ 'NA')) %>%
+  mutate(M_ensemble=ifelse(Micro %in% c("P1","P2","P3","T1","T2","T3","T4"),substr(Micro, start = 1, stop = 1),substr(Micro, start = 1, stop = 3)),
+         M_ensemble2=ifelse(M_ensemble == 'DPF','DGF',M_ensemble))%>%
+  left_join(Immer_site, by='Site') %>% 
+    mutate(spp=replace_na(spp,"None"))
+ 
+
+knitr::kable(data_PQ_light %>% select(spp,abb)%>% unique())
+corresp=data_PQ_light %>% select(spp,abb)%>% unique()
+```
+
+
+
+## Formatage du jeu de données 
+```{r}
+#Calcul du temps depuis l'immersion
+data_PQ_light=data_PQ_light %>% 
+   mutate(Day_delta=as.numeric(difftime(Date_ok,Date_imm_ok,units='days')))
+
+dataR1<-data_PQ_light
+dataRM=dataR1 %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte",'None','NA')) %>%
+  filter(!Micro %in% c('C2P3.rndpts.csv','C2P4.rndpts.csv','C2P6.rndpts.csv')) %>% 
+  filter(!Site == ("DSC"))%>%
+  filter(!Structure2 %in% c('Holes','Upper_slots','Dome')) %>% 
+  filter(!Date_courte == '2021-01') %>% 
+  select(spp,abb,Site,Micro,Date_courte,Structure2,Mcov,Day_delta,Quad2)
+```
+
+
+
+# # MARINEFF+GOELO
+## Matrice de distance
+```{r}
+# Permet de calculer la distance entre le recouvrement de chaque espèce et le taux de recouvrement
+
+dataRM$saison<-dataRM$Date_courte
+dataRM$saison[dataRM$saison == "2021-04" | dataRM$saison == "2022-04"] <- "printemps"
+dataRM$saison[dataRM$saison == "2021-07" | dataRM$saison == "2022-07"] <- "été"
+dataRM$saison[dataRM$saison == "2021-10" | dataRM$saison == "2021-11"| dataRM$saison == "2022-11"] <- "automne"
+dataRM$saison[dataRM$saison == "2022-01"] <- "hiver"
+dataRM1=dataRM %>% ungroup %>% 
+  select(spp,Mcov,Site,Micro,Date_courte,Structure2,saison,Quad2,Day_delta) %>% 
+  mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
+  group_by(spp,Site,Micro,Date_courte,Structure2,saison,Years,Day_delta) %>% 
+  distinct() %>% drop_na() %>% 
+  summarize(Mcov = mean(Mcov,.by=c(spp,Micro,Day_delta,Quad2)))
+
+dataRM1=dataRM1 %>% ungroup %>% select(spp,Site,Micro,Date_courte,Structure2,Mcov,Day_delta)
+  
+
+# dataRGM<- rbind(dataRG,dataRM[,-10])
+# dataRM1=dataRM1 %>% select(-Quad2)
+dataRG1=dataRG %>% ungroup %>%  filter(!spp=="NA") %>% select(spp,Site,Micro,Date_courte,Structure2,Mcov,Day_delta)
+dataRGM1<-rbind(dataRG1,dataRM1)
+dataRGM=dataRGM1 %>% group_by(spp,Site,Micro,Date_courte,Structure2,Mcov,Day_delta)
+
+#ajoute une colonne de saison 
+dataRGM$saison<-dataRGM$Date_courte
+dataRGM$saison[dataRGM$saison == "2021-04" | dataRGM$saison == "2022-04"] <- "printemps"
+dataRGM$saison[dataRGM$saison == "2021-07" | dataRGM$saison == "2022-07" | dataRGM$saison == "2022-09"| dataRGM$saison == "2023-09" | dataRGM$saison == "2023-07"] <- "été"
+dataRGM$saison[dataRGM$saison == "2021-10" | dataRGM$saison == "2021-11"| dataRGM$saison == "2022-11"] <- "automne"
+dataRGM$saison[dataRGM$saison == "2022-01"] <- "hiver"
+
+
+data_comp2GM=dataRGM %>% ungroup %>% 
+  select(spp,Mcov,Site,Micro,Date_courte,Structure2,saison,Day_delta) %>% 
+  mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
+  # mutate(num=seq(1:nrow(dataRGM))) %>% 
+  group_by(spp,Site,Micro,Date_courte,Structure2,saison,Years,Day_delta) %>% 
+  distinct() %>% drop_na() %>%  
+  spread(spp,Mcov) %>% ungroup() %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) 
+  # mutate(Compsite_date=paste(Site,Date_courte,sep=","))
+
+
+data_comp2GM$Site<-as.factor(data_comp2GM$Site)
+data_comp2GM$Micro<-as.factor(data_comp2GM$Micro)
+data_comp2GM$Date_courte<-as.factor(data_comp2GM$Date_courte)
+data_comp2GM$Day_delta<-as.factor(data_comp2GM$Day_delta)
+data_comp2GM$Years<-as.factor(data_comp2GM$Years)
+# data_comp2GM$Compsite_date<-as.factor(data_comp2GM$Compsite_date)
+
+
+Comp_mat=data_comp2GM %>% select(-c(Site,Micro,Structure2,Date_courte,saison,Years,Day_delta)) %>% as.matrix() #sans meta données
+Meta_data=data_comp2GM %>% select(Site,Micro,Structure2,Date_courte,saison,Years,Day_delta) #meta données
+
+distdataR<-vegdist(Comp_mat, method='bray') #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme plus efficace pour les données écologiques
+
+```
+
+##  PCoA
+```{r}
+# Permet de représenter les données dans l'espace et voir les paramètres expliquant le plus la variance
+
+pcoa_tot_SS<- cmdscale(d = as.matrix(distdataR), k=10, eig = T) 
+x=pcoa_tot_SS$points[,1]
+y=pcoa_tot_SS$points[,2]
+
+# plot(x,y) 
+
+PCOA_dfGM=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
+                   Structure=Meta_data$Structure2,
+                   Site=Meta_data$Site,
+                   Date=Meta_data$Date_courte,
+                   Saison=Meta_data$saison,
+                   Years=Meta_data$Years
+                   # Compsite_date=Meta_data$Compsite_date
+                   # Structure3=Meta_data$nouvelle
+                   )
+
+
+# s.class(PCOA_dfGM[c(1:2)],as.factor(PCOA_dfGM$Site),col=c("#fb746b","#7cab04","#00bfc4","#c77cff","red","blue","black"),ellipseSize=0) # permet de faire le graph de la PCoA avec des barycentres
+# s.class(PCOA_dfGM[c(1:2)],droplevels(as.factor(PCOA_dfGM$Structure)),col=c("#fb746b","#7cab04","#00bfc4","#c77cff"),ellipseSize=0)
+# s.class(PCOA_dfGM[c(1:2)],droplevels(as.factor(PCOA_dfGM$Date)),col=c("#000099","#0000FF","#6666FF","#99CCFF","#006600","#33CC33","#99FF00","#CCFF33","red","purple"),ellipseSize=0)
+# 
+# s.class(PCOA_df[c(1:2)],droplevels(as.factor(PCOA_df$Compsite_date)),ellipseSize=0,col=c("#000099","#0000FF","#6666FF","#99CCFF","#006600","#33CC33","#99FF00","#CCFF33"))
+
+
+ggplot(data=PCOA_dfGM,aes(x,y,colour=Site))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
+  # geom_point(aes(col=Site), size=1, alpha=.6)+
+  geom_point(alpha=.3)+
+  labs(x="Axe 1 (20.5%)",y="Axe 2 (11.1%)")+
+  geom_hline(yintercept=0)+
+  geom_vline(xintercept=0)+
+  theme_bw()+
+  geom_mark_ellipse(aes(fill=Site,group=Site),tol=1,alpha=.2)+
+  (scale_y_continuous(limits=c(-0.75,0.75)))+
+  (scale_x_continuous(limits=c(-0.5,0.75)))
+
+#### PCoA selon les variables 
+# Selon les sites
+barycenters <- aggregate(cbind(x,y) ~ Site, PCOA_dfGM, mean)
+# paste(Site,Date,sep="_")
+ggplot(PCOA_dfGM, aes(x = x, y = y,colour =Site )) +
+  geom_point(alpha=.2) +
+  # Ajouter les barycentres
+  # geom_point(data = barycenters, aes(x = x, y = y, colour = paste(Site,Date,sep="_")), size = 3, shape = 17) +
+  # Ajout lignes entre les barycentres et les points
+  geom_segment(data = merge(PCOA_dfGM, barycenters, by ="Site", suffixes = c("",".bary")),
+               aes(x = x, y = y, xend = x.bary, yend = y.bary, color = Site),alpha=.3)+
+  theme_bw()+labs(x="Axe 1 (20.5%)",y="Axe 2 (11.1%)")+theme(legend.position = "none")+
+  scale_color_paletteer_d("ggsci::default_locuszoom")+
+  geom_label(
+    label="Bizeux", x=barycenters$x[which(barycenters$Site=="Bi")], y=barycenters$y[which(barycenters$Site=="Bi")],
+    label.padding = unit(0.25, "lines"), # Rectangle size around label
+    label.size = 0.35,color = "#d43f3a",fill="white")+
+  geom_label(
+    label="Buharats", x=barycenters$x[which(barycenters$Site=="Bu")], y=barycenters$y[which(barycenters$Site=="Bu")],
+    label.padding = unit(0.25, "lines"),
+    label.size = 0.35,color = "#eea236",fill="white")+
+  geom_label(
+    label="Fetlar", x=barycenters$x[which(barycenters$Site=="Fe")], y=barycenters$y[which(barycenters$Site=="Fe")],
+    label.padding = unit(0.25, "lines"),
+    label.size = 0.35,color = "#5cb85c",fill="white")+
+  geom_label(
+    label="Vieux-Bancs", x=barycenters$x[which(barycenters$Site=="VB")], y=barycenters$y[which(barycenters$Site=="VB")],
+    label.padding = unit(0.25, "lines"),
+    label.size = 0.35,color = "#b8b8b8",fill="white")+
+  geom_label(
+    label="Récif 1", x=barycenters$x[which(barycenters$Site=="recif1")], y=barycenters$y[which(barycenters$Site=="recif1")],
+    label.padding = unit(0.25, "lines"),
+    label.size = 0.35,color = "#46b8da",fill="white")+
+  geom_label(
+    label="Récif 2", x=barycenters$x[which(barycenters$Site=="recif2")], y=barycenters$y[which(barycenters$Site=="recif2")],
+    label.padding = unit(0.25, "lines"),
+    label.size = 0.35,color = "#357ebd",fill="white")+
+  geom_label(
+    label="Récif 3", x=barycenters$x[which(barycenters$Site=="recif3")], y=barycenters$y[which(barycenters$Site=="recif3")],
+    label.padding = unit(0.25, "lines"),
+    label.size = 0.35,color = "#9632b8",fill="white")
+
+
+
+
+
+
+#Apport de la variance pour chaque axe
+summaryPCOA<-data.frame(
+  EIG= pcoa_tot_SS$eig,
+  PCTVAR=100*pcoa_tot_SS$eig/sum(pcoa_tot_SS$eig),
+  CUMPCTVAR = cumsum(100*pcoa_tot_SS$eig/sum(pcoa_tot_SS$eig)))
+plot(summaryPCOA$PCTVAR[1:30],ylim=c(0,30),xlab="Composantes",ylab="Pourcentage d'inertie (explication de la variance)")
+
+
+# Test importance des espèces dans l'explication de la variance 
+vf <- envfit(pcoa_tot_SS, data_comp2GM, perm = 999)
+spp.scrs <- as.data.frame(scores(vf, display = "vectors"))
+spp.scrs2 <-(spp.scrs[which(vf$vectors$pvals<0.002),])
+spp.scrs3 <- cbind(spp.scrs2, Abb = rownames(spp.scrs2))
+
+
+ggplot(PCOA_dfGM, aes(x = x, y = y)) +
+  geom_point(colour="black",alpha=.2)+
+  geom_point(spp.scrs3,mapping=aes(x=Dim1,y=Dim2,colour=Abb),size=2)+
+    labs(color="Taxons significatifs")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,1%)")+
+  theme_bw() + 
+  # geom_label(data=spp.scrs3,aes(x=Dim1,y=Dim2,label=Abb), nudge_x = 0.0, nudge_y = 0.05, check_overlap = T,label.size=0.07,size=3)+ # ajout des labels au niveau de chaque point
+  scale_x_continuous(limits=c(-0.83,0.7))
+  # theme(legend.position="none") #enlève la légende
+
+
+geom_label(
+    label="2022-11", x=barycenters$x[which(barycenters$Date=="2022-11")], y=barycenters$y[which(barycenters$Date=="2022-11")],
+    label.padding = unit(0.25, "lines"), 
+    label.size = 0.35,color = "pink",fill="white")+
+  labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")
+
+```
+
+
+
+
+
+# ### Utilisation des données
+
+# # MARINEFF
+## Matrice de distance
+```{r}
+# Permet de calculer la distance entre le recouvrement de chaque espèce et le taux de recouvrement
+
+levels(factor(dataR$Site))
+
+#ajoute une colonne de saison 
+dataRM$saison<-dataRM$Date_courte
+dataRM$saison[dataRM$saison == "2021-04" | dataRM$saison == "2022-04"] <- "printemps"
+dataRM$saison[dataRM$saison == "2021-07" | dataRM$saison == "2022-07"] <- "été"
+dataRM$saison[dataRM$saison == "2021-10" | dataRM$saison == "2021-11"| dataRM$saison == "2022-11"] <- "automne"
+dataRM$saison[dataRM$saison == "2022-01"] <- "hiver"
+
+
+data_comp2M=dataRM %>% ungroup %>% 
+  select(spp,Mcov,Site,Micro,Date_courte,Structure2,saison,Quad2,Day_delta) %>% 
+  mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
+  group_by(spp,Site,Micro,Date_courte,Structure2,saison,Years,Day_delta) %>% 
+  distinct() %>% drop_na() %>% 
+  summarize(Mcov2 = mean(Mcov,.by=c(spp,Micro,Day_delta,Quad2)))
+  # spread(spp,Mcov2) %>% ungroup() %>% 
+  # mutate(across(everything(.), ~replace_na(., 0))) %>% 
+  # mutate(Compsite_date=paste(Site,Date_courte,sep=","))
+
+
+data_comp2$Site<-as.factor(data_comp2$Site)
+data_comp2$Micro<-as.factor(data_comp2$Micro)
+data_comp2$Date_courte<-as.factor(data_comp2$Date_courte)
+data_comp2$Day_delta<-as.factor(data_comp2$Day_delta)
+data_comp2$Years<-as.factor(data_comp2$Years)
+data_comp2$Compsite_date<-as.factor(data_comp2$Compsite_date)
+
+
+Comp_mat=data_comp2 %>% select(-c(Site,Micro,Structure2,Date_courte,saison,Years,Day_delta,Compsite_date)) %>% as.matrix() #sans meta données
+Meta_data=data_comp2 %>% select(Site,Micro,Structure2,Date_courte,saison,Years,Day_delta,Compsite_date) #meta données
+
+distdataR<-vegdist(Comp_mat, method='bray') #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme plus efficace pour les données écologiques
+
+```
+
+##  PCoA
+```{r}
+# Permet de représenter les données dans l'espace et voir les paramètres expliquant le plus la variance
+
+pcoa_tot_SS<- cmdscale(d = as.matrix(distdataR), k=10, eig = T) 
+x=pcoa_tot_SS$points[,1]
+y=pcoa_tot_SS$points[,2]
+
+plot(x,y) 
+
+PCOA_dfM=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
+                   Structure=Meta_data$Structure2,
+                   Site=Meta_data$Site,
+                   Date=Meta_data$Date_courte,
+                   Saison=Meta_data$saison,
+                   Years=Meta_data$Years,
+                   Compsite_date=Meta_data$Compsite_date
+                   # Structure3=Meta_data$nouvelle
+                   )
+```
+
+# # GOELO
+## Matrice de distance
+```{r}
+# Permet de calculer la distance entre le recouvrement de chaque espèce et le taux de recouvrement
+
+dataRG$saison<-dataRG$Date_courte
+dataRG$saison[dataRG$saison == "2023-07"] <- "été"
+dataRG$saison[dataRG$saison == "2022-09" | dataRG$saison == "2023-09"] <- "automne"
+
+data_comp2G=dataRG %>% ungroup %>% 
+  select(spp,Mcov,Site,Micro,Date_courte,Structure2,saison) %>% 
+  mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
+  group_by(spp,Site,Micro,Date_courte,Structure2,saison,Years) %>% 
+  distinct() %>% drop_na() 
+  spread(spp,Mcov) %>% ungroup() %>%
+  mutate(across(everything(.), ~replace_na(., 0))) %>%
+  mutate(Compsite_date=paste(Site,Date_courte,sep=","))
+
+
+Comp_mat=data_comp2G %>% ungroup %>% select(-c(Site,Micro,Structure2,Date_courte,saison,Years)) %>% as.matrix() 
+Meta_data=data_comp2G %>% ungroup %>% select(Site,Micro,Structure2,Date_courte,saison,Years) #créer jeu de données avec les méta données
+
+distdataR<-vegdist(Comp_mat, method='bray') #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme plus efficace pour les données écologiques
+
+```
+
+
+##  PCoA
+```{r}
+# Permet de représenter les données dans l'espace et voir les paramètres le plus la variance
+
+pcoa_tot_SS<- cmdscale(d = as.matrix(distdataR),k=10, eig = T) 
+x=pcoa_tot_SS$points[,1]
+y=pcoa_tot_SS$points[,2]
+
+# plot(x,y) 
+
+PCOA_dfG=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
+                   Structure=Meta_data$Structure2,
+                   Site=Meta_data$Site,
+                   Date=Meta_data$Date_courte,
+                   Saison=Meta_data$saison,
+                   Years=Meta_data$Years,
+                   # Compsite_date=Meta_data$Compsite_date
+                   )
+
+```
+
+# # MARINEFF&GOELO
+```{r}
+
+dataRMG<-rbind(PCOA_dfM,PCOA_dfG)
+
+s.class(dataRMG[c(1:2)],as.factor(dataRMG$Site),col=c("#fb746b","#7cab04","#00bfc4","#c77cff","red","blue","black"),ellipseSize=0) # permet de faire le graph de la PCoA avec des barycentres
+s.class(dataRMG[c(1:2)],droplevels(as.factor(dataRMG$Structure)),col=c("#fb746b","#7cab04","#00bfc4","#c77cff"),ellipseSize=0)
+s.class(dataRMG[c(1:2)],droplevels(as.factor(dataRMG$Date)),col=c("#000099","#0000FF","#6666FF","#99CCFF","#006600","#33CC33","#99FF00","#CCFF33","red","purple"),ellipseSize=0)
+
+s.class(PCOA_df[c(1:2)],droplevels(as.factor(PCOA_df$Compsite_date)),ellipseSize=0,col=c("#000099","#0000FF","#6666FF","#99CCFF","#006600","#33CC33","#99FF00","#CCFF33"))
+
+```
+
+
+# # Significativité des taxons par site
+```{r}
+#test sans moyenne par structure et donc avec micro
+dataRGM$saison<-dataRGM$Date_courte
+dataRGM$saison[dataRGM$saison == "2021-04" | dataRGM$saison == "2022-04"] <- "printemps"
+dataRGM$saison[dataRGM$saison == "2021-07" | dataRGM$saison == "2022-07" | dataRGM$saison == "2022-09"| dataRGM$saison == "2023-09" | dataRGM$saison == "2023-07"] <- "été"
+dataRGM$saison[dataRGM$saison == "2021-10" | dataRGM$saison == "2021-11"| dataRGM$saison == "2022-11"] <- "automne"
+dataRGM$saison[dataRGM$saison == "2022-01"] <- "hiver"
+
+### Mcov moyen
+dataR3=dataRGM %>% ungroup %>%
+  select(spp,Site,Structure2,Micro,Date_courte,Mcov,saison) %>%
+     mutate(num=seq(1:nrow(dataRGM))) %>% 
+  distinct()%>%
+  group_by(Site,Structure2,Mcov,Micro,Date_courte,saison,num) %>%
+  # as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Structure2,Micro,Date_courte,saison)) %>%
+  na.omit()%>%
+  droplevels() %>% 
+  spread(spp,Mcov) 
+
+dataR4=dataR3%>% 
+  mutate(across(everything(.), ~replace_na(., 0))) %>% 
+  mutate(Name=paste(Site,Structure2,Date_courte,saison,sep=","))
+ 
+dataR3
+test1<-multipatt(dataR3[-c(1:5,66)],dataR3$Site)
+summary(test1)
+
+```

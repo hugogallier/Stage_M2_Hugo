@@ -64,8 +64,6 @@ Boucle de chargement des fichiers csv
 
 setwd('D:/Hugo/Recif_Goelo/') # à modifier avec nom de ton DD
 
-
-
 data_list=list.files(pattern =".csv", recursive=T)
 
 L=list()
@@ -300,7 +298,7 @@ dataR3=dataR2 %>%
   group_by(Site,Date_courte,Structure2) %>%
   summarize(S2 = mean(S))
 
-dataR3$S2[which(dataR3$Structure2=='Pilier')]<-(dataR3$S2[which(dataR3$Structure2=='Pilier')]/2)
+dataR3$S2[which(dataR3$Structure2=='Pilier')]<-(dataR3$S2[which(dataR3$Structure2=='Pilier')]/2)#puisque les piliers sont les seuls structures à avoir été échantillonné deux fois, on divise par deux la somme des taxons différents
 
 ggplot(dataR3, aes(Structure2,S2, fill=Site))+ 
   xlab("Structure")+
@@ -1201,5 +1199,103 @@ ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement,colour=Site1)
  #  geom_path(data=datamean[which(datamean$Comp_site == "recif1" & datamean$Comp_struct=="Pilier"),],group=1,aes(color=Compasite_date))+
  #   geom_path(data=datamean[which(datamean$Comp_site == "recif2" & datamean$Comp_struct=="Pilier"),],group=1,aes(color=Compasite_date))+
  #   geom_path(data=datamean[which(datamean$Comp_site == "recif3" & datamean$Comp_struct=="Pilier"),],group=1,aes(color=Compasite_date))
+
+```
+
+
+
+# # Test comparaison milieu naturel 
+```{r}
+setwd('D:/Hugo/') # à modifier avec nom de ton DD
+
+data1<-read.table("Inventaire seul milieu naturel.csv",sep=";",header=T)
+data12=data1 %>%  select(Site,Quadrat,Taxon) %>% 
+  filter(!Taxon %in% c("NA","NI")) %>% na.omit
+
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "1")]<-"11"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "2")]<-"12"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "3")]<-"13"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "4")]<-"14"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "5")]<-"15"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "6")]<-"16"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "7")]<-"17"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "8")]<-"18"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "9")]<-"19"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "10")]<-"20"
+
+data12$Site[which(data12$Site == "T2S2")]<-"T2S1"
+
+
+
+
+data2=data12 %>% ungroup %>% 
+  select(Site,Quadrat,Taxon) %>% 
+  filter(!Taxon %in% c("NA","NI")) %>% 
+  distinct %>% 
+  group_by(Site,Quadrat) %>% 
+  summarize(S=n()) %>%
+  na.omit()
+
+
+data2$Site<-as.factor(data2$Site)
+data2$Quadrat<-as.factor(data2$Quadrat)
+
+
+ggplot(data2, aes(Site,S,fill=Site))+ 
+  xlab("Structure")+
+  ylab("Richesse taxonomique moyenne")+
+  geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
+  geom_boxplot()+
+  theme_bw()
+
+
+
+# test PCoA
+
+data2=data12 %>% ungroup %>% 
+  select(Site,Quadrat,Taxon) %>% 
+  filter(!Taxon %in% c("NA","NI")) %>% 
+  distinct %>% 
+  group_by(Site,Quadrat,Taxon) %>% 
+  summarize(S=n()) %>%
+  na.omit()
+
+data2$Site<-as.factor(data2$Site)
+data2$Quadrat<-as.factor(data2$Quadrat)
+data2$Taxon<-as.factor(data2$Taxon)
+colnames(data2)[3]<-"spp"
+
+data_comp3=data2 %>% ungroup %>% 
+  select(spp,Site,Quadrat,S) %>% 
+  group_by(Site,Quadrat,spp) %>% 
+  distinct() %>% drop_na() %>% 
+  spread(spp,S) %>% ungroup() %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) 
+
+
+# Comp_mat=data_comp2 %>% select(-c(Site,Sample,Micro,Structure2,Strcut_groups,Date_courte)) %>% as.matrix() 
+# Meta_data=data_comp2 %>% select(Site,Sample,Micro,Structure2,Strcut_groups,Date_courte) #créer jeu de données avec les méta données
+# distdataR<-vegdist(Comp_mat, method='bray') #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme plus efficace pour les données écologiques
+
+Comp_mat=data_comp3 %>% select(-c(Site,Quadrat)) %>% as.matrix() 
+Meta_data=data_comp3 %>% select(Site,Quadrat) #créer jeu de données avec les méta données
+
+distdataR<-vegdist(Comp_mat, method='bray') 
+
+pcoa_tot_SS<- cmdscale(d = as.matrix(distdataR), k=10, eig = T) 
+x=pcoa_tot_SS$points[,1]
+y=pcoa_tot_SS$points[,2]
+
+plot(x,y) 
+
+PCOA_dfM=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
+                   Structure=Meta_data$Structure2,
+                   Site=Meta_data$Site,
+                   Date=Meta_data$Date_courte,
+                   Saison=Meta_data$saison,
+                   Years=Meta_data$Years,
+                   Compsite_date=Meta_data$Compsite_date
+                   # Structure3=Meta_data$nouvelle
+                   )
 
 ```

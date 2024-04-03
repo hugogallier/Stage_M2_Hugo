@@ -45,6 +45,8 @@ library(car)
 library(adegraphics)
 library(gratia)
 library(ggpubr)
+library(paletteer)
+library(indicspecies)
 
 ```
 
@@ -210,7 +212,7 @@ dataR=dataR1 %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte",'None','NA
   filter(!Micro %in% c('C2P3.rndpts.csv','C2P4.rndpts.csv','C2P6.rndpts.csv')) %>% 
   filter(!Site == ("DSC"))%>%
   filter(!Structure2 %in% c('Holes','Upper_slots','Dome')) %>% 
-  filter(!Date_courte == '2021-01') %>% 
+  # filter(!Date_courte == '2021-01') %>%
   select (spp,abb,Site,Structure2,Micro,Date_courte,Mcov,Day_delta,Quad2)
   # select (spp,abb,Site,Micro,Date_courte,Structure2,MCount)
 
@@ -1079,6 +1081,7 @@ dataR$saison[dataR$saison == "2021-04" | dataR$saison == "2022-04"] <- "printemp
 dataR$saison[dataR$saison == "2021-07" | dataR$saison == "2022-07"] <- "été"
 dataR$saison[dataR$saison == "2021-10" | dataR$saison == "2021-11"| dataR$saison == "2022-11"] <- "automne"
 dataR$saison[dataR$saison == "2022-01"] <- "hiver"
+dataR$saison[dataR$saison == "2021-01" |dataR$saison == "2022-01"] <- "hiver"
 
 dataR$Day_delta[dataR$Date_courte == "2021-10" & dataR$Site == "Fe"]<-"336"
 dataR$Day_delta[dataR$Date_courte == "2021-10" & dataR$Site == "VB"]<-"339"
@@ -1090,7 +1093,7 @@ data_comp2=dataR %>% ungroup %>%
   select(spp,Mcov,Site,Micro,Date_courte,Structure2,saison,Quad2,Day_delta) %>% 
   mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
   group_by(spp,Site,Micro,Date_courte,Structure2,saison,Years,Day_delta) %>% 
-  filter(!Site == 'Fe') %>% 
+  # filter(!Site == 'Fe') %>% 
   distinct() %>% drop_na() %>% 
   summarize(Mcov2 = mean(Mcov,.by=c(spp,Micro,Day_delta,Quad2))) %>%
   spread(spp,Mcov2) %>% ungroup() %>% 
@@ -1192,14 +1195,14 @@ ggplot(PCOA_df, aes(x = x, y = y,colour =Site )) +
     label="Buharats", x=barycenters$x[which(barycenters$Site=="Bu")], y=barycenters$y[which(barycenters$Site=="Bu")],
     label.padding = unit(0.25, "lines"), 
     label.size = 0.35,color = "#66CC00",fill="white")+
-  # geom_label(
-  #   label="Fetlar", x=barycenters$x[which(barycenters$Site=="Fe")], y=barycenters$y[which(barycenters$Site=="Fe")],
-  #   label.padding = unit(0.25, "lines"), 
-  #   label.size = 0.35,color = "#00CCCC",fill="white")+
+  geom_label(
+    label="Fetlar", x=barycenters$x[which(barycenters$Site=="Fe")], y=barycenters$y[which(barycenters$Site=="Fe")],
+    label.padding = unit(0.25, "lines"),
+    label.size = 0.35,color = "#00CCCC",fill="white")+
   geom_label(
     label="Vieux-Bancs", x=barycenters$x[which(barycenters$Site=="VB")], y=barycenters$y[which(barycenters$Site=="VB")],
     label.padding = unit(0.25, "lines"), 
-    label.size = 0.35,color = "#00CCCC",fill="white")
+    label.size = 0.35,color = "purple",fill="white")
   
 
   
@@ -1502,9 +1505,10 @@ ggplot(PCOA_df, aes(x = x, y = y)) +
   geom_point(colour="black",alpha=.2)+
   geom_point(spp.scrs3,mapping=aes(x=Dim1,y=Dim2,colour=Abb),size=2)+
     labs(color="Taxons significatifs")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,1%)")+
-  theme_bw() + geom_label(data=spp.scrs3,label=Abb, nudge_x = 0.25, nudge_y = 0.25, 
-    check_overlap = T)
-
+  theme_bw() + 
+  geom_label(data=spp.scrs3,aes(x=Dim1,y=Dim2,label=Abb), nudge_x = 0.0, nudge_y = 0.05, check_overlap = T,label.size=0.07,size=3)+ # ajout des labels au niveau de chaque point
+  scale_x_continuous(limits=c(-0.83,0.7))+
+  theme(legend.position="none") #enlève la légende
 
 geom_label(
     label="2022-11", x=barycenters$x[which(barycenters$Date=="2022-11")], y=barycenters$y[which(barycenters$Date=="2022-11")],
@@ -1529,7 +1533,13 @@ Comp_mat=data_comp2 %>% select(-c(Site,Structure2,Date_courte,Micro)) %>% as.mat
 
 distdataR<-vegdist(Comp_mat, method='bray')
 
-adonis2(distdataR~Structure2,data=data_comp2,permutations=999)
+
+groupe<-data_comp2$Structure2
+groupe<-data_comp2$Site
+groupe<-data_comp2$Day_delta
+groupe<-data_comp2$Micro
+
+adonis2(distdataR~groupe,data=data_comp2,permutations=999)
 
 
 # Permet de voir si les microhabitats possèdent une richesse taxo équivalente et donc qu'ils peuvent etre regroupés
@@ -2135,19 +2145,21 @@ datatern<-cbind(datadissi[,-c(9)],Similarité=(1-datadissi[,9]),Remplacement=dat
 ```
 
 
+
 ### Ternary plot
 ```{r}
 
 ########## Test package gg plot ########## #http://www.ggtern.com/d/2.2.0/
 datatern2=datatern %>%
-  filter(Structure1 == 'Disc') %>%
-  # filter(Site1 == 'Bi') %>%
+  # filter(Structure1 == 'Disc') %>%
+  # filter(Site1 == 'VB') %>%
+    # filter(Site2 == 'Fe') %>%
+    filter(Site1!=Site2) %>% 
   # filter(Site1 == Site2,
          # Saison1 == Saison2
          # ) %>%
   # filter(Structure1!=Structure2) %>%
   filter(Structure1 == Structure2) %>%
-  # filter(Site2 == 'Fe') %>%
   # filter(Date1!=Date2) %>%
   filter(Date1==Date2) %>%
   # filter(Date1 == '2022-01') %>%
@@ -2177,19 +2189,21 @@ datatern2=datatern2 %>% mutate(Compasite_struct=paste(Compasite,Structure1))
 datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
 datatern2=datatern2 %>% mutate(Site_Years=paste(Compasite,Years))
 datatern2=datatern2 %>% mutate(Compastruct_date=paste(Compadate,Compastruct))
+datatern2=datatern2 %>% mutate(Compastruct_site_date=paste(Compasitedate,Compastruct))
+datatern2=datatern2 %>% mutate(Compasite_date=paste(Compasite,Date1))
 
-datamean<-datatern2 %>%  group_by(Comp_site,Compasitedate,Comp_struct) %>%  #permet de faire la moyenne de chaque colonne par site/struct
+datamean<-datatern2 %>%  group_by(Compasite,Compasite_date,Comp_struct,Compadate) %>%  #permet de faire la moyenne de chaque colonne par site/struct
   #  Compastruct,,Comp_site,Compadate,Compadate,Compadate,Compastruct,Compastruct,Site_Years <-à utiliser dans la ligne d'avant afin de faire les comparaisons voulues
   dplyr::summarize(Similarité=mean(Similarité),
             Remplacement=mean(Remplacement),
             Richesse=mean(Richesse))
 
-ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement,group=Compasitedate)) +
+ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement,group=Compasite_date)) +
   # geom_point(aes(colour=Compasite), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3) +
     # geom_point(aes(colour=Compastruct), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3) +
       # geom_point(aes(colour=Compasitedate), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.2) +
-  geom_point(aes(color=Compasitedate),position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.1)+
-        geom_point(data=datamean,aes(color=Compasitedate)) +
+  geom_point(aes(color=Compasite_date),position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.1)+
+        geom_point(data=datamean,aes(color=Compasite_date)) +
   # stat_density_tern( #ajout de la densité
             # geom="polygon",aes(fill=after_stat(level)),bins=10,color='grey')+
             # geom="polygon",aes(fill=Structure1),bins=10,color='grey')+
@@ -2202,34 +2216,57 @@ ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement,group=Compasi
   # geom_crosshair_tern(data=datamean,aes(color=Compasitedate))+
   # facet_wrap(.~Comp_site)+
   # facet_wrap(.~Compasite)+
-    facet_wrap(.~Compastruct)+
+    facet_wrap(.~Comp_struct)+
   labs(title="")+
+  # scale_color_paletteer_d("dichromat::SteppedSequential_5")
   # labs(color = "Structures comparées")+
+  
+#### trajectoire avec flèches pour comparer les structures semblables
 
-  geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Comp_struct=="Disc"),],group=1,aes(color=Compasitedate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
-    geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Comp_struct=="Disc"),],group=1,aes(color=Compasitedate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
-    geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Comp_struct=="Disc"),],group=1,aes(color=Compasitedate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
-    geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Comp_struct=="Disc"),],group=1,aes(color=Compasitedate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))
-  # geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Compastruct=="Columns/Columns"),],group=1,aes(color=Compasite_struct))+
-  #   geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Compastruct=="Columns/Columns"),],group=1,aes(color=Compasite_struct))+
-  #   geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Compastruct=="Columns/Columns"),],group=1,aes(color=Compasite_struct))+
-  #   geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Compastruct=="Columns/Columns"),],group=1,aes(color=Compasite_struct))+
-  # geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Compastruct=="Pillars/Pillars"),],group=1,aes(color=Compasite_struct))+
-  #   geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Compastruct=="Pillars/Pillars"),],group=1,aes(color=Compasite_struct))+
-  #   geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Compastruct=="Pillars/Pillars"),],group=1,aes(color=Compasite_struct))+
-  #   geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Compastruct=="Pillars/Pillars"),],group=1,aes(color=Compasite_struct))+
-  # geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Compastruct=="Inner_slots/Inner_slots"),],group=1,aes(color=Compasite_struct))+
-  #   geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Compastruct=="Inner_slots/Inner_slots"),],group=1,aes(color=Compasite_struct))+
-  #   geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Compastruct=="Inner_slots/Inner_slots"),],group=1,aes(color=Compasite_struct))+
-  #   geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Compastruct=="Inner_slots/Inner_slots"),],group=1,aes(color=Compasite_struct))
+  # geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Comp_struct=="Disc"),],group=1,aes(color=Compasitedate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Comp_struct=="Disc"),],group=1,aes(color=Compasitedate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Comp_struct=="Disc"),],group=1,aes(color=Compasitedate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Comp_struct=="Disc"),],group=1,aes(color=Compasitedate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))
+  # geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Comp_struct=="Columns"),],group=1,aes(color=Compasite_struct),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Comp_struct=="Columns"),],group=1,aes(color=Compasite_struct),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Comp_struct=="Columns"),],group=1,aes(color=Compasite_struct),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Comp_struct=="Columns"),],group=1,aes(color=Compasite_struct),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  # geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Comp_struct=="Pillars"),],group=1,aes(color=Compasite_struct),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Comp_struct=="Pillars"),],group=1,aes(color=Compasite_struct),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Comp_struct=="Pillars"),],group=1,aes(color=Compasite_struct),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Comp_struct=="Pillars"),],group=1,aes(color=Compasite_struct),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  # geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Comp_struct=="Inner_slots"),],group=1,aes(color=Compasite_struct),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "Bu" & datamean$Comp_struct=="Inner_slots"),],group=1,aes(color=Compasite_struct),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "Fe" & datamean$Comp_struct=="Inner_slots"),],group=1,aes(color=Compasite_struct),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+  #   geom_path(data=datamean[which(datamean$Comp_site == "VB" & datamean$Comp_struct=="Inner_slots"),],group=1,aes(color=Compasite_struct),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))
 
 
 
-  # geom_segment(data = datamean[which(datamean$Comp_site == "Bi" & datamean$Comp_struct=="Columns"),],
-               # aes(x=Similarité[1],y=Remplacement[1],z=Richesse[1],xend=Remplacement[1+1],yend=Remplacement[1+1],zend=Richesse[1+1]),color="orange")
-      # geom_segment(data = datamean[which(barycenters$Site=="Bi"),],aes(x=x[1],y=y[1],xend=x[2],yend=y[2]),color="orange")+
+#### Trajectoire pour comparer les structures différentes
+ # geom_path(data=datamean[which(datamean$Compastruct=="Columns/Disc"),],group=1,aes(color=Compadate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+ #  geom_path(data=datamean[which(datamean$Compastruct=="Columns/Inner_slots"),],group=1,aes(color=Compadate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+ #  geom_path(data=datamean[which(datamean$Compastruct=="Columns/Pillars"),],group=1,aes(color=Compadate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+ #  geom_path(data=datamean[which(datamean$Compastruct=="Inner_slots/Disc"),],group=1,aes(color=Compadate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+ #  geom_path(data=datamean[which(datamean$Compastruct=="Inner_slots/Columns"),],group=1,aes(color=Compadate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+ #  geom_path(data=datamean[which(datamean$Compastruct=="Inner_slots/Pillars"),],group=1,aes(color=Compadate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+ #  geom_path(data=datamean[which(datamean$Compastruct=="Pillars/Columns"),],group=1,aes(color=Compadate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+ #  geom_path(data=datamean[which(datamean$Compastruct=="Pillars/Disc"),],group=1,aes(color=Compadate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+ #  geom_path(data=datamean[which(datamean$Compastruct=="Pillars/Inner_slots"),],group=1,aes(color=Compadate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+ #  geom_path(data=datamean[which(datamean$Compastruct=="Disc/Columns"),],group=1,aes(color=Compadate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+ #  geom_path(data=datamean[which(datamean$Compastruct=="Disc/Inner_slots"),],group=1,aes(color=Compadate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+ #  geom_path(data=datamean[which(datamean$Compastruct=="Disc/Pillars"),],group=1,aes(color=Compadate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))
 
-# personnalisation du plot
+
+#### Trajectoire pour comparer les récifs différents selon les structures
+geom_path(data=datamean[which(datamean$Compasite=="Bu/Bi"),],group=1,aes(color=Compasite_date),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+geom_path(data=datamean[which(datamean$Compasite=="Fe/Bi"),],group=1,aes(color=Compasite_date),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+ 
+geom_path(data=datamean[which(datamean$Compasite=="Fe/Bu"),],group=1,aes(color=Compasite_date),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+geom_path(data=datamean[which(datamean$Compasite=="VB/Bi"),],group=1,aes(color=Compasite_date),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+geom_path(data=datamean[which(datamean$Compasite=="VB/Bu"),],group=1,aes(color=Compasite_date),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
+geom_path(data=datamean[which(datamean$Compasite=="VB/Fe"),],group=1,aes(color=Compasite_date),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))
+
+
+#### personnalisation du plot
 # theme_custom( #https://rdrr.io/cran/ggtern/man/ggtern_themes.html
 #   base_size = 10,
 #   base_family = "",
@@ -2240,29 +2277,57 @@ ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement,group=Compasi
 #   col.R = "firebrick1",
 #   col.grid.minor = "white"
 # )
-   
-
-
-# Example data with categorical values
-data <- data.frame(
-  x = c(1, 2, 3, 4, 5),
-  y = c(2, 3, 1, 4, 5),
-  z = c(5, 1, 5, 6, 3),
-  category = c("A", "A", "B", "B", "A")
-)
-
-# Ensure data is sorted by category
-data <- data[order(data$category), ]
-
-# Create ggplot with a line between points based on category
-ggtern(data, aes(x = x, y = y,z=z, group = category)) +
-  geom_path(color = "blue") +
-  geom_point(size = 3) +
-  labs(title = "Line between points based on category") +
-  theme_minimal()
+  
    
 ```
 
+# # Significativité des taxons indicateurs du site (fonction multipatt)
+```{r}
+
+#test sans moyenne par structure et donc avec micro
+dataR$saison<-dataR$Date_courte
+dataR$saison[dataR$saison == "2021-04" | dataR$saison == "2022-04"] <- "printemps"
+dataR$saison[dataR$saison == "2021-07" | dataR$saison == "2022-07"] <- "été"
+dataR$saison[dataR$saison == "2021-10" | dataR$saison == "2021-11"| dataR$saison == "2022-11"] <- "automne"
+dataR$saison[dataR$saison == "2022-01"] <- "hiver"
+
+### Mcov moyen
+dataR3=dataR %>% ungroup %>%
+  select(spp,Site,Structure2,Micro,Date_courte,Mcov,Quad2,saison) %>%
+  distinct()%>%
+  group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
+  as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Structure2,Micro,Date_courte,saison)) %>%
+  na.omit()%>%
+  droplevels() %>% 
+  spread(spp,Mcov2) %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) %>% 
+  mutate(Name=paste(Site,Structure2,Date_courte,saison,sep=","))
+ 
+dataR3
+test1<-multipatt(dataR3[-c(1:5,66)],dataR3$Site)
+summary(test1)
+
+# test avec moyenne par structure
+dataR4=dataR %>% ungroup %>%
+  select(spp,Site,Structure2,Micro,Date_courte,Mcov,Quad2,saison) %>%
+  distinct()%>%
+  group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
+  as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Structure2,Micro,Date_courte,saison)) %>%
+  na.omit()%>%
+  droplevels() 
+  
+dataR5=dataR4 %>% ungroup %>% 
+    group_by(Site,saison,Date_courte,Structure2) %>% 
+  as.data.frame() %>% summarize(Mcov3=mean(Mcov2),.by=c(spp,Site,Structure2,Date_courte,saison)) %>%
+  spread(spp,Mcov3) %>% 
+  mutate(across(everything(.), ~replace_na(., 0)))  
+  # mutate(Name=paste(Site,Structure2,Date_courte,saison,sep=","))
+
+test1<-multipatt(dataR5[-c(1:4)],dataR5$Site)
+summary(test1)
+
+
+```
 
 # # Recouvrement par la roche nue
 
