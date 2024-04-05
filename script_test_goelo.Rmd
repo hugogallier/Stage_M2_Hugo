@@ -43,6 +43,8 @@ library(adespatial)
 library(ggdendro)
 library(car)
 library(adegraphics)
+library(ggrepel)
+library(ggpp)
 
 ```
 
@@ -1202,9 +1204,77 @@ ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement,colour=Site1)
 
 ```
 
+# # Test piechart avec les taxons
+```{r}
+dataR=dataR1 %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte",'NA','None')) %>%
+    filter(!Structure2 %in% c('Holes','Upper_slots','Dome')) %>% 
+  select (spp,abb,Site,Micro,Date_courte,Mcov,Structure2,Day_delta) %>% 
+  na.omit
+
+# dataR2=dataR %>% filter(Site == "recif3") %>% ungroup %>%
+#   select(spp,Structure2,Mcov) %>% group_by(spp,Structure2) %>%
+#   summarize(Mcov=0.2*(mean(Mcov,.by=spp))) %>% #Divisé par 5 afin d'avoir une moyenne si tous les
+#   summarize(Mcov=mean(Mcov,.by=spp))
+# dataR2$Mcov<-dataR2$Mcov*100/sum(dataR2$Mcov) #permet d'avoir sur 100 pourcents
+# 
+
+dataR2=dataR %>% filter(Site == "recif3") %>% ungroup %>%
+  select(spp,Mcov) %>% group_by(spp) %>%
+  summarize(Mcov=(mean(Mcov,.by=spp)))
+dataR2$Mcov<-dataR2$Mcov*100/sum(dataR2$Mcov) #permet d'avoir sur 100 pourcents
 
 
-# # Test comparaison milieu naturel 
+
+ggplot(dataR2,aes(x = 0,y=Mcov,fill=forcats::fct_inorder(spp)))+
+  geom_bar(aes(y=Mcov),stat="identity",width=1,col="white")+
+  scale_alpha(range=c(1,.2))+
+  coord_polar("y",start=0)+
+  geom_label_repel(aes(label =paste(spp,":",format(Mcov,digits=1),"%")), position=position_stacknudge(x = .9, y=.2,vjust=.5),size=3,force=25)+
+  theme_void()+
+  theme(legend.position="none") +
+  scale_color_paletteer_d( "ggsci::default_ucscgb")
+
+# options(ggrepel.max.overlaps = Inf) #si erreur avec overlaps alors exécuter ca
+
+```
+
+# # Significativité des taxons
+```{r}
+
+dataR$saison<-dataR$Date_courte
+dataR$saison[dataR$saison == "2023-07"] <- "été"
+dataR$saison[dataR$saison == "2022-09" | dataR$saison == "2023-09"] <- "automne"
+
+data_comp2=dataR %>% ungroup %>% 
+  select(spp,Mcov,Site,Micro,Date_courte,Structure2,saison) %>% 
+  group_by(spp,Site,Micro,Date_courte,Structure2,saison) %>% 
+  distinct() %>% drop_na() %>% 
+  spread(spp,Mcov) %>% ungroup() %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) 
+
+
+# dataR3=dataRGM %>% ungroup %>%
+#   select(spp,Site,Structure2,Micro,Date_courte,Mcov,saison) %>%
+#      mutate(num=seq(1:nrow(dataRGM))) %>% 
+#   distinct()%>%
+#   group_by(Site,Structure2,Mcov,Micro,Date_courte,saison,num) %>%
+#   # as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Structure2,Micro,Date_courte,saison)) %>%
+#   na.omit()%>%
+#   droplevels() %>% 
+#   spread(spp,Mcov) 
+# 
+# dataR4=dataR3%>% 
+#   mutate(across(everything(.), ~replace_na(., 0))) %>% 
+#   mutate(Name=paste(Site,Structure2,Date_courte,saison,sep=","))
+ 
+dataR3
+test1<-multipatt(data_comp2[-c(1:5)],data_comp2$Site,max.order=1)
+summary(test1)
+
+```
+
+
+# # Test milieu naturel 
 ```{r}
 setwd('D:/Hugo/') # à modifier avec nom de ton DD
 
@@ -1252,7 +1322,7 @@ ggplot(data2, aes(Site,S,fill=Site))+
 
 # test PCoA
 
-data2=data12 %>% ungroup %>% 
+data2MN=data12 %>% ungroup %>% 
   select(Site,Quadrat,Taxon) %>% 
   filter(!Taxon %in% c("NA","NI")) %>% 
   distinct %>% 
@@ -1260,22 +1330,18 @@ data2=data12 %>% ungroup %>%
   summarize(S=n()) %>%
   na.omit()
 
-data2$Site<-as.factor(data2$Site)
-data2$Quadrat<-as.factor(data2$Quadrat)
-data2$Taxon<-as.factor(data2$Taxon)
-colnames(data2)[3]<-"spp"
+data2MN$Site<-as.factor(data2MN$Site)
+data2MN$Quadrat<-as.factor(data2MN$Quadrat)
+data2MN$Taxon<-as.factor(data2MN$Taxon)
+colnames(data2MN)[3]<-"spp"
 
-data_comp3=data2 %>% ungroup %>% 
+data_comp3=data2MN %>% ungroup %>% 
   select(spp,Site,Quadrat,S) %>% 
   group_by(Site,Quadrat,spp) %>% 
   distinct() %>% drop_na() %>% 
   spread(spp,S) %>% ungroup() %>% 
   mutate(across(everything(.), ~replace_na(., 0))) 
 
-
-# Comp_mat=data_comp2 %>% select(-c(Site,Sample,Micro,Structure2,Strcut_groups,Date_courte)) %>% as.matrix() 
-# Meta_data=data_comp2 %>% select(Site,Sample,Micro,Structure2,Strcut_groups,Date_courte) #créer jeu de données avec les méta données
-# distdataR<-vegdist(Comp_mat, method='bray') #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme plus efficace pour les données écologiques
 
 Comp_mat=data_comp3 %>% select(-c(Site,Quadrat)) %>% as.matrix() 
 Meta_data=data_comp3 %>% select(Site,Quadrat) #créer jeu de données avec les méta données
@@ -1288,14 +1354,74 @@ y=pcoa_tot_SS$points[,2]
 
 plot(x,y) 
 
-PCOA_dfM=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
-                   Structure=Meta_data$Structure2,
+PCOA_dfMN=data.frame(x=pcoa_tot_SS$points[,1],y=pcoa_tot_SS$points[,2],
                    Site=Meta_data$Site,
-                   Date=Meta_data$Date_courte,
-                   Saison=Meta_data$saison,
-                   Years=Meta_data$Years,
-                   Compsite_date=Meta_data$Compsite_date
-                   # Structure3=Meta_data$nouvelle
-                   )
+                   Quadrat=Meta_data$Quadrat)
+
+
+ggplot(data=PCOA_dfMN,aes(x,y,colour=Site))+ # <- Ici on explore avec col les variable qui explique le + l'explosion du nuage de points
+  # geom_point(aes(col=Site), size=1, alpha=.6)+
+  geom_point(alpha=.3)+
+  labs(x="Axe 1 (20.5%)",y="Axe 2 (11.1%)")+
+  geom_hline(yintercept=0)+
+  geom_vline(xintercept=0)+
+  theme_bw()+
+  geom_mark_ellipse(aes(fill=Site,group=Site),tol=1,alpha=.2)+
+  (scale_y_continuous(limits=c(-0.75,0.75)))+
+  (scale_x_continuous(limits=c(-0.75,0.75)))
+
+```
+
+
+# # Test comparaison GOELO vs milieu naturel
+```{r}
+
+
+dataR$saison<-dataR$Date_courte
+dataR$saison[dataR$saison == "2023-07"] <- "été"
+dataR$saison[dataR$saison == "2022-09" | dataR$saison == "2023-09"] <- "automne"
+
+data_comp2=dataR %>% ungroup %>% 
+  select(spp,Mcov,Site,Micro,Date_courte,Structure2,saison) %>% 
+  group_by(spp,Site,Micro,Date_courte,Structure2,saison) %>% 
+  distinct() %>% drop_na() %>% 
+  summarize(S=n()) 
+
+data_comp2=data_comp2 %>% ungroup %>% select(spp,Site,Structure2,S) %>% group_by(spp,Site,Structure2) 
+
+
+
+
+# data milieu naturel
+
+data1<-read.table("Inventaire seul milieu naturel.csv",sep=";",header=T)
+data12=data1 %>% select(Site,Quadrat,Taxon) %>% 
+  filter(!Taxon %in% c("NA","NI")) %>% na.omit
+
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "1")]<-"11"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "2")]<-"12"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "3")]<-"13"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "4")]<-"14"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "5")]<-"15"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "6")]<-"16"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "7")]<-"17"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "8")]<-"18"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "9")]<-"19"
+data12$Quadrat[which(data12$Site == "T2S2" & data12$Quadrat == "10")]<-"20"
+data12$Site[which(data12$Site == "T2S2")]<-"T2"
+
+
+data2MN=data12 %>% ungroup %>% 
+  select(Site,Quadrat,Taxon) %>% 
+  filter(!Taxon %in% c("NA","NI")) %>% 
+  distinct %>% 
+  group_by(Site,Quadrat,Taxon) %>% 
+  summarize(S=n()) %>%
+  na.omit()
+
+data2$Site<-as.factor(data2$Site)
+data2$Quadrat<-as.factor(data2$Quadrat)
+data2$Taxon<-as.factor(data2$Taxon)
+colnames(data2)[3]<-"spp"
 
 ```
