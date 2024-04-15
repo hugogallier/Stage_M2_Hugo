@@ -7,6 +7,8 @@ editor_options:
   chunk_output_type: console
 ---
 
+# library
+
 ```{r}
 rm(list=ls())
 
@@ -698,4 +700,261 @@ dataR3
 test1<-multipatt(dataR3[-c(1:5,66)],dataR3$Site)
 summary(test1)
 
+```
+
+
+
+
+# # Calcul nestedness/replacement/richesse
+```{r}
+
+##### Mise en place des jeux de données
+# MARINEFF
+dataRM$saison<-dataRM$Date_courte
+dataRM$saison[dataRM$saison == "2021-04" | dataRM$saison == "2022-04"] <- "printemps"
+dataRM$saison[dataRM$saison == "2021-07" | dataRM$saison == "2022-07"] <- "été"
+dataRM$saison[dataRM$saison == "2021-10" | dataRM$saison == "2021-11"| dataRM$saison == "2022-11"] <- "automne"
+dataRM$saison[dataRM$saison == "2021-01" | dataRM$saison == "2022-01"] <- "hiver"
+
+### Mcov moyen
+dataR3=dataRM %>% ungroup %>%
+  select(spp,Site,Structure2,Micro,Date_courte,Mcov,Quad2,saison) %>%
+  # filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>% 
+  distinct()%>%
+  group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
+  as.data.frame() %>% summarize(Mcov=mean(Mcov),.by=c(spp,Site,Structure2,Micro,Date_courte,saison)) %>%
+  na.omit()%>%
+  droplevels()
+
+
+# GOELO
+dataRG$saison<-dataRG$Date_courte
+dataRG$saison[dataRG$saison == "2023-07"] <- "été"
+dataRG$saison[dataRG$saison == "2022-09" | dataRG$saison == "2023-09"] <- "automne"
+
+dataR4=dataRG %>% ungroup %>% select(spp,Site,Structure2,Micro,Date_courte,saison,Mcov)
+
+
+# MARINEFF + GOELO
+dataRGM<-rbind(dataR3,dataR4)
+
+dataRGM2=dataRGM %>% spread(spp,Mcov) %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) %>% 
+  mutate(Name=paste(Site,Structure2,Date_courte,saison,sep=","))
+
+  
+  
+
+
+
+
+##### Calcul de la nestedness, diversité et turnover
+databetadiv2<-beta.div.comp(dataRGM2[,-c(1:5,69:70)],coef="S")
+
+
+# Extraction des matrices
+mat.D=as.matrix(databetadiv2$D)
+mat.D[upper.tri(mat.D)]<-NA
+diag(mat.D)<-NA
+rownames(mat.D)<-dataRGM2$Name #change le nom des lignes avec les metadonnées
+colnames(mat.D)<-dataRGM2$Name #change le nom des colonnes avec les metadonnées
+ 
+mat.repl=as.matrix(databetadiv2$repl)
+mat.repl[upper.tri(mat.repl)]<-NA
+diag(mat.repl)<-NA
+rownames(mat.repl)<-dataRGM2$Name #change le nom des lignes avec les metadonnées
+colnames(mat.repl)<-dataRGM2$Name #change le nom des colonnes avec les metadonnées
+ 
+mat.rich=as.matrix(databetadiv2$rich)
+mat.rich[upper.tri(mat.rich)]<-NA
+diag(mat.rich)<-NA
+rownames(mat.rich)<-dataRGM2$Name #change le nom des lignes avec les metadonnées
+colnames(mat.rich)<-dataRGM2$Name #change le nom des colonnes avec les metadonnées
+ 
+
+# Transformation des matrices en df
+test.mat.D=na.omit(reshape2::melt(mat.D)) %>% mutate(Type='D') 
+test.mat.D2 <- test.mat.D %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.D2)<-c("Site1","Structure1","Date1","Saison1","Site2","Structure2","Date2","Saison2","Dissimilarité","type")
+
+test.mat.repl=na.omit(reshape2::melt(mat.repl)) %>% mutate(Type='repl')
+test.mat.repl2 <- test.mat.repl %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.repl2)<-c("Site1","Structure1","Date1","Saison1","Site2","Structure2","Date2","Saison2","Dissimilarité","type")
+
+test.mat.rich=na.omit(reshape2::melt(mat.rich)) %>% mutate(Type='rich')
+test.mat.rich2 <- test.mat.rich %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.rich2)<-c("Site1","Structure1","Date1","Saison1","Site2","Structure2","Date2","Saison2","Dissimilarité","type")
+
+
+#Création jeu de données rassemblant les différentes données
+datadissi<-test.mat.D2 %>% select(Site1,Structure1,Date1,Saison1,Site2,Structure2,Date2,Saison2,Dissimilarité) 
+datarepl<-test.mat.repl2 %>% select(Site1,Structure1,Date1,Saison1,Site2,Structure2,Date2,Saison2,Dissimilarité) 
+datarich<-test.mat.rich2 %>% select(Site1,Structure1,Date1,Saison1,Site2,Structure2,Date2,Saison2,Dissimilarité)
+
+datatern<-cbind(datadissi[,-c(5,7)],Similarité=(1-datadissi[,9])*100,Remplacement=100*datarepl[,9],Richesse=100*datarich[,9])
+datatern<-cbind(datadissi[,-c(9)],Similarité=(1-datadissi[,9]),Remplacement=datarepl[,9],Richesse=datarich[,9])
+ 
+  
+  
+  
+  
+  
+  
+  
+  
+
+#### Comparaison interstructures - indices de beta diversité 
+datatern2=datatern %>%
+  # filter(Structure1 == 'Disc') %>%
+    # filter(Structure1 %in% c('Disc','Inner_slots')) %>%
+    # filter(Structure2 %in% c('Disc','Inner_slots')) %>%
+  # filter(Structure2%in% c('Disc')) %>%
+    # filter(Structure1 %in% c('Inner_slots')) %>%
+  # filter(Site1 == 'Fe') %>%
+    # filter(Site2 == 'Fe') %>%
+    # filter(Site1!=Site2) %>%
+  filter(Site1 == Site2) %>% 
+  # filter(Saison1 == Saison2) %>%
+  filter(Structure1!=Structure2) %>%
+  # filter(Structure1 == Structure2) %>%
+  # filter(Date1!=Date2) %>%
+  filter(Date1==Date2) %>%
+  # filter(Date1 == '2022-01') %>%
+  # filter(Date2 == '2022-01') %>%
+  # filter(!Date1 %in% c("2021-04","2021-07",'2021-10','2021-11')) %>%
+  # filter(!Date2 %in% c("2021-04","2021-07",'2021-10','2021-11')) %>%
+  mutate(Comp_site=Site1,
+         Comp_struct=Structure1,
+         Comp_date=Date1) 
+# %>% 
+  # filter(Comp_struct =="Inner_slots")
+
+datatern2=datatern2 %>% 
+ mutate(Compasite<-paste(Site1,Site2,sep="/")) %>% 
+  mutate(Compastruct<-paste(Structure1,Structure2,sep="/")) %>% 
+  mutate(Compadate<-paste(Date1,Date2,sep="/")) %>% 
+  mutate(Compasaison<-paste(Saison1,Saison2,sep="/")) %>% 
+  mutate(Compasite_date<-paste(Site1,Date1,sep="/")) 
+colnames(datatern2)[15]<-"Compasite"
+colnames(datatern2)[16]<-"Compastruct"
+colnames(datatern2)[17]<-"Compadate"
+colnames(datatern2)[18]<-"Compasaison"
+colnames(datatern2)[19]<-"Compasitedate"
+
+#pour pouvoir mettre mettre les données de structure et date ensemble
+# datatern2=datatern2 %>% mutate(Compasitedate=paste(Comp_struct,Compadate))
+datatern2=datatern2 %>% mutate(Compasite_struct=paste(Compasite,Structure1))
+datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+datatern2=datatern2 %>% mutate(Site_Years=paste(Compasite,Years))
+datatern2=datatern2 %>% mutate(Compastruct_date=paste(Compadate,Compastruct))
+datatern2=datatern2 %>% mutate(Compastruct_site_date=paste(Compasitedate,Compastruct))
+datatern2=datatern2 %>% mutate(Compasite_date=paste(Compasite,Date1))
+
+datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Comp_date) %>%  #permet de faire la moyenne de chaque colonne par site/struct
+  #  Compastruct,,Comp_site,Compadate,Compadate,Compadate,Compastruct,Compastruct,Site_Years <-à utiliser dans la ligne d'avant afin de faire les comparaisons voulues
+  dplyr::summarize(Similarité=mean(Similarité),
+            Remplacement=mean(Remplacement),
+            Richesse=mean(Richesse))
+
+
+datameansimi=datamean %>% select(Comp_site,Compastruct,Comp_date,Similarité) %>% 
+  mutate(Betaindex= "Similarité") %>% select(Betaindex,Comp_site,Compastruct,Comp_date,Similarité)
+colnames(datameansimi)[5]<-"BIvalue"
+
+datameanremp=datamean %>% select(Comp_site,Compastruct,Comp_date,Remplacement) %>% 
+  mutate(Betaindex= "Remplacement") %>% select(Betaindex,Comp_site,Compastruct,Comp_date,Remplacement)
+colnames(datameanremp)[5]<-"BIvalue"
+
+datameanrich=datamean %>% select(Comp_site,Compastruct,Comp_date,Richesse)  %>% 
+  mutate(Betaindex= "Richesse") %>% select(Betaindex,Comp_site,Compastruct,Comp_date,Richesse)
+colnames(datameanrich)[5]<-"BIvalue"
+
+databetaindexinterstructures <- rbind(datameansimi,datameanremp,datameanrich)
+
+
+
+
+
+
+
+
+#### Comparaison intersites - indices de beta diversité 
+datatern2=datatern %>%
+  # filter(Structure1 == 'Disc') %>%
+    # filter(Structure1 %in% c('Disc','Inner_slots')) %>%
+    # filter(Structure2 %in% c('Disc','Inner_slots')) %>%
+  # filter(Structure2%in% c('Disc')) %>%
+    # filter(Structure1 %in% c('Inner_slots')) %>%
+  # filter(Site1 == 'Fe') %>%
+    # filter(Site2 == 'Fe') %>%
+    filter(Site1!=Site2) %>%
+  # filter(Site1 == Site2) %>% 
+  # filter(Saison1 == Saison2) %>%
+  # filter(Structure1!=Structure2) %>%
+  filter(Structure1 == Structure2) %>%
+  # filter(Date1!=Date2) %>%
+  filter(Date1==Date2) %>%
+  # filter(Date1 == '2022-01') %>%
+  # filter(Date2 == '2022-01') %>%
+  # filter(!Date1 %in% c("2021-04","2021-07",'2021-10','2021-11')) %>%
+  # filter(!Date2 %in% c("2021-04","2021-07",'2021-10','2021-11')) %>%
+  mutate(Comp_site=Site1,
+         Comp_struct=Structure1,
+         Comp_date=Date1) 
+# %>% 
+  # filter(Comp_struct =="Inner_slots")
+
+datatern2=datatern2 %>% 
+ mutate(Compasite<-paste(Site1,Site2,sep="/")) %>% 
+  mutate(Compastruct<-paste(Structure1,Structure2,sep="/")) %>% 
+  mutate(Compadate<-paste(Date1,Date2,sep="/")) %>% 
+  mutate(Compasaison<-paste(Saison1,Saison2,sep="/")) %>% 
+  mutate(Compasite_date<-paste(Site1,Date1,sep="/")) 
+colnames(datatern2)[15]<-"Compasite"
+colnames(datatern2)[16]<-"Compastruct"
+colnames(datatern2)[17]<-"Compadate"
+colnames(datatern2)[18]<-"Compasaison"
+colnames(datatern2)[19]<-"Compasitedate"
+
+#pour pouvoir mettre mettre les données de structure et date ensemble
+# datatern2=datatern2 %>% mutate(Compasitedate=paste(Comp_struct,Compadate))
+datatern2=datatern2 %>% mutate(Compasite_struct=paste(Compasite,Structure1))
+datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+datatern2=datatern2 %>% mutate(Site_Years=paste(Compasite,Years))
+datatern2=datatern2 %>% mutate(Compastruct_date=paste(Compadate,Compastruct))
+datatern2=datatern2 %>% mutate(Compastruct_site_date=paste(Compasitedate,Compastruct))
+datatern2=datatern2 %>% mutate(Compasite_date=paste(Compasite,Date1))
+
+datamean<-datatern2 %>%  group_by(Compasite,Comp_struct,Comp_date) %>%  #permet de faire la moyenne de chaque colonne par site/struct
+  #  Compastruct,,Comp_site,Compadate,Compadate,Compadate,Compastruct,Compastruct,Site_Years <-à utiliser dans la ligne d'avant afin de faire les comparaisons voulues
+  dplyr::summarize(Similarité=mean(Similarité),
+            Remplacement=mean(Remplacement),
+            Richesse=mean(Richesse))
+
+
+datameansimi=datamean %>% select(Compasite,Comp_struct,Comp_date,Similarité) %>% 
+  mutate(Betaindex= "Similarité") %>% select(Betaindex,Compasite,Comp_struct,Comp_date,Similarité)
+colnames(datameansimi)[5]<-"BIvalue"
+
+datameanremp=datamean %>% select(Compasite,Comp_struct,Comp_date,Remplacement) %>% 
+  mutate(Betaindex= "Remplacement") %>% select(Betaindex,Compasite,Comp_struct,Comp_date,Remplacement)
+colnames(datameanremp)[5]<-"BIvalue"
+
+datameanrich=datamean %>% select(Compasite,Comp_struct,Comp_date,Richesse)  %>% 
+  mutate(Betaindex= "Richesse") %>% select(Betaindex,Compasite,Comp_struct,Comp_date,Richesse)
+colnames(datameanrich)[5]<-"BIvalue"
+
+databetaindexintersite <- rbind(datameansimi,datameanremp,datameanrich)
 ```
