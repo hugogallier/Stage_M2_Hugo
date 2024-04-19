@@ -884,9 +884,13 @@ colnames(datameanrich)[5]<-"BIvalue"
 databetaindexinterstructures <- rbind(datameansimi,datameanremp,datameanrich)
 
 
+databetaindexinterstructures$BIvalue<-as.numeric(databetaindexinterstructures$BIvalue)
+databetaindexinterstructures$Betaindex<-as.factor(databetaindexinterstructures$Betaindex)
+databetaindexinterstructures$Compastruct<-as.factor(databetaindexinterstructures$Compastruct)
+# databetaindexinterstructures$Compasite<-as.factor(databetaindexinterstructures$Compasite)
+databetaindexinterstructures$Comp_date<-as.numeric(databetaindexinterstructures$Comp_date)
 
-
-
+model1<-gam(BIvalue~s(Comp_date)+s(Compastruct,bs="re")+s(Comp_site,bs="re")+s(Betaindex,bs="re")+Comp_site*Betaindex,data=databetaindexinterstructures)
 
 
 
