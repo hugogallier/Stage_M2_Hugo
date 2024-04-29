@@ -298,7 +298,7 @@ dataR2=dataR %>%
   summarize(S=n()) 
 
 
-length(unique(dataR1$spp))#permet de savoir le nombre de variable différente dans la colonne spp (mais ne prend pas en compte la suppression des N)
+length(unique(dataR1$spp)) #permet de savoir le nombre de variable différente dans la colonne spp (mais ne prend pas en compte la suppression des N)
 
 ```
 
@@ -1620,6 +1620,292 @@ ggplot(PCOA_df, aes(x = x, y = y)) +
 
 ```
 
+
+## # Analyse des trajectoires PCoA
+```{r}
+dataR$saison<-dataR$Date_courte
+dataR$saison[dataR$saison == "2021-04" | dataR$saison == "2022-04"] <- "printemps"
+dataR$saison[dataR$saison == "2021-07" | dataR$saison == "2022-07"] <- "été"
+dataR$saison[dataR$saison == "2021-10" | dataR$saison == "2021-11"| dataR$saison == "2022-11"] <- "automne"
+dataR$saison[dataR$saison == "2022-01"] <- "hiver"
+dataR$saison[dataR$saison == "2021-01" |dataR$saison == "2022-01"] <- "hiver"
+
+dataR$Day_delta[dataR$Date_courte == "2021-10" & dataR$Site == "Fe"]<-"336"
+dataR$Day_delta[dataR$Date_courte == "2021-10" & dataR$Site == "VB"]<-"339"
+dataR$Date_courte[dataR$Date_courte == "2021-10" & dataR$Site == "Fe"]<-"2021-11"
+dataR$Date_courte[dataR$Date_courte == "2021-10" & dataR$Site == "VB"]<-"2021-11"
+
+##marche
+data_comp2=dataR %>% ungroup %>%
+  select(spp,Site,Structure2,Micro,Date_courte,Day_delta,Mcov,Quad2,saison) %>%
+  # filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>% 
+  distinct()%>%
+  group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
+  as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Structure2,Micro,Date_courte,Day_delta,saison)) %>%
+  na.omit()%>%
+  droplevels() %>% 
+  spread(spp,Mcov2) %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) %>% 
+  mutate(Name=paste(Site,Structure2,Date_courte,saison,Day_delta,sep=","))
+
+
+## Sans microhabitats
+data_comp2=dataR %>% ungroup %>%
+  select(spp,Site,Structure2,Micro,Date_courte,Day_delta,Mcov,Quad2,saison) %>%
+  # filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>% 
+  distinct()%>%
+  group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
+  as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Structure2,Date_courte,Day_delta,saison)) %>%
+  na.omit()%>%
+  droplevels() %>% 
+  mutate(num=seq(1:1061)) %>% 
+  spread(spp,Mcov2) %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) 
+
+
+
+
+
+
+data_comp2$Site<-as.factor(data_comp2$Site)
+data_comp2$Date_courte<-as.factor(data_comp2$Date_courte)
+data_comp2$Day_delta<-as.factor(data_comp2$Day_delta)
+data_comp2$Structure2<-as.factor(data_comp2$Structure2)
+data_comp2$saison<-as.factor(data_comp2$saison)
+
+
+Comp_mat=data_comp2 %>% select(-c(Site,Structure2,Date_courte,saison,Day_delta,num)) %>% as.matrix() #sans meta données
+Meta_data=data_comp2 %>% select(Site,Structure2,Date_courte,saison,Day_delta,num) #meta données
+
+distdataR<-vegdist(Comp_mat, method='bray') 
+
+# 
+# sD<-trajectoryDistances(distdataR,data_comp2$Day_delta,surveys=NULL)
+# sD<-trajectoryLengths(distdataR,data_comp2$Site,surveys=NULL) #longueur totale des vecteurs
+# 
+# summary(sD)
+# sD1<-as.data.frame(sD)
+```
+
+
+##Distance
+```{r}
+##### Distance totale Structure par structure
+data_comp2=dataR %>% ungroup %>%
+  select(spp,Site,Structure2,Micro,Date_courte,Day_delta,Mcov,Quad2,saison) %>%
+  filter(Structure2 == "Inner_slots") %>% 
+  filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>%
+  distinct()%>%
+  group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
+  as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Date_courte,Day_delta,saison)) %>%
+  na.omit()%>%
+  droplevels() %>% 
+  spread(spp,Mcov2) %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) 
+
+
+data_comp2$Site<-as.factor(data_comp2$Site)
+data_comp2$Date_courte<-as.factor(data_comp2$Date_courte)
+data_comp2$Day_delta<-as.factor(data_comp2$Day_delta)
+data_comp2$saison<-as.factor(data_comp2$saison)
+
+
+Comp_mat=data_comp2 %>% select(-c(Site,Date_courte,saison,Day_delta)) %>% as.matrix() #sans meta données
+Meta_data=data_comp2 %>% select(Site,Date_courte,saison,Day_delta) #meta données
+
+
+distdataR<-vegdist(Comp_mat, method='bray') 
+
+sDL<-trajectoryLengths(distdataR,data_comp2$Site,surveys=NULL) #longueur totale des vecteurs
+
+
+sDLCo=sDL %>%  select(Trajectory)
+sDLDi=sDL %>%  select(Trajectory)
+sDLPi=sDL %>%  select(Trajectory)
+sDLF=sDL %>%  select(Trajectory)
+sDlength<-rbind(sDLCo,sDLDi,sDLPi,sDLF)
+sDlength$Structure<-rep(c("Colonnes","Disques","Piliers","Faille"),each=4)
+sDlength$Site<-c("Bi","Bu","Fe","VB")
+sDlength$sd<-sqrt(sDlength$Trajectory)
+# save(sDlength, file="sDlength.Rdata")
+
+ggplot(sDlength, aes(Structure,Trajectory,fill=Structure))+ 
+  geom_bar(stat="identity",alpha=.7)+
+  # geom_boxplot()+
+  geom_errorbar(aes(ymin=Trajectory-sd, ymax=Trajectory+sd), width=.2, position=position_dodge(.9))+ #ajout des barres d'erreur
+  theme_bw()+ 
+  xlab("")+ylab("Distance total de la trajectoire")+
+  facet_wrap(~Site)
+
+aov1<-aov(Trajectory~Structure+Site,data=sDlength)
+summary(aov1)
+
+adonis2(sDlength$Trajectory~Site+Structure,data=sDlength,permutations=999)
+
+groupe<-sDlength$Site
+groupe<-sDlength$Structure
+
+adonis3<-permanova_pairwise(sDlength[,-c(2:4)],groupe,permutations=999,method='bray',padj="bonferroni")
+
+
+##### Essayer de diviser les longeurs à chaque poitn par le temps pour avoir la vitesse
+
+```
+
+
+##Angles
+```{r}
+##### Angles moyens Structure par structure
+data_comp2=dataR %>% ungroup %>%
+  select(spp,Site,Structure2,Micro,Date_courte,Day_delta,Mcov,Quad2,saison) %>%
+  filter(Structure2 == "Columns") %>%
+  filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>%
+  distinct()%>%
+  group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
+  as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Date_courte,Day_delta,saison)) %>%
+  na.omit()%>%
+  droplevels() %>% 
+  spread(spp,Mcov2) %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) 
+
+
+data_comp2$Site<-as.factor(data_comp2$Site)
+data_comp2$Date_courte<-as.factor(data_comp2$Date_courte)
+data_comp2$Day_delta<-as.factor(data_comp2$Day_delta)
+data_comp2$saison<-as.factor(data_comp2$saison)
+
+
+Comp_mat=data_comp2 %>% select(-c(Site,Date_courte,saison,Day_delta)) %>% as.matrix() #sans meta données
+Meta_data=data_comp2 %>% select(Site,Date_courte,saison,Day_delta) #meta données
+
+
+distdataR<-vegdist(Comp_mat, method='bray') 
+
+sDA<-trajectoryAngles(distdataR,data_comp2$Site,surveys=NULL) #angle des vecteurs
+
+sDACo=sDA %>%  select(-rho)%>% mutate("S5-S6"=="0") 
+colnames(sDACo)[7]<-"S5-S6"
+sDACo<-sDACo[,c(1:4,7,5:6)] 
+sDADi=sDA %>%  select(-rho)
+sDAPi=sDA %>%  select(-rho) %>% mutate("S5-S6"=="0") 
+colnames(sDAPi)[7]<-"S5-S6"
+sDAPi<-sDAPi[,c(1:4,7,5:6)]
+sDAF=sDA  %>%  select(-rho)
+
+sDAngle<-rbind(sDACo,sDADi,sDAPi,sDAF)
+sDAngle$Structure<-rep(c("Colonnes","Disques","Piliers","Faille"),each=4)
+sDAngle$Site<-c("Bi","Bu","Fe","VB")
+sDAngle$sd<-sqrt(sDAngle$mean)
+
+colnames(sDAngle)[c(1:5)]<-c("premier","deuxieme","troisieme","quatrieme","cinquieme")
+
+
+
+ggplot(sDAngle[-c(3,7,11,15),], aes(Structure,premier,colour=Site))+ 
+  geom_point(stat="identity",alpha=.7)+
+  theme_bw()+ 
+  xlab("")+ylab("Angles des vecteurs entre avril et juillet 2021") # pas sûr des dates parce que possible que les structures n'ont pas été échantillonnées tout le temps
+
+ggplot(sDAngle[-c(3,7,11,15),], aes(Structure,deuxieme,colour=Site))+ 
+  geom_point(stat="identity",alpha=.7)+
+  theme_bw()+ 
+  xlab("")+ylab("Angles des vecteurs entre juillet et novembre 2021")# pas sûr des dates parce que possible que les structures n'ont pas été échantillonnées tout le temps
+
+ggplot(sDAngle[-c(3,7,11,15),], aes(Structure,troisieme,colour=Site))+ 
+  geom_point(stat="identity",alpha=.7)+
+  theme_bw()+ 
+  xlab("")+ylab("Angles des vecteurs entre novembre et janvier 2021")# pas sûr des dates parce que possible que les structures n'ont pas été échantillonnées tout le temps
+
+ggplot(sDAngle[-c(3,7,11,15),], aes(Structure,quatrieme,colour=Site))+ 
+  geom_point(stat="identity",alpha=.7)+
+  theme_bw()+ 
+  xlab("")+ylab("Angles des vecteurs entre janvier et avril 2021")# pas sûr des dates parce que possible que les structures n'ont pas été échantillonnées tout le temps
+
+
+ggplot(sDAngle, aes(Structure,mean,fill=Site))+ 
+  geom_bar(stat="identity",alpha=.7)+
+  # geom_boxplot()+
+  # geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2, position=position_dodge(.9))+ #ajout des barres d'erreur
+  theme_bw()+ 
+  xlab("")+ylab("Angles moyens des vecteurs")
+
+
+
+aov1<-aov(mean~Structure+Site,data=sDAngle)
+summary(aov1)
+
+groupe<-sDAngle$Site
+groupe<-sDAngle$Structure
+adonis3<-permanova_pairwise(sDAngle$mean,groupe,permutations=999,method='bray',padj="bonferroni")
+
+```
+
+## Direction
+```{r}
+
+data_comp2=dataR %>% ungroup %>%
+  select(spp,Site,Structure2,Micro,Date_courte,Day_delta,Mcov,Quad2,saison) %>%
+  filter(Structure2 == "Pillars") %>% 
+  filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>%
+  distinct()%>%
+  group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
+  as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Date_courte,Day_delta,saison)) %>%
+  na.omit()%>%
+  droplevels() %>% 
+  spread(spp,Mcov2) %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) 
+
+
+data_comp2$Site<-as.factor(data_comp2$Site)
+data_comp2$Date_courte<-as.factor(data_comp2$Date_courte)
+data_comp2$Day_delta<-as.factor(data_comp2$Day_delta)
+data_comp2$saison<-as.factor(data_comp2$saison)
+
+
+Comp_mat=data_comp2 %>% select(-c(Site,Date_courte,saison,Day_delta)) %>% as.matrix() #sans meta données
+Meta_data=data_comp2 %>% select(Site,Date_courte,saison,Day_delta) #meta données
+
+
+distdataR<-vegdist(Comp_mat, method='bray') 
+
+sDD<-trajectoryDirectionality(distdataR,data_comp2$Site,surveys=NULL) #angle des vecteurs
+
+library(reshape2)
+sDDCo=sDD %>%  melt()
+sDDDi=sDD %>%  melt()
+sDDPi=sDD %>%  melt()
+sDDF=sDD %>% melt()
+sDDirection<-rbind(sDDCo,sDDDi,sDDPi,sDDF)
+sDDirection$Structure<-rep(c("Colonnes","Disques","Piliers","Faille"),each=4)
+sDDirection$Site<-c("Bi","Bu","Fe","VB")
+sDDirection$sd<-sqrt(sDDirection$value)
+
+ggplot(sDDirection, aes(Structure,value,fill=Structure))+ 
+  geom_bar(stat="identity",alpha=.7)+
+  # geom_boxplot()+
+  geom_errorbar(aes(ymin=value, ymax=value+sd), width=.2, position=position_dodge(.9))+ #ajout des barres d'erreur
+  theme_bw()+ 
+  xlab("")+ylab("Direction moyenne des trajectoires")+
+  facet_wrap(~Site)
+
+aov1<-aov(value~Structure+Site,data=sDDirection)
+summary(aov1)
+
+groupe<-sDDirection$Site
+groupe<-sDDirection$Structure
+
+adonis3<-permanova_pairwise(sDDirection$value,groupe,permutations=999,method='bray',padj="bonferroni")
+
+
+
+
+
+##### Convergence
+sDD<-trajectoryConvergence(distdataR,data_comp2$Site,surveys=NULL) #convergence des vecteurs
+#les données ne sont pas significatives donc pas pris en compte
+```
+
+
 ## Permanova
 ```{r}
 # Permet de voir s'il y a possibilité de regrouper les structures
@@ -2691,17 +2977,20 @@ datameanrich$Compastruct[datameanrich$Compastruct == "Columns/Columns"| datamean
 datameanrich$Compastruct[datameanrich$Compastruct == "Columns/Disc"| datameanrich$Compastruct == "Columns/Iner_slots"| datameanrich$Compastruct == "Disc/Columns"| datameanrich$Compastruct == "Disc/Inner_slots"| datameanrich$Compastruct == "Disc/Pillars"| datameanrich$Compastruct == "Inner_slots/Columns" | datameanrich$Compastruct == "Inner_slots/Disc"| datameanrich$Compastruct == "Inner_slots/Pillars" | datameanrich$Compastruct == "Pillars/Columns"| datameanrich$Compastruct == "Pillars/Disc"| datameanrich$Compastruct == "Pillars/Inner_slots"] <- "Inter"
 
 
-
-
 databetaindex2 <- cbind(datameansimi[,-1],datameanremp[,-c(1:5)],datameanrich[,-c(1:5)])
 colnames(databetaindex2)[5:7]<-c("Similarité","Remplacement","Richesse")
 
 
+
+# random forest avec test plot selon variable
 library(randomForest)
+library(randomForestSRC)
 
 rf1<-randomForest(BIvalue~.,data=datameansimi[,-c(1,5)],ntree=200)
 rf2<-randomForest(BIvalue~.,data=datameanremp[,-c(1,5)],ntree=200)
 rf3<-randomForest(BIvalue~.,data=datameanrich[,-c(1,5)],ntree=200)
+
+rf4 <- rfsrc(as.numeric(BIvalue) ~ ., data=datameansimi[,-c(1,5)])
 
 par(mfrow=c(2,2))
 varImpPlot(rf1,main="Similarité")
@@ -2709,9 +2998,57 @@ varImpPlot(rf2,main="Remplacement")
 varImpPlot(rf3,main="Richesse")
 importance(rf1)
 
+
+datameanrich$Compasite<-as.factor(datameanrich$Compasite)
+datameanrich$Compastruct<-as.factor(datameanrich$Compastruct)
+datameanrich$Comp_date<-as.factor(datameanrich$Comp_date)
+datameanrich$BIvalue<-as.numeric(datameanrich$BIvalue)
+
+datameansimi$Compasite<-as.factor(datameansimi$Compasite)
+datameansimi$Compastruct<-as.factor(datameansimi$Compastruct)
+datameansimi$Comp_date<-as.factor(datameansimi$Comp_date)
+datameansimi$BIvalue<-as.numeric(datameansimi$BIvalue)
+
+datameanrich2<-datameanrich[,-c(1,5)]
+
+
+
+v.obj <- rfsrc(BIvalue~.,data= as.data.frame(datameanrich2))
+     
+## get partial effect of age on mortality
+partial.obj <- partial(v.obj,
+       partial.type = "mort",
+       partial.xvar = "Compasite",
+       partial.values = v.obj$xvar$Compasite,
+       partial.time = v.obj$xvar$Comp_date)
+pdta <- get.partial.plot.data(partial.obj)
+
+## plot partial effect of age on mortality    
+plot(lowess(pdta$x, pdta$yhat, f = 1/3),
+     type = "l", xlab = "age", ylab = "adjusted mortality")
+     
+## partial effects of karnofsky score on survival
+# karno <- quantile(v.obj$xvar$karno)
+partial.obj <- partial(v.obj,
+partial.type = "mort",
+partial.xvar = "Compasite",
+partial.values = v.obj$xvar$Compasite,
+partial.time = v.obj$xvar$Comp_date)
+pdta <- get.partial.plot.data(partial.obj)
+     
+## plot partial effect of karnofsky on survival
+matplot(pdta$partial.time, t(pdta$yhat), type = "l", lty = 1,
+        xlab = "time", ylab = "karnofsky adjusted survival")
+legend("topright", legend = paste0("karnofsky = ", karno), fill = 1:5)
+
+
+
+
 partialPlot(rf1,datameansimi[,-c(1,5)],Compasite)
 
-
+partial.obj <- partial(rf1,
+                 partial.xvar = "Wind",
+                 partial.values = airq.obj$xvar$Wind)
 
 --> faire plot de dépendance partiel (package partial dependence plot)
 ```
@@ -2719,223 +3056,967 @@ partialPlot(rf1,datameansimi[,-c(1,5)],Compasite)
 
 
 
-# # Analyse des trajectoires
+<!-- ## Analyse des trajectoires -->
+<!-- ### Longueur  -->
 ```{r}
-dataR$saison<-dataR$Date_courte
-dataR$saison[dataR$saison == "2021-04" | dataR$saison == "2022-04"] <- "printemps"
-dataR$saison[dataR$saison == "2021-07" | dataR$saison == "2022-07"] <- "été"
-dataR$saison[dataR$saison == "2021-10" | dataR$saison == "2021-11"| dataR$saison == "2022-11"] <- "automne"
-dataR$saison[dataR$saison == "2022-01"] <- "hiver"
-dataR$saison[dataR$saison == "2021-01" |dataR$saison == "2022-01"] <- "hiver"
+########## Comparaison intrasite interstructures ##########
+## Bi ##
+# 
+# datatern
+# 
+# datatern2=datatern %>%
+#   filter(Site1 == 'Bi') %>%
+#   filter(Site1 == Site2) %>%
+#   filter(Structure1!=Structure2) %>%
+#   filter(Date1==Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Comp_site<-as.factor(datamean$Comp_site)
+# datamean$Compastruct<-as.factor(datamean$Compastruct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# trajBi<-trajectoryLengths(distdataR,datamean$Compastruct,surveys=NULL) 
+# 
+# 
+# 
+# ## Bu ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 == 'Bu') %>%
+#   filter(Site1 == Site2) %>%
+#   filter(Structure1!=Structure2) %>%
+#   filter(Date1==Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Comp_site<-as.factor(datamean$Comp_site)
+# datamean$Compastruct<-as.factor(datamean$Compastruct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# trajBu<-trajectoryLengths(distdataR,datamean$Compastruct,surveys=NULL) 
+# 
+# 
+# 
+# ## Fe ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 == 'Fe') %>%
+#   filter(Site1 == Site2) %>%
+#   filter(Structure1!=Structure2) %>%
+#   filter(Date1==Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Comp_site<-as.factor(datamean$Comp_site)
+# datamean$Compastruct<-as.factor(datamean$Compastruct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# trajFe<-trajectoryLengths(distdataR,datamean$Compastruct,surveys=NULL) 
+# 
+# 
+# 
+# ## VB ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 == 'VB') %>%
+#   filter(Site1 == Site2) %>%
+#   filter(Structure1!=Structure2) %>%
+#   filter(Date1==Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Comp_site<-as.factor(datamean$Comp_site)
+# datamean$Compastruct<-as.factor(datamean$Compastruct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# trajVB<-trajectoryLengths(distdataR,datamean$Compastruct,surveys=NULL) 
+# 
+# 
+# trajBi2=trajBi %>%  select(Trajectory)
+# trajBu2=trajBu %>%  select(Trajectory)
+# trajFe2=trajFe %>%  select(Trajectory)
+# trajVB2=trajVB %>%  select(Trajectory)
+# trajinterstru<-rbind(trajBi2,trajBu2,trajFe2,trajVB2)
+# trajinterstru$Structure<-rep(c("Colonne_Disque","Faille_Colonne","Faille_Disque","Faille_Pilier","Pilier_Colonne","Pilier_Disque"))
+# trajinterstru$Site<-rep(c("Bi","Bu","Fe","VB"),each=6)
+# trajinterstru$sd<-sqrt(trajinterstru$Trajectory)
+# 
+# 
+# ggplot(trajinterstru, aes(Structure,Trajectory,fill=Structure))+ 
+#   geom_bar(stat="identity",alpha=.7)+
+#   # geom_boxplot()+
+#   geom_errorbar(aes(ymin=Trajectory-sd, ymax=Trajectory+sd), width=.2, position=position_dodge(.9))+ #ajout des barres d'erreur
+#   theme_bw()+ labs(title="Comparaisons intrasites interstructures")+
+#   xlab("")+ ylab("Distance total de la trajectoire")+
+#   facet_wrap(~Site)+
+#   theme(axis.text.x = element_blank(), axis.ticks = element_blank()) # enlever les labels + enlever les graduations
+# 
+# 
+# 
+# 
+# ########## Comparaison intersite intrastructures ##########
+# ## Colonnes ##
+# 
+# datatern
+# 
+# datatern2=datatern %>%
+#   filter(Site1 != Site2) %>%
+#   filter(Structure1 == Structure2) %>%
+#   filter(Structure1 == "Columns") %>%
+#   filter(Date1 == Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# datatern2=datatern2 %>% mutate(Compasite=paste(Site1,Site2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Compasite,Comp_struct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Compasite<-as.factor(datamean$Compasite)
+# datamean$Comp_struct<-as.factor(datamean$Comp_struct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# trajCol<-trajectoryLengths(distdataR,datamean$Compasite,surveys=NULL) 
+# 
+# 
+# ## Disques ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 != Site2) %>%
+#   filter(Structure1 == Structure2) %>%
+#   filter(Structure1 == "Disc") %>%
+#   filter(Date1 == Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# datatern2=datatern2 %>% mutate(Compasite=paste(Site1,Site2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Compasite,Comp_struct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Compasite<-as.factor(datamean$Compasite)
+# datamean$Comp_struct<-as.factor(datamean$Comp_struct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# trajDis<-trajectoryLengths(distdataR,datamean$Compasite,surveys=NULL)
+# 
+# 
+# ## Piliers ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 != Site2) %>%
+#   filter(Structure1 == Structure2) %>%
+#   filter(Structure1 == "Pillars") %>%
+#   filter(Date1 == Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# datatern2=datatern2 %>% mutate(Compasite=paste(Site1,Site2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Compasite,Comp_struct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Compasite<-as.factor(datamean$Compasite)
+# datamean$Comp_struct<-as.factor(datamean$Comp_struct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# trajPil<-trajectoryLengths(distdataR,datamean$Compasite,surveys=NULL) 
+# 
+# 
+# ## Failles ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 != Site2) %>%
+#   filter(Structure1 == Structure2) %>%
+#   filter(Structure1 == "Inner_slots") %>%
+#   filter(Date1 == Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# datatern2=datatern2 %>% mutate(Compasite=paste(Site1,Site2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Compasite,Comp_struct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Compasite<-as.factor(datamean$Compasite)
+# datamean$Comp_struct<-as.factor(datamean$Comp_struct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# trajFai<-trajectoryLengths(distdataR,datamean$Compasite,surveys=NULL)
+# trajFai$sd<-
+# 
+# trajCol2=trajCol %>%  select(Trajectory)
+# trajDis2=trajDis %>%  select(Trajectory)
+# trajPil2=trajPil %>%  select(Trajectory)
+# trajFai2=trajFai %>%  select(Trajectory)
+# trajintersite<-rbind(trajCol2,trajDis2,trajPil2,trajFai2)
+# trajintersite$Structure<-rep(c("Bu_Bi","Fe_Bi","Fe_Bu","VB_Bi","VB_Bu","VB_Fe"))
+# trajintersite$Site<-rep(c("Colonne","Disque","Piliers","Faille"),each=6)
+# trajintersite$sd<-sqrt(trajintersite$Trajectory)
+# 
+# 
+# ggplot(trajinterstru, aes(Structure,Trajectory,fill=Structure))+ 
+#   geom_bar(stat="identity",alpha=.7)+
+#   # geom_boxplot()+
+#   geom_errorbar(aes(ymin=Trajectory-sd, ymax=Trajectory+sd), width=.2, position=position_dodge(.9))+ #ajout des barres d'erreur
+#   theme_bw()+ labs(title="Comparaisons intrasites interstructures")+
+#   xlab("")+ ylab("Distance total de la trajectoire")+
+#   facet_wrap(~Site)+
+#   theme(axis.text.x = element_blank(), axis.ticks = element_blank()) # enlever les labels + enlever les graduations
 
-dataR$Day_delta[dataR$Date_courte == "2021-10" & dataR$Site == "Fe"]<-"336"
-dataR$Day_delta[dataR$Date_courte == "2021-10" & dataR$Site == "VB"]<-"339"
-dataR$Date_courte[dataR$Date_courte == "2021-10" & dataR$Site == "Fe"]<-"2021-11"
-dataR$Date_courte[dataR$Date_courte == "2021-10" & dataR$Site == "VB"]<-"2021-11"
-
-##marche
-data_comp2=dataR %>% ungroup %>%
-  select(spp,Site,Structure2,Micro,Date_courte,Day_delta,Mcov,Quad2,saison) %>%
-  # filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>% 
-  distinct()%>%
-  group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
-  as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Structure2,Micro,Date_courte,Day_delta,saison)) %>%
-  na.omit()%>%
-  droplevels() %>% 
-  spread(spp,Mcov2) %>% 
-  mutate(across(everything(.), ~replace_na(., 0))) %>% 
-  mutate(Name=paste(Site,Structure2,Date_courte,saison,Day_delta,sep=","))
+```
 
 
-## Sans microhabitats
-data_comp2=dataR %>% ungroup %>%
-  select(spp,Site,Structure2,Micro,Date_courte,Day_delta,Mcov,Quad2,saison) %>%
-  # filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>% 
-  distinct()%>%
-  group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
-  as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Structure2,Date_courte,Day_delta,saison)) %>%
-  na.omit()%>%
-  droplevels() %>% 
-  mutate(num=seq(1:1021)) %>% 
-  spread(spp,Mcov2) %>% 
-  mutate(across(everything(.), ~replace_na(., 0))) 
+<!-- ### Angles -->
+```{r}
+########## Comparaison intrasite interstructures ##########
+## Bi ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 == 'Bi') %>%
+#   filter(Site1 == Site2) %>%
+#   filter(Structure1!=Structure2) %>%
+#   filter(Date1==Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Comp_site<-as.factor(datamean$Comp_site)
+# datamean$Compastruct<-as.factor(datamean$Compastruct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# angleBi<-trajectoryAngles(distdataR,datamean$Compastruct,surveys=NULL) 
+# 
+# 
+# ## Bu ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 == 'Bu') %>%
+#   filter(Site1 == Site2) %>%
+#   filter(Structure1!=Structure2) %>%
+#   filter(Date1==Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Comp_site<-as.factor(datamean$Comp_site)
+# datamean$Compastruct<-as.factor(datamean$Compastruct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# angleBu<-trajectoryAngles(distdataR,datamean$Compastruct,surveys=NULL) 
+# 
+# 
+# 
+# ## Fe ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 == 'Fe') %>%
+#   filter(Site1 == Site2) %>%
+#   filter(Structure1!=Structure2) %>%
+#   filter(Date1==Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Comp_site<-as.factor(datamean$Comp_site)
+# datamean$Compastruct<-as.factor(datamean$Compastruct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# angleFe<-trajectoryAngles(distdataR,datamean$Compastruct,surveys=NULL)
+# 
+# 
+# ## VB ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 == 'VB') %>%
+#   filter(Site1 == Site2) %>%
+#   filter(Structure1!=Structure2) %>%
+#   filter(Date1==Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Comp_site<-as.factor(datamean$Comp_site)
+# datamean$Compastruct<-as.factor(datamean$Compastruct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# angleVB<-trajectoryAngles(distdataR,datamean$Compastruct,surveys=NULL) 
+# 
+# 
+# 
+# 
+# ########## Comparaison intersite intrastructures ##########
+# ## Colonnes ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 != Site2) %>%
+#   filter(Structure1 == Structure2) %>%
+#   filter(Structure1 == "Columns") %>%
+#   filter(Date1 == Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# datatern2=datatern2 %>% mutate(Compasite=paste(Site1,Site2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Compasite,Comp_struct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Compasite<-as.factor(datamean$Compasite)
+# datamean$Comp_struct<-as.factor(datamean$Comp_struct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# anglCol<-trajectoryAngles(distdataR,datamean$Compasite,surveys=NULL) 
+# 
+# 
+# ## Disques ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 != Site2) %>%
+#   filter(Structure1 == Structure2) %>%
+#   filter(Structure1 == "Disc") %>%
+#   filter(Date1 == Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# datatern2=datatern2 %>% mutate(Compasite=paste(Site1,Site2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Compasite,Comp_struct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Compasite<-as.factor(datamean$Compasite)
+# datamean$Comp_struct<-as.factor(datamean$Comp_struct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# anglDis<-trajectoryAngles(distdataR,datamean$Compasite,surveys=NULL) 
+# 
+# 
+# ## Piliers ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 != Site2) %>%
+#   filter(Structure1 == Structure2) %>%
+#   filter(Structure1 == "Pillars") %>%
+#   filter(Date1 == Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# datatern2=datatern2 %>% mutate(Compasite=paste(Site1,Site2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Compasite,Comp_struct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Compasite<-as.factor(datamean$Compasite)
+# datamean$Comp_struct<-as.factor(datamean$Comp_struct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# anglPil<-trajectoryAngles(distdataR,datamean$Compasite,surveys=NULL) 
+# 
+# 
+# ## Failles ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 != Site2) %>%
+#   filter(Structure1 == Structure2) %>%
+#   filter(Structure1 == "Inner_slots") %>%
+#   filter(Date1 == Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# datatern2=datatern2 %>% mutate(Compasite=paste(Site1,Site2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Compasite,Comp_struct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Compasite<-as.factor(datamean$Compasite)
+# datamean$Comp_struct<-as.factor(datamean$Comp_struct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# anglFai<-trajectoryAngles(distdataR,datamean$Compasite,surveys=NULL) 
+
+```
 
 
+<!-- ### Direction -->
+```{r}
+########## Comparaison intrasite interstructures ##########
+## Bi ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 == 'Bi') %>%
+#   filter(Site1 == Site2) %>%
+#   filter(Structure1!=Structure2) %>%
+#   filter(Date1==Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Comp_site<-as.factor(datamean$Comp_site)
+# datamean$Compastruct<-as.factor(datamean$Compastruct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# directionBi<-trajectoryDirectionality(distdataR,datamean$Compastruct,surveys=NULL)
+# 
+# 
+# ## Bu ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 == 'Bu') %>%
+#   filter(Site1 == Site2) %>%
+#   filter(Structure1!=Structure2) %>%
+#   filter(Date1==Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Comp_site<-as.factor(datamean$Comp_site)
+# datamean$Compastruct<-as.factor(datamean$Compastruct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# directionBu<-trajectoryDirectionality(distdataR,datamean$Compastruct,surveys=NULL)
+# 
+# 
+# 
+# ## Fe ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 == 'Fe') %>%
+#   filter(Site1 == Site2) %>%
+#   filter(Structure1!=Structure2) %>%
+#   filter(Date1==Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Comp_site<-as.factor(datamean$Comp_site)
+# datamean$Compastruct<-as.factor(datamean$Compastruct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# directionFe<-trajectoryDirectionality(distdataR,datamean$Compastruct,surveys=NULL)
+# 
+# 
+# ## VB ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 == 'VB') %>%
+#   filter(Site1 == Site2) %>%
+#   filter(Structure1!=Structure2) %>%
+#   filter(Date1==Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Comp_site<-as.factor(datamean$Comp_site)
+# datamean$Compastruct<-as.factor(datamean$Compastruct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# directionVB<-trajectoryDirectionality(distdataR,datamean$Compastruct,surveys=NULL)
+# 
+# 
+# 
+# ########## Comparaison intersite intrastructures ##########
+# ## Colonnes ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 != Site2) %>%
+#   filter(Structure1 == Structure2) %>%
+#   filter(Structure1 == "Columns") %>%
+#   filter(Date1 == Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# datatern2=datatern2 %>% mutate(Compasite=paste(Site1,Site2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Compasite,Comp_struct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Compasite<-as.factor(datamean$Compasite)
+# datamean$Comp_struct<-as.factor(datamean$Comp_struct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# directionCol<-trajectoryDirectionality(distdataR,datamean$Compasite,surveys=NULL) 
+# 
+# 
+# ## Disques ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 != Site2) %>%
+#   filter(Structure1 == Structure2) %>%
+#   filter(Structure1 == "Disc") %>%
+#   filter(Date1 == Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# datatern2=datatern2 %>% mutate(Compasite=paste(Site1,Site2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Compasite,Comp_struct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Compasite<-as.factor(datamean$Compasite)
+# datamean$Comp_struct<-as.factor(datamean$Comp_struct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# directionDis<-trajectoryDirectionality(distdataR,datamean$Compasite,surveys=NULL) 
+# 
+# 
+# ## Piliers ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 != Site2) %>%
+#   filter(Structure1 == Structure2) %>%
+#   filter(Structure1 == "Pillars") %>%
+#   filter(Date1 == Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# datatern2=datatern2 %>% mutate(Compasite=paste(Site1,Site2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Compasite,Comp_struct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Compasite<-as.factor(datamean$Compasite)
+# datamean$Comp_struct<-as.factor(datamean$Comp_struct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# directionPil<-trajectoryDirectionality(distdataR,datamean$Compasite,surveys=NULL) 
+# 
+# 
+# ## Failles ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 != Site2) %>%
+#   filter(Structure1 == Structure2) %>%
+#   filter(Structure1 == "Inner_slots") %>%
+#   filter(Date1 == Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# datatern2=datatern2 %>% mutate(Compasite=paste(Site1,Site2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Compasite,Comp_struct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Compasite<-as.factor(datamean$Compasite)
+# datamean$Comp_struct<-as.factor(datamean$Comp_struct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# directionFai<-trajectoryDirectionality(distdataR,datamean$Compasite,surveys=NULL) 
+# 
+# 
 
+```
 
+<!-- ### Convergence  -->
+```{r}
+########## Comparaison intrasite interstructures ##########
+## Bi ##
 
+# datatern2=datatern %>%
+#   filter(Site1 == 'Bi') %>%
+#   filter(Site1 == Site2) %>%
+#   filter(Structure1!=Structure2) %>%
+#   filter(Date1==Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Comp_site<-as.factor(datamean$Comp_site)
+# datamean$Compastruct<-as.factor(datamean$Compastruct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# convergenceBi<-trajectoryConvergence(distdataR,datamean$Compastruct,surveys=NULL) 
+# 
+# 
+# ## Bu ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 == 'Bu') %>%
+#   filter(Site1 == Site2) %>%
+#   filter(Structure1!=Structure2) %>%
+#   filter(Date1==Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Comp_site<-as.factor(datamean$Comp_site)
+# datamean$Compastruct<-as.factor(datamean$Compastruct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# convergenceBu<-trajectoryConvergence(distdataR,datamean$Compastruct,surveys=NULL) 
+# 
+# 
+# 
+# ## Fe ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 == 'Fe') %>%
+#   filter(Site1 == Site2) %>%
+#   filter(Structure1!=Structure2) %>%
+#   filter(Date1==Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Comp_site<-as.factor(datamean$Comp_site)
+# datamean$Compastruct<-as.factor(datamean$Compastruct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# convergenceFe<-trajectoryConvergence(distdataR,datamean$Compastruct,surveys=NULL) 
+# 
+# 
+# ## VB ##
+# 
+# datatern2=datatern %>%
+#   filter(Site1 == 'VB') %>%
+#   filter(Site1 == Site2) %>%
+#   filter(Structure1!=Structure2) %>%
+#   filter(Date1==Date2) %>%
+#   mutate(Comp_site=Site1,
+#          Comp_struct=Structure1) 
+# 
+# 
+# datatern2=datatern2 %>% mutate(Compasite_struct=paste(Comp_site,Structure1))
+# datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+# datatern2=datatern2 %>% mutate(Compastruct=paste(Structure1,Structure2,sep="_"))
+# 
+# 
+# datamean<-datatern2 %>%  group_by(Comp_site,Compastruct,Date1) %>% 
+#   dplyr::summarize(Similarité=mean(Similarité),
+#             Remplacement=mean(Remplacement),
+#             Richesse=mean(Richesse))
+# 
+# datamean$Comp_site<-as.factor(datamean$Comp_site)
+# datamean$Compastruct<-as.factor(datamean$Compastruct)
+# datamean$Date1<-as.factor(datamean$Date1)
+# 
+# datamean2<-datamean[,c(4:6)]
+# distdataR<-vegdist(datamean2, method='bray')
+# 
+# convergenceVB<-trajectoryConvergence(distdataR,datamean$Compastruct,surveys=NULL) 
+# 
+# 
+# 
+# 
 
-data_comp2$Site<-as.factor(data_comp2$Site)
-data_comp2$Date_courte<-as.factor(data_comp2$Date_courte)
-data_comp2$Day_delta<-as.factor(data_comp2$Day_delta)
-data_comp2$Structure2<-as.factor(data_comp2$Structure2)
-data_comp2$saison<-as.factor(data_comp2$saison)
-
-
-Comp_mat=data_comp2 %>% select(-c(Site,Structure2,Date_courte,saison,Day_delta,num)) %>% as.matrix() #sans meta données
-Meta_data=data_comp2 %>% select(Site,Structure2,Date_courte,saison,Day_delta,num) #meta données
-
-distdataR<-vegdist(Comp_mat, method='bray') 
-
-
-sD<-trajectoryDistances(distdataR,data_comp2$Day_delta,surveys=NULL)
-sD<-trajectoryLengths(distdataR,data_comp2$Site,surveys=NULL) #longueur totale des vecteurs
-
-summary(sD)
-sD1<-as.data.frame(sD)
-
-
-
-
-##### Distance totale Structure par structure
-data_comp2=dataR %>% ungroup %>%
-  select(spp,Site,Structure2,Micro,Date_courte,Day_delta,Mcov,Quad2,saison) %>%
-  filter(Structure2 == "Pillars") %>% 
-  filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>%
-  distinct()%>%
-  group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
-  as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Date_courte,Day_delta,saison)) %>%
-  na.omit()%>%
-  droplevels() %>% 
-  spread(spp,Mcov2) %>% 
-  mutate(across(everything(.), ~replace_na(., 0))) 
-
-
-data_comp2$Site<-as.factor(data_comp2$Site)
-data_comp2$Date_courte<-as.factor(data_comp2$Date_courte)
-data_comp2$Day_delta<-as.factor(data_comp2$Day_delta)
-data_comp2$saison<-as.factor(data_comp2$saison)
-
-
-Comp_mat=data_comp2 %>% select(-c(Site,Date_courte,saison,Day_delta)) %>% as.matrix() #sans meta données
-Meta_data=data_comp2 %>% select(Site,Date_courte,saison,Day_delta) #meta données
-
-
-distdataR<-vegdist(Comp_mat, method='bray') 
-
-sDL<-trajectoryLengths(distdataR,data_comp2$Site,surveys=NULL) #longueur totale des vecteurs
-
-
-sDLCo=sDL %>%  select(Trajectory)
-sDLDi=sDL %>%  select(Trajectory)
-sDLPi=sDL %>%  select(Trajectory)
-sDLF=sDL %>%  select(Trajectory)
-sDlength<-rbind(sDLCo,sDLDi,sDLPi,sDLVB)
-sDlength$Structure<-rep(c("Colonnes","Disques","Piliers","Faille"),each=4)
-sDlength$Site<-c("Bi","Bu","Fe","VB")
-sDlength$sd<-sqrt(sDlength$Trajectory)
-
-
-ggplot(sDlength, aes(Structure,Trajectory,fill=Structure))+ 
-  geom_bar(stat="identity",alpha=.7)+
-  # geom_boxplot()+
-  geom_errorbar(aes(ymin=Trajectory-sd, ymax=Trajectory+sd), width=.2, position=position_dodge(.9))+ #ajout des barres d'erreur
-  theme_bw()+ 
-  xlab("")+ylab("Distance total de la trajectoire")+
-  facet_wrap(~Site)
-
- 
-##### Angles moyens Structure par structure
-data_comp2=dataR %>% ungroup %>%
-  select(spp,Site,Structure2,Micro,Date_courte,Day_delta,Mcov,Quad2,saison) %>%
-  filter(Structure2 == "Pillars") %>% 
-  filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>%
-  distinct()%>%
-  group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
-  as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Date_courte,Day_delta,saison)) %>%
-  na.omit()%>%
-  droplevels() %>% 
-  spread(spp,Mcov2) %>% 
-  mutate(across(everything(.), ~replace_na(., 0))) 
-
-
-data_comp2$Site<-as.factor(data_comp2$Site)
-data_comp2$Date_courte<-as.factor(data_comp2$Date_courte)
-data_comp2$Day_delta<-as.factor(data_comp2$Day_delta)
-data_comp2$saison<-as.factor(data_comp2$saison)
-
-
-Comp_mat=data_comp2 %>% select(-c(Site,Date_courte,saison,Day_delta)) %>% as.matrix() #sans meta données
-Meta_data=data_comp2 %>% select(Site,Date_courte,saison,Day_delta) #meta données
-
-
-distdataR<-vegdist(Comp_mat, method='bray') 
-
-sDA<-trajectoryAngles(distdataR,data_comp2$Site,surveys=NULL) #angle des vecteurs
-
-sDACo=sDA %>%  select(mean)
-sDADi=sDA %>%  select(mean)
-sDAPi=sDA %>%  select(mean)
-sDAF=sDA %>%  select(mean)
-sDAngle<-rbind(sDACo,sDADi,sDAPi,sDAF)
-sDAngle$Structure<-rep(c("Colonnes","Disques","Piliers","Faille"),each=4)
-sDAngle$Site<-c("Bi","Bu","Fe","VB")
-sDAngle$sd<-sqrt(sDAngle$mean)
-
-ggplot(sDAngle, aes(Structure,mean,fill=Structure))+ 
-  geom_bar(stat="identity",alpha=.7)+
-  # geom_boxplot()+
-  geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2, position=position_dodge(.9))+ #ajout des barres d'erreur
-  theme_bw()+ 
-  xlab("")+ylab("Angles moyens des vecteurs")+
-  facet_wrap(~Site)
-
-
-
-
-
-##### Direction Structure par structure
-data_comp2=dataR %>% ungroup %>%
-  select(spp,Site,Structure2,Micro,Date_courte,Day_delta,Mcov,Quad2,saison) %>%
-  filter(Structure2 == "Columns") %>% 
-  filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>%
-  distinct()%>%
-  group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
-  as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Date_courte,Day_delta,saison)) %>%
-  na.omit()%>%
-  droplevels() %>% 
-  spread(spp,Mcov2) %>% 
-  mutate(across(everything(.), ~replace_na(., 0))) 
-
-
-data_comp2$Site<-as.factor(data_comp2$Site)
-data_comp2$Date_courte<-as.factor(data_comp2$Date_courte)
-data_comp2$Day_delta<-as.factor(data_comp2$Day_delta)
-data_comp2$saison<-as.factor(data_comp2$saison)
-
-
-Comp_mat=data_comp2 %>% select(-c(Site,Date_courte,saison,Day_delta)) %>% as.matrix() #sans meta données
-Meta_data=data_comp2 %>% select(Site,Date_courte,saison,Day_delta) #meta données
-
-
-distdataR<-vegdist(Comp_mat, method='bray') 
-
-sDD<-trajectoryDirectionality(distdataR,data_comp2$Site,surveys=NULL) #angle des vecteurs
-
-sDDCo=sDD %>%  melt()
-sDDDi=sDD %>%  melt()
-sDDPi=sDD %>%  melt()
-sDDF=sDD %>% melt()
-sDDirection<-rbind(sDDCo,sDDDi,sDDPi,sDDF)
-sDDirection$Structure<-rep(c("Colonnes","Disques","Piliers","Faille"),each=4)
-sDDirection$Site<-c("Bi","Bu","Fe","VB")
-sDDirection$sd<-sqrt(sDDirection$value)
-
-ggplot(sDDirection, aes(Structure,value,fill=Structure))+ 
-  geom_bar(stat="identity",alpha=.7)+
-  # geom_boxplot()+
-  geom_errorbar(aes(ymin=value, ymax=value+sd), width=.2, position=position_dodge(.9))+ #ajout des barres d'erreur
-  theme_bw()+ 
-  xlab("")+ylab("Direction moyenne des trajectoires")+
-  facet_wrap(~Site)
-
-
-
-
-
-##### Convergence
-sDD<-trajectoryConvergence(distdataR,data_comp2$Site,surveys=NULL) #convergence des vecteurs
-#les données ne sont pas significatives donc pas pris en compte
 ```
 
 
