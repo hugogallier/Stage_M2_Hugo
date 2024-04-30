@@ -43,7 +43,14 @@ library(car)
 library(adegraphics)
 library(gratia)
 library(ggpubr)
+library(paletteer)
 library(indicspecies)
+library(ggrepel)
+library(ecotraj)
+library(iml)
+library(randomForest)
+library(partykit)
+library(glmnet)
 
 ```
 
@@ -77,15 +84,13 @@ for( i in 1: length(data_list)){
     Name_file=basename(data_list[i])
     
 data=read.csv(data_list[i], sep=',', header=T, fileEncoding="latin1") %>%
-  mutate(Name_file=rep(basename(data_list[i]), n()),
+  mutate(Name_file=rep(basename(data_list[i]),nrow(.)),
          recif=str_split(Nome_tot,"/")[[1]][4],
          recif=case_when(recif == 'Récif 01-12'~ 'recif1',
                          recif == 'Récif 13-24'~ 'recif2',
                          recif == 'Récif 25-36'~ 'recif3',
                          TRUE~NA)) 
-
 L[[i]]<-data
-
 }
 
 # fileEncoding="latin1"
@@ -95,7 +100,7 @@ L[[i]]<-data
 Ajout des dates d'immersion des différents récifs
 ```{r}
 Immer_site=data.frame(Site=c('recif2','recif1','recif3'), Date=c(as.Date('2022-06-22'),as.Date('2022-06-22'),as.Date('2022-06-22'))) %>%
-       mutate( Date_imm_ok=format(as.POSIXlt(Date,  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT")) %>% select(Site, Date_imm_ok)
+       mutate( Date_imm_ok=format(as.POSIXlt(Date,  format = "%Y-%m-%d"), format="%Y-%m-%d %%H:%M:%S", tz="GMT")) %>% dplyr::select(Site, Date_imm_ok)
 ```
 
 ## Saison - date
@@ -186,8 +191,6 @@ corresp=data_PQ_light %>% select(spp,abb)%>% unique()
 ```
 
 
-
-
 ## Formatage du jeu de données 
 ```{r}
 
@@ -204,7 +207,6 @@ dataRG=dataR1 %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte",'NA','Non
 ```
 
 
-
 # ###Données MARINEFF ###
 ```{r}
 #Chargement des photos associées à chaque cadrats
@@ -217,8 +219,8 @@ MPhoto=read.csv('Meta_photo.csv', sep=';')%>%
   
 ```
 
-## Chargement data
 
+## Chargement data
 ```{r}
 #Chargement des jeux de données
 
@@ -245,8 +247,8 @@ test_data_list=data_list[grepl('DSC',data_list)]
 # fileEncoding="latin1"
 ```
 
-## Date d'immersion
 
+## Date d'immersion
 ```{r}
 # Ajout des dates d'immersion des différents récifs
 
@@ -259,7 +261,6 @@ Immer_site=data.frame(Site=c('Bi','Bu','VB','Fe'), Date=c(as.Date('2020-10-30'),
 
 
 ## Saison - date
-
 ```{r}
 # Ajout de dates correspondant aux différentes saisons
 Date_sais=data.frame(
@@ -276,7 +277,6 @@ Date_sais=data.frame(
 
 
 ## Mise en forme des données
-
 ```{r}
 # Ajout de méta données à partir du nom de fichier (site,data,micro,n° de quadrat)
 # Correction et abbréviation des noms de taxons
@@ -1043,14 +1043,6 @@ databetaindex$Compasite<-as.factor(databetaindex$Compasite)
 databetaindex$Comp_date<-as.factor(databetaindex$Comp_date)
 # databetaindex$Comp_day<-as.numeric(databetaindex$Comp_day)
 
-
-# model1<-gam(BIvalue~s(Comp_day)+s(Compastruct,bs="re")+s(Compasite,bs="re")+s(Betaindex,bs="re"),data=databetaindex) 
-# summary(model1)
-# 
-# plot_smooths(model=model1, series=Comp_day,comparison=Betaindex)+theme_bw()
-# 
-# ggplot(databetaindex,aes(x=Comp_day,y=BIvalue,colour=Betaindex))+
-#   geom_point()
   
 ##### Test comparaison interstructures et intersite avec binaire #####
 betaindexbinaire<-databetaindex
@@ -1064,13 +1056,16 @@ datameansimi$Compabaie<-datameansimi$Compabaie[datameansimi$Compabaie == "Bi/rec
 
 datameansimi$Compabaie<-datameansimi$Compabaie[datameansimi$Compabaie == "Bi/Bi" | datameansimi$Compabaie == "Bu/Bu" | datameansimi$Compabaie == "Fe/Fe" | datameansimi$Compabaie == "VB/VB" | datameansimi$Compabaie == "recif1/recif1" | datameansimi$Compabaie == "recif2/recif2" | datameansimi$Compabaie == "recif3/recif3"]<-"Intra"
 
-datameansimi$Compasite[datameansimi$Compasite == "Bi/Bi"| datameansimi$Compasite == "Bu/Bu"| datameansimi$Compasite == "Fe/Fe"| datameansimi$Compasite == "VB/VB"| datameansimi$Compasite == "recif1/recif1"| datameansimi$Compasite == "recif2/recif2"| datameansimi$Compasite == "recif3/recif3"] <- "Intra"
-datameansimi$Compasite[datameansimi$Compasite == "Bu/Bi"| datameansimi$Compasite == "Fe/Bi"| datameansimi$Compasite == "Fe/Bu"| datameansimi$Compasite == "VB/Bi" | datameansimi$Compasite == "VB/Bu" | datameansimi$Compasite == "VB/Fe" | datameansimi$Compasite == "recif2/recif1"| datameansimi$Compasite == "recif3/recif2"| datameansimi$Compasite == "recif3/recif1"] <- "Inter"
+datameansimi$Compa<-rep(0)
+datameansimi$Compa[datameansimi$Compasite == "Bu/Bi"| datameansimi$Compasite == "Fe/Bi"| datameansimi$Compasite == "Fe/Bu"| datameansimi$Compasite == "VB/Bi" | datameansimi$Compasite == "VB/Bu" | datameansimi$Compasite == "VB/Fe" | datameansimi$Compasite == "recif2/recif1" | datameansimi$Compasite == "recif3/recif1" | datameansimi$Compasite == "recif3/recif2"]<-"Inter"
+
+datameansimi$Compa[datameansimi$Compasite == "Bi/Bi"| datameansimi$Compasite == "Bu/Bu"| datameansimi$Compasite == "Fe/Fe"| datameansimi$Compasite == "VB/VB" | datameansimi$Compasite == "recif1/recif1" | datameansimi$Compasite == "recif2/recif2" | datameansimi$Compasite == "recif3/recif3"] <- "Intra"
+
+datameansimi$Compa[datameansimi$Compastruct == "Columns/Disc" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Columns/Inner_slots" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Disc/Columns" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Disc/Inner_slots" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Disc/Pillars" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Inner_slots/Columns" & datameansimi$Compa =="Intra" | datameansimi$Compastruct == "Inner_slots/Disc" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Inner_slots/Pillars"  & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Pillars/Columns" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Pillars/Disc" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Pillars/Inner_slots"  & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Columns/Pillars" & datameansimi$Compa =="Intra"] <- "Interstruct"
+
+datameansimi$Compa[datameansimi$Compastruct == "Disc/Disc" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Inner_slots/Inner_slots" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Columns/Columns" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Pillars/Pillars" & datameansimi$Compa =="Intra"] <- "Intrastruct"
 
 
-datameansimi$Compastruct[datameansimi$Compastruct == "Columns/Columns"| datameansimi$Compastruct == "Disc/Disc"| datameansimi$Compastruct == "Pillars/Pillars"| datameansimi$Compastruct == "Inner_slots/Inner_slots"] <- "Intra"
-
-datameansimi$Compastruct[datameansimi$Compastruct == "Columns/Disc"| datameansimi$Compastruct == "Columns/Iner_slots"| datameansimi$Compastruct == "Disc/Columns"| datameansimi$Compastruct == "Disc/Inner_slots"| datameansimi$Compastruct == "Disc/Pillars"| datameansimi$Compastruct == "Inner_slots/Columns" | datameansimi$Compastruct == "Inner_slots/Disc"| datameansimi$Compastruct == "Inner_slots/Pillars" | datameansimi$Compastruct == "Pillars/Columns"| datameansimi$Compastruct == "Pillars/Disc"| datameansimi$Compastruct == "Pillars/Inner_slots"| datameansimi$Compastruct == "Columns/Inner_slots"| datameansimi$Compastruct == "Columns/Pillars"] <- "Inter"
 
 
 # Data remplacement
@@ -1080,52 +1075,135 @@ datameanremp$Compabaie<-datameanremp$Compabaie[datameanremp$Compabaie == "Bi/rec
 
 datameanremp$Compabaie<-datameanremp$Compabaie[datameanremp$Compabaie == "Bi/Bi" | datameanremp$Compabaie == "Bu/Bu" | datameanremp$Compabaie == "Fe/Fe" | datameanremp$Compabaie == "VB/VB" | datameanremp$Compabaie == "recif1/recif1" | datameanremp$Compabaie == "recif2/recif2" | datameanremp$Compabaie == "recif3/recif3"]<-"Intra"
 
-datameanremp$Compasite[datameanremp$Compasite == "Bi/Bi"| datameanremp$Compasite == "Bu/Bu"| datameanremp$Compasite == "Fe/Fe"| datameanremp$Compasite == "VB/VB"| datameanremp$Compasite == "recif1/recif1"| datameanremp$Compasite == "recif2/recif2"| datameanremp$Compasite == "recif3/recif3"] <- "Intra"
-datameanremp$Compasite[datameanremp$Compasite == "Bu/Bi"| datameanremp$Compasite == "Fe/Bi"| datameanremp$Compasite == "Fe/Bu"| datameanremp$Compasite == "VB/Bi" | datameanremp$Compasite == "VB/Bu" | datameanremp$Compasite == "VB/Fe" | datameanremp$Compasite == "recif2/recif1"| datameanremp$Compasite == "recif3/recif2"| datameanremp$Compasite == "recif3/recif1"] <- "Inter"
+datameanremp$Compa<-rep(0)
+datameanremp$Compa[datameanremp$Compasite == "Bu/Bi"| datameanremp$Compasite == "Fe/Bi"| datameanremp$Compasite == "Fe/Bu"| datameanremp$Compasite == "VB/Bi" | datameanremp$Compasite == "VB/Bu" | datameanremp$Compasite == "VB/Fe" | datameanremp$Compasite == "recif2/recif1" | datameanremp$Compasite == "recif3/recif1" | datameanremp$Compasite == "recif3/recif2"]<-"Inter"
+
+datameanremp$Compa[datameanremp$Compasite == "Bi/Bi"| datameanremp$Compasite == "Bu/Bu"| datameanremp$Compasite == "Fe/Fe"| datameanremp$Compasite == "VB/VB" | datameanremp$Compasite == "recif1/recif1" | datameanremp$Compasite == "recif2/recif2" | datameanremp$Compasite == "recif3/recif3"] <- "Intra"
+
+datameanremp$Compa[datameanremp$Compastruct == "Columns/Disc" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Columns/Inner_slots" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Disc/Columns" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Disc/Inner_slots" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Disc/Pillars" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Inner_slots/Columns" & datameanremp$Compa =="Intra" | datameanremp$Compastruct == "Inner_slots/Disc" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Inner_slots/Pillars"  & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Pillars/Columns" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Pillars/Disc" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Pillars/Inner_slots"  & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Columns/Pillars" & datameanremp$Compa =="Intra"] <- "Interstruct"
+
+datameanremp$Compa[datameanremp$Compastruct == "Disc/Disc" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Inner_slots/Inner_slots" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Columns/Columns" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Pillars/Pillars" & datameanremp$Compa =="Intra"] <- "Intrastruct"
 
 
-datameanremp$Compastruct[datameanremp$Compastruct == "Columns/Columns"| datameanremp$Compastruct == "Disc/Disc"| datameanremp$Compastruct == "Pillars/Pillars"| datameanremp$Compastruct == "Inner_slots/Inner_slots"] <- "Intra"
-
-datameanremp$Compastruct[datameanremp$Compastruct == "Columns/Disc"| datameanremp$Compastruct == "Columns/Iner_slots"| datameanremp$Compastruct == "Disc/Columns"| datameanremp$Compastruct == "Disc/Inner_slots"| datameanremp$Compastruct == "Disc/Pillars"| datameanremp$Compastruct == "Inner_slots/Columns" | datameanremp$Compastruct == "Inner_slots/Disc"| datameanremp$Compastruct == "Inner_slots/Pillars" | datameanremp$Compastruct == "Pillars/Columns"| datameanremp$Compastruct == "Pillars/Disc"| datameanremp$Compastruct == "Pillars/Inner_slots"| datameanremp$Compastruct == "Columns/Inner_slots"| datameanremp$Compastruct == "Columns/Pillars"] <- "Inter"
 
 
 # Date Richesse
 datameanrich$Compabaie<-datameanrich$Compasite
 
-datameanrich$Compabaie<-
 datameanrich$Compabaie[datameanrich$Compasite == "Bi/recif1" | datameanrich$Compabaie == "Bi/recif2" | datameanrich$Compabaie == "Bi/recif3" | datameanrich$Compabaie == "Bu/recif1" | datameanrich$Compabaie == "Bu/recif2" | datameanrich$Compabaie == "Bu/recif3" | datameanrich$Compabaie == "Fe/recif1" | datameanrich$Compabaie == "Fe/recif2" | datameanrich$Compabaie == "Fe/recif3" | datameanrich$Compabaie == "VB/recif1" | datameanrich$Compabaie == "VB/recif2" | datameanrich$Compabaie == "recif3/VB"]<-"Inter"
 
-datameanrich$Compabaie<-
 datameanrich$Compabaie[datameanrich$Compasite == "Bi/Bi" | datameanrich$Compasite == "Bu/Bu" | datameanrich$Compasite == "Fe/Fe" | datameanrich$Compasite == "VB/VB" | datameanrich$Compasite == "recif1/recif1" | datameanrich$Compasite == "recif2/recif2" | datameanrich$Compasite == "recif3/recif3"]<-"Intra"
 
 
-datameanrich$Compasite[datameanrich$Compasite == "Bi/Bi"| datameanrich$Compasite == "Bu/Bu"| datameanrich$Compasite == "Fe/Fe"| datameanrich$Compasite == "VB/VB"| datameanrich$Compasite == "recif1/recif1"| datameanrich$Compasite == "recif2/recif2"| datameanrich$Compasite == "recif3/recif3"] <- "Intra"
-datameanrich$Compasite[datameanrich$Compasite == "Bu/Bi"| datameanrich$Compasite == "Fe/Bi"| datameanrich$Compasite == "Fe/Bu"| datameanrich$Compasite == "VB/Bi" | datameanrich$Compasite == "VB/Bu" | datameanrich$Compasite == "VB/Fe" | datameanrich$Compasite == "recif2/recif1"| datameanrich$Compasite == "recif3/recif2"| datameanrich$Compasite == "recif3/recif1"] <- "Inter"
+datameanrich$Compa<-rep(0)
+datameanrich$Compa[datameanrich$Compasite == "Bu/Bi"| datameanrich$Compasite == "Fe/Bi"| datameanrich$Compasite == "Fe/Bu"| datameanrich$Compasite == "VB/Bi" | datameanrich$Compasite == "VB/Bu" | datameanrich$Compasite == "VB/Fe" | datameanrich$Compasite == "recif2/recif1" | datameanrich$Compasite == "recif3/recif1" | datameanrich$Compasite == "recif3/recif2"]<-"Inter"
+
+datameanrich$Compa[datameanrich$Compasite == "Bi/Bi"| datameanrich$Compasite == "Bu/Bu"| datameanrich$Compasite == "Fe/Fe"| datameanrich$Compasite == "VB/VB" | datameanrich$Compasite == "recif1/recif1" | datameanrich$Compasite == "recif2/recif2" | datameanrich$Compasite == "recif3/recif3"] <- "Intra"
+
+datameanrich$Compa[datameanrich$Compastruct == "Columns/Disc" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Columns/Inner_slots" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Disc/Columns" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Disc/Inner_slots" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Disc/Pillars" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Inner_slots/Columns" & datameanrich$Compa =="Intra" | datameanrich$Compastruct == "Inner_slots/Disc" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Inner_slots/Pillars"  & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Pillars/Columns" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Pillars/Disc" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Pillars/Inner_slots"  & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Columns/Pillars" & datameanrich$Compa =="Intra"] <- "Interstruct"
+
+datameanrich$Compa[datameanrich$Compastruct == "Disc/Disc" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Inner_slots/Inner_slots" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Columns/Columns" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Pillars/Pillars" & datameanrich$Compa =="Intra"] <- "Intrastruct"
+
+databetaindex2 <- cbind(datameansimi[,-1],datameanremp[,-c(1:4,6:7)],datameanrich[,-c(1:4,6:7)])
+databetaindex2<-databetaindex2[,c(1:3,5,6,4,7,8)]
+colnames(databetaindex2)[6:8]<-c("Similarité","Remplacement","Richesse")
 
 
-datameanrich$Compastruct[datameanrich$Compastruct == "Columns/Columns"| datameanrich$Compastruct == "Disc/Disc"| datameanrich$Compastruct == "Pillars/Pillars"| datameanrich$Compastruct == "Inner_slots/Inner_slots"] <- "Intra"
-
-datameanrich$Compastruct[datameanrich$Compastruct == "Columns/Disc"| datameanrich$Compastruct == "Columns/Iner_slots"| datameanrich$Compastruct == "Disc/Columns"| datameanrich$Compastruct == "Disc/Inner_slots"| datameanrich$Compastruct == "Disc/Pillars"| datameanrich$Compastruct == "Inner_slots/Columns" | datameanrich$Compastruct == "Inner_slots/Disc"| datameanrich$Compastruct == "Inner_slots/Pillars" | datameanrich$Compastruct == "Pillars/Columns"| datameanrich$Compastruct == "Pillars/Disc"| datameanrich$Compastruct == "Pillars/Inner_slots"| datameanrich$Compastruct == "Columns/Inner_slots"| datameanrich$Compastruct == "Columns/Pillars"] <- "Inter"
-
-
-
-databetaindex2 <- cbind(datameansimi[,-1],datameanremp[,-c(1:4)],datameanrich[,-c(1:4)])
-colnames(databetaindex2)[4:6]<-c("Similarité","Remplacement","Richesse")
+databetaindex2$Compasite<-as.factor(databetaindex2$Compasite)
+databetaindex2$Compastruct<-as.factor(databetaindex2$Compastruct)
+databetaindex2$Compabaie<-as.factor(databetaindex2$Compabaie)
+databetaindex2$Comp_date<-as.factor(databetaindex2$Comp_date)
+databetaindex2$Compa<-as.factor(databetaindex2$Compa)
 
 
-# random forest avec test plot selon variable
-library(randomForest)
-library(randomForestSRC)
 
-rf1<-randomForest(BIvalue~.,data=datameansimi[,-c(1)],ntree=200)
-rf2<-randomForest(BIvalue~.,data=datameanremp[,-c(1)],ntree=200)
-rf3<-randomForest(BIvalue~.,data=datameanrich[,-c(1)],ntree=200)
 
-rf4 <- rfsrc(as.numeric(BIvalue) ~ ., data=datameansimi[,-c(1,5)])
 
-par(mfrow=c(2,2))
-varImpPlot(rf1,main="Similarité")
-varImpPlot(rf2,main="Remplacement")
-varImpPlot(rf3,main="Richesse")
+### Similarité ###
+databetaindex3=databetaindex2[,-c(1:2)]
+databetaindex3<-databetaindex3[,-c(5:6)]
+
+rf <- randomForest(Similarité ~ ., data = databetaindex3, ntree = 10)
+
+X<-databetaindex3[which(names(databetaindex3)!="Similarité")]
+predictor <- Predictor$new(rf, data = X, y = databetaindex3$Similarité)
+
+#importance des variables
+imp <- FeatureImp$new(predictor, loss = "mae")
+plot(imp)
+
+#interaction entre les variables
+interact <- Interaction$new(predictor, grid.size = 15)
+plot(interact)
+
+#variables expliquant les variations de la betadiversité
+effs <- FeatureEffects$new(predictor, grid.size = 10)
+plot(effs)
+
+tree <- TreeSurrogate$new(predictor, maxdepth = 2)
+plot(tree)
+
+lime.explain <- LocalModel$new(predictor, x.interest = X[1, ])
+plot(lime.explain)
+
+
+
+### Remplacement ###
+databetaindex3=databetaindex2[,-5]
+databetaindex3<-databetaindex3[,-c(4,6)]
+
+rf <- randomForest(Remplacement ~ ., data = databetaindex3, ntree = 10)
+
+X<-databetaindex3[which(names(databetaindex3)!="Remplacement")]
+predictor <- Predictor$new(rf, data = X, y = databetaindex3$Remplacement)
+
+#importance des variables
+imp <- FeatureImp$new(predictor, loss = "mae")
+plot(imp)
+
+#interaction entre les variables
+interact <- Interaction$new(predictor, grid.size = 15)
+plot(interact)
+
+#variables expliquant les variations de la betadiversité
+effs <- FeatureEffects$new(predictor, grid.size = 10)
+plot(effs)
+
+tree <- TreeSurrogate$new(predictor, maxdepth = 2)
+plot(tree)
+
+lime.explain <- LocalModel$new(predictor, x.interest = X[1, ])
+plot(lime.explain)
+
+
+
+### Richesse ###
+databetaindex3=databetaindex2[,-4]
+
+databetaindex3<-databetaindex3[,-c(4:5)]
+
+rf <- randomForest(Richesse ~ ., data = databetaindex3, ntree = 10)
+
+X<-databetaindex3[which(names(databetaindex3)!="Richesse")]
+predictor <- Predictor$new(rf, data = X, y = databetaindex3$Richesse)
+
+#importance des variables
+imp <- FeatureImp$new(predictor, loss = "mae")
+plot(imp)
+
+#interaction entre les variables
+interact <- Interaction$new(predictor, grid.size = 15)
+plot(interact)
+
+#variables expliquant les variations de la betadiversité
+effs <- FeatureEffects$new(predictor, grid.size = 10)
+plot(effs)
+
+tree <- TreeSurrogate$new(predictor, maxdepth = 2)
+plot(tree)
+
+lime.explain <- LocalModel$new(predictor, x.interest = X[1, ])
+plot(lime.explain)
+
 
 ```
