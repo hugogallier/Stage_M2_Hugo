@@ -1660,7 +1660,7 @@ data_comp2=dataR %>% ungroup %>%
   as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Structure2,Date_courte,Day_delta,saison)) %>%
   na.omit()%>%
   droplevels() %>% 
-  mutate(num=seq(1:1061)) %>% 
+  mutate(num=seq(1:1021)) %>% 
   spread(spp,Mcov2) %>% 
   mutate(across(everything(.), ~replace_na(., 0))) 
 
@@ -1679,9 +1679,12 @@ data_comp2$saison<-as.factor(data_comp2$saison)
 Comp_mat=data_comp2 %>% select(-c(Site,Structure2,Date_courte,saison,Day_delta,num)) %>% as.matrix() #sans meta données
 Meta_data=data_comp2 %>% select(Site,Structure2,Date_courte,saison,Day_delta,num) #meta données
 
+Comp_mat=data_comp2 %>% select(-c(Site,Structure2,Date_courte,saison,Day_delta)) %>% as.matrix()
+Meta_data=data_comp2 %>% select(Site,Structure2,Date_courte,saison,Day_delta)
+
 distdataR<-vegdist(Comp_mat, method='bray') 
 
-# 
+ 
 # sD<-trajectoryDistances(distdataR,data_comp2$Day_delta,surveys=NULL)
 # sD<-trajectoryLengths(distdataR,data_comp2$Site,surveys=NULL) #longueur totale des vecteurs
 # 
@@ -1690,7 +1693,7 @@ distdataR<-vegdist(Comp_mat, method='bray')
 ```
 
 
-##Distance
+###Distance
 ```{r}
 ##### Distance totale Structure par structure
 data_comp2=dataR %>% ungroup %>%
@@ -1721,24 +1724,57 @@ distdataR<-vegdist(Comp_mat, method='bray')
 sDL<-trajectoryLengths(distdataR,data_comp2$Site,surveys=NULL) #longueur totale des vecteurs
 
 
-sDLCo=sDL %>%  select(Trajectory)
-sDLDi=sDL %>%  select(Trajectory)
-sDLPi=sDL %>%  select(Trajectory)
-sDLF=sDL %>%  select(Trajectory)
+sDLCo=sDL
+sDLDi=sDL
+sDLPi=sDL
+sDLF=sDL
 sDlength<-rbind(sDLCo,sDLDi,sDLPi,sDLF)
 sDlength$Structure<-rep(c("Colonnes","Disques","Piliers","Faille"),each=4)
 sDlength$Site<-c("Bi","Bu","Fe","VB")
 sDlength$sd<-sqrt(sDlength$Trajectory)
+colnames(sDlength)[1:5]<-c("premier","deuxieme","troisieme","quatrieme","cinquieme")
 # save(sDlength, file="sDlength.Rdata")
+load("sDlength")
 
+
+##### Trajectoire Totale #####
 ggplot(sDlength, aes(Structure,Trajectory,fill=Structure))+ 
   geom_bar(stat="identity",alpha=.7)+
   # geom_boxplot()+
-  geom_errorbar(aes(ymin=Trajectory-sd, ymax=Trajectory+sd), width=.2, position=position_dodge(.9))+ #ajout des barres d'erreur
+  # geom_errorbar(aes(ymin=Trajectory-sd, ymax=Trajectory+sd), width=.2, position=position_dodge(.9))+ #ajout des barres d'erreur
   theme_bw()+ 
   xlab("")+ylab("Distance total de la trajectoire")+
   facet_wrap(~Site)
 
+
+
+##### Trajectoire entre inventaires #####
+
+sDlengthpre = sDlength %>% select("premier","Structure","Site") %>% mutate(Numinv=1)
+colnames(sDlengthpre)[1]<-"value"
+
+sDlengthdeu = sDlength %>% select("deuxieme","Structure","Site") %>% mutate(Numinv=2)
+colnames(sDlengthdeu)[1]<-"value"
+
+sDlengthtro = sDlength %>% select("troisieme","Structure","Site") %>% mutate(Numinv=3)
+colnames(sDlengthtro)[1]<-"value"
+
+sDlengthqua = sDlength %>% select("quatrieme","Structure","Site") %>% mutate(Numinv=4)
+colnames(sDlengthqua)[1]<-"value"
+
+sDlengthcin = sDlength %>% select("cinquieme","Structure","Site") %>% mutate(Numinv=5)
+colnames(sDlengthcin)[1]<-"value"
+
+sDlengthtot<-rbind(sDlengthpre,sDlengthdeu,sDlengthtro,sDlengthqua,sDlengthcin)
+
+ggplot(sDlengthtot, aes(Numinv,value,colour=Structure))+ 
+  geom_point(stat="identity",alpha=.7)+
+  geom_line()+
+  theme_bw()+ 
+  xlab("numéro d'inventaire")+ylab("Angles des vecteurs entre deux dates")+ # pas sûr des dates parce que possible que les structures n'ont pas été échantillonnées tout le temps
+facet_wrap(~Site)
+
+# test significativité
 aov1<-aov(Trajectory~Structure+Site,data=sDlength)
 summary(aov1)
 
@@ -1755,12 +1791,12 @@ adonis3<-permanova_pairwise(sDlength[,-c(2:4)],groupe,permutations=999,method='b
 ```
 
 
-##Angles
+###Angles
 ```{r}
 ##### Angles moyens Structure par structure
 data_comp2=dataR %>% ungroup %>%
   select(spp,Site,Structure2,Micro,Date_courte,Day_delta,Mcov,Quad2,saison) %>%
-  filter(Structure2 == "Columns") %>%
+  filter(Structure2 == "Inner_slots") %>%
   filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>%
   distinct()%>%
   group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
@@ -1786,12 +1822,14 @@ distdataR<-vegdist(Comp_mat, method='bray')
 sDA<-trajectoryAngles(distdataR,data_comp2$Site,surveys=NULL) #angle des vecteurs
 
 sDACo=sDA %>%  select(-rho)%>% mutate("S5-S6"=="0") 
-colnames(sDACo)[7]<-"S5-S6"
-sDACo<-sDACo[,c(1:4,7,5:6)] 
+# colnames(sDACo)[7]<-"S5-S6"
+sDACo<-sDACo[,-7]
+# sDACo<-sDACo[,c(1:4,7,5:6)] 
 sDADi=sDA %>%  select(-rho)
 sDAPi=sDA %>%  select(-rho) %>% mutate("S5-S6"=="0") 
 colnames(sDAPi)[7]<-"S5-S6"
-sDAPi<-sDAPi[,c(1:4,7,5:6)]
+sDAPi<-sDAPi[,-7]
+# sDAPi<-sDAPi[,c(1:4,7,5:6)]
 sDAF=sDA  %>%  select(-rho)
 
 sDAngle<-rbind(sDACo,sDADi,sDAPi,sDAF)
@@ -1799,40 +1837,48 @@ sDAngle$Structure<-rep(c("Colonnes","Disques","Piliers","Faille"),each=4)
 sDAngle$Site<-c("Bi","Bu","Fe","VB")
 sDAngle$sd<-sqrt(sDAngle$mean)
 
-colnames(sDAngle)[c(1:5)]<-c("premier","deuxieme","troisieme","quatrieme","cinquieme")
+colnames(sDAngle)[c(1:5)]<-c("premier","deuxieme","troisieme","quatrieme","mean")
+# save(sDAngle, file="data.RData")
+load("sDAngle")
 
 
+##### Angle entre inventaires #####
+sDAnglepre = sDAngle %>% select("premier","Structure","Site") %>% mutate(Numinv=1)
+colnames(sDAnglepre)[1]<-"value"
 
-ggplot(sDAngle[-c(3,7,11,15),], aes(Structure,premier,colour=Site))+ 
+sDAngledeu = sDAngle %>% select("deuxieme","Structure","Site") %>% mutate(Numinv=2)
+colnames(sDAngledeu)[1]<-"value"
+
+sDAngletro = sDAngle %>% select("troisieme","Structure","Site") %>% mutate(Numinv=3)
+colnames(sDAngletro)[1]<-"value"
+
+sDAnglequa = sDAngle %>% select("quatrieme","Structure","Site") %>% mutate(Numinv=4)
+colnames(sDAnglequa)[1]<-"value"
+
+sDAngletot<-rbind(sDAnglepre,sDAngledeu,sDAngletro,sDAnglequa)
+
+ggplot(sDAngletot, aes(Numinv,value,colour=Structure))+ 
   geom_point(stat="identity",alpha=.7)+
+  geom_line()+
   theme_bw()+ 
-  xlab("")+ylab("Angles des vecteurs entre avril et juillet 2021") # pas sûr des dates parce que possible que les structures n'ont pas été échantillonnées tout le temps
-
-ggplot(sDAngle[-c(3,7,11,15),], aes(Structure,deuxieme,colour=Site))+ 
-  geom_point(stat="identity",alpha=.7)+
-  theme_bw()+ 
-  xlab("")+ylab("Angles des vecteurs entre juillet et novembre 2021")# pas sûr des dates parce que possible que les structures n'ont pas été échantillonnées tout le temps
-
-ggplot(sDAngle[-c(3,7,11,15),], aes(Structure,troisieme,colour=Site))+ 
-  geom_point(stat="identity",alpha=.7)+
-  theme_bw()+ 
-  xlab("")+ylab("Angles des vecteurs entre novembre et janvier 2021")# pas sûr des dates parce que possible que les structures n'ont pas été échantillonnées tout le temps
-
-ggplot(sDAngle[-c(3,7,11,15),], aes(Structure,quatrieme,colour=Site))+ 
-  geom_point(stat="identity",alpha=.7)+
-  theme_bw()+ 
-  xlab("")+ylab("Angles des vecteurs entre janvier et avril 2021")# pas sûr des dates parce que possible que les structures n'ont pas été échantillonnées tout le temps
+  xlab("numéro d'inventaire")+ylab("Angles des vecteurs entre deux dates")+ # pas sûr des dates parce que possible que les structures n'ont pas été échantillonnées tout le temps
+facet_wrap(~Site)
 
 
-ggplot(sDAngle, aes(Structure,mean,fill=Site))+ 
+
+
+##### Angle avec la moyenne totale #####
+ggplot(sDAngle, aes(Structure,mean,fill=Structure))+ 
   geom_bar(stat="identity",alpha=.7)+
   # geom_boxplot()+
   # geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2, position=position_dodge(.9))+ #ajout des barres d'erreur
   theme_bw()+ 
-  xlab("")+ylab("Angles moyens des vecteurs")
+  xlab("")+ylab("Angles moyens des vecteurs")+
+  facet_wrap(~Site)
 
 
 
+#test significativité
 aov1<-aov(mean~Structure+Site,data=sDAngle)
 summary(aov1)
 
@@ -1847,7 +1893,7 @@ adonis3<-permanova_pairwise(sDAngle$mean,groupe,permutations=999,method='bray',p
 
 data_comp2=dataR %>% ungroup %>%
   select(spp,Site,Structure2,Micro,Date_courte,Day_delta,Mcov,Quad2,saison) %>%
-  filter(Structure2 == "Pillars") %>% 
+  filter(Structure2 == "Disc") %>% 
   filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>%
   distinct()%>%
   group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
@@ -1856,6 +1902,7 @@ data_comp2=dataR %>% ungroup %>%
   droplevels() %>% 
   spread(spp,Mcov2) %>% 
   mutate(across(everything(.), ~replace_na(., 0))) 
+
 
 
 data_comp2$Site<-as.factor(data_comp2$Site)
@@ -1884,12 +1931,12 @@ sDDirection$sd<-sqrt(sDDirection$value)
 
 ggplot(sDDirection, aes(Structure,value,fill=Structure))+ 
   geom_bar(stat="identity",alpha=.7)+
-  # geom_boxplot()+
-  geom_errorbar(aes(ymin=value, ymax=value+sd), width=.2, position=position_dodge(.9))+ #ajout des barres d'erreur
   theme_bw()+ 
   xlab("")+ylab("Direction moyenne des trajectoires")+
   facet_wrap(~Site)
 
+
+# test significativité
 aov1<-aov(value~Structure+Site,data=sDDirection)
 summary(aov1)
 
@@ -2696,11 +2743,10 @@ ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement,group=Compast
 
 
 
-## Calcul de beta et comparaison intersite ou interstructures
+## Comparaison beta div entre les sites/structures
+<!-- ########## A utiliser avec la partie "calcul nestedness/remplacement..... ########## -->
+### Comparaison interstructures
 ```{r}
-########## A utiliser avec la partie "calcul nestedness/remplacement..... ##########
-
-#### Comparaison interstructures - indices de beta diversité 
 datatern2=datatern %>%
   # filter(Structure1 == 'Disc') %>%
     # filter(Structure1 %in% c('Disc','Inner_slots')) %>%
@@ -2768,14 +2814,15 @@ colnames(datameanrich)[5]<-"BIvalue"
 
 databetaindexinterstructures <- rbind(datameansimi,datameanremp,datameanrich)
 
+```
 
 
 
 
 
 
-
-#### Comparaison intersites - indices de beta diversité 
+### Comparaison intersites 
+```{r}
 datatern2=datatern %>%
   # filter(Structure1 == 'Disc') %>%
     # filter(Structure1 %in% c('Disc','Inner_slots')) %>%
@@ -2852,20 +2899,20 @@ model1<-gam(BIvalue~s(Comp_date,bs='re')+s(Comp_struct,bs="re")+s(Compasite,bs="
 
 plot_smooths(model=model1, series=BIvalue,comparison=Betaindex)+theme_bw() #permet de mettre les gam selon les sites
 
+``` 
   
   
   
-  
-##### Toutes les comparaisons possible
-  #### Comparaison intersites - indices de beta diversité 
+### Toutes les comparaisons possible
+```{r}
 datatern2=datatern %>%
   # filter(Structure1 == 'Disc') %>%
     # filter(Structure1 %in% c('Disc','Inner_slots')) %>%
     # filter(Structure2 %in% c('Disc','Inner_slots')) %>%
   # filter(Structure2%in% c('Disc')) %>%
     # filter(Structure1 %in% c('Inner_slots')) %>%
-  # filter(Site1 == 'Fe') %>%
-    # filter(Site2 == 'Fe') %>%
+  filter(Site1 != 'Fe') %>%
+    filter(Site2 != 'Fe') %>%
   #   filter(Site1!=Site2) %>%
   # filter(Site1 == Site2) %>%
   # # filter(Saison1 == Saison2) %>%
@@ -2907,22 +2954,22 @@ datatern2=datatern2 %>% mutate(Compastruct_date=paste(Compadate,Compastruct))
 datatern2=datatern2 %>% mutate(Compastruct_site_date=paste(Compasitedate,Compastruct))
 datatern2=datatern2 %>% mutate(Compasite_date=paste(Compasite,Date1))
 
-datamean<-datatern2 %>%  group_by(Compasite,Compastruct,Comp_date,Comp_day) %>% 
+datamean<-datatern2 %>%  group_by(Compasite,Compastruct,Comp_date,Compasaison) %>% 
   dplyr::summarize(Similarité=mean(Similarité),
             Remplacement=mean(Remplacement),
             Richesse=mean(Richesse))
 
 
-datameansimi=datamean %>% select(Compasite,Compastruct,Comp_date,Comp_day,Similarité) %>% 
-  mutate(Betaindex= "Similarité") %>% select(Betaindex,Compasite,Compastruct,Comp_date,Comp_day,Similarité)
+datameansimi=datamean %>% select(Compasite,Compastruct,Comp_date,Compasaison,Similarité) %>% 
+  mutate(Betaindex= "Similarité") %>% select(Betaindex,Compasite,Compastruct,Comp_date,Compasaison,Similarité)
 colnames(datameansimi)[6]<-"BIvalue"
 
-datameanremp=datamean %>% select(Compasite,Compastruct,Comp_date,Comp_day,Remplacement) %>% 
-  mutate(Betaindex= "Remplacement") %>% select(Betaindex,Compasite,Compastruct,Comp_date,Comp_day,Remplacement)
+datameanremp=datamean %>% select(Compasite,Compastruct,Comp_date,Compasaison,Remplacement) %>% 
+  mutate(Betaindex= "Remplacement") %>% select(Betaindex,Compasite,Compastruct,Comp_date,Compasaison,Remplacement)
 colnames(datameanremp)[6]<-"BIvalue"
 
-datameanrich=datamean %>% select(Compasite,Compastruct,Comp_date,Comp_day,Richesse)  %>% 
-  mutate(Betaindex= "Richesse") %>% select(Betaindex,Compasite,Compastruct,Comp_date,Comp_day,Richesse)
+datameanrich=datamean %>% select(Compasite,Compastruct,Comp_date,Compasaison,Richesse)  %>% 
+  mutate(Betaindex= "Richesse") %>% select(Betaindex,Compasite,Compastruct,Comp_date,Compasaison,Richesse)
 colnames(datameanrich)[6]<-"BIvalue"
 
 databetaindex <- rbind(datameansimi,datameanremp,datameanrich)
@@ -2932,7 +2979,7 @@ databetaindex$Betaindex<-as.factor(databetaindex$Betaindex)
 databetaindex$Compastruct<-as.factor(databetaindex$Compastruct)
 databetaindex$Compasite<-as.factor(databetaindex$Compasite)
 databetaindex$Comp_date<-as.factor(databetaindex$Comp_date)
-databetaindex$Comp_day<-as.numeric(databetaindex$Comp_day)
+# databetaindex$Comp_day<-as.numeric(databetaindex$Comp_day)
 
 
 ##### Test comparaison interstructures et intersite avec binaire #####
@@ -3011,7 +3058,8 @@ colnames(databetaindex2)[6:8]<-c("Similarité","Remplacement","Richesse")
 databetaindex2$Compasite<-as.factor(databetaindex2$Compasite)
 databetaindex2$Compastruct<-as.factor(databetaindex2$Compastruct)
 databetaindex2$Comp_date<-as.factor(databetaindex2$Comp_date)
-databetaindex2$Comp_day<-as.factor(databetaindex2$Comp_day)
+databetaindex2$Compasaison<-as.factor(databetaindex2$Compasaison)
+# databetaindex2$Comp_day<-as.factor(databetaindex2$Comp_day)
 databetaindex2$Compa<-as.factor(databetaindex2$Compa)
 
 databetaindex2$Similarité<-as.numeric(databetaindex2$Similarité)
@@ -3021,9 +3069,9 @@ databetaindex2$Richesse<-as.numeric(databetaindex2$Richesse)
 
 
 ### Similarité ###
-databetaindex3=databetaindex2[,-c(1:2,4)]
+databetaindex3=databetaindex2[,-c(1:2)]
 
-databetaindex3<-databetaindex3[,-c(4:5)]
+databetaindex3<-databetaindex3[,-c(5:6)]
 
 
 rf <- randomForest(Similarité ~ ., data = databetaindex3, ntree = 10)
@@ -3032,8 +3080,8 @@ X<-databetaindex3[which(names(databetaindex3)!="Similarité")]
 predictor <- Predictor$new(rf, data = X, y = databetaindex3$Similarité)
 
 
-imp <- FeatureImp$new(predictor, loss = "mae")
-plot(imp)
+# imp <- FeatureImp$new(predictor, loss = "mae") ########## fonction qui compile les packages dplyr et MASS donc fonctionne plus
+# plot(imp)
 
 # ale <- FeatureEffect$new(predictor, feature = "lstat", grid.size = 10)
 # ale$plot()
@@ -3041,7 +3089,7 @@ plot(imp)
 interact <- Interaction$new(predictor, grid.size = 15)
 plot(interact)
 
-effs <- FeatureEffects$new(predictor, grid.size = 10)
+effs <- FeatureEffects$new(predictor, grid.size = 10) ######### fonction qui compile les packages dplyr et MASS donc fonctionne plus
 plot(effs)
 
 tree <- TreeSurrogate$new(predictor, maxdepth = 2)
@@ -3057,9 +3105,9 @@ plot(lime.explain)
 
 
 ### Remplacement ###
-databetaindex3=databetaindex2[,-c(1:2,4)]
+databetaindex3=databetaindex2[,-c(1:2)]
 
-databetaindex3<-databetaindex3[,-c(3,5)]
+databetaindex3<-databetaindex3[,-c(4,6)]
 
 rf <- randomForest(Remplacement ~ ., data = databetaindex3, ntree = 10)
 
@@ -3067,18 +3115,14 @@ X<-databetaindex3[which(names(databetaindex3)!="Remplacement")]
 predictor <- Predictor$new(rf, data = X, y = databetaindex3$Remplacement)
 
 
-imp <- FeatureImp$new(predictor, loss = "mae")
-plot(imp)
-
-# ale <- FeatureEffect$new(predictor, feature = "lstat", grid.size = 10)
-# ale$plot()
+# imp <- FeatureImp$new(predictor, loss = "mae") ######### fonction qui compile les packages dplyr et MASS donc fonctionne plus
+# plot(imp)
 
 interact <- Interaction$new(predictor, grid.size = 15)
 plot(interact)
 
 
-effs <- FeatureEffects$new(predictor, grid.size = 10)
-
+effs <- FeatureEffects$new(predictor, grid.size = 10) ######### fonction qui compile les packages dplyr et MASS donc fonctionne plus
 # library(forcats)
 # fct_relevel(effs$results$Comp_date$.borders, c("2021-01", "2021-04", "2021-07","2021-11","2022-01","2022-04", "2022-07","2022-11" ))
 # levels_order <- c("2021-01", "2021-04", "2021-07","2021-11","2022-01","2022-04","2022-07","2022-11")
@@ -3086,21 +3130,12 @@ effs <- FeatureEffects$new(predictor, grid.size = 10)
 # effs$plot$environment$self$results$Cmp_date <- factor(effs$plot$environment$self$results$Comp_date, levels = levels_order)
 plot(effs)
 
-tree <- TreeSurrogate$new(predictor, maxdepth = 2)
-plot(tree)
-
-lime.explain <- LocalModel$new(predictor, x.interest = X[1, ])
-plot(lime.explain)
-
-shapley <- Shapley$new(predictor, x.interest = X[1, ], sample.size = 50)
-shapley$plot()
-
 
 
 ### Richesse ###
-databetaindex3=databetaindex2[,-c(1:2,4)]
+databetaindex3=databetaindex2[,-c(1:2)]
 
-databetaindex3<-databetaindex3[,-c(3,4)]
+databetaindex3<-databetaindex3[,-c(4,5)]
 
 rf <- randomForest(Richesse ~ ., data = databetaindex3, ntree = 10)
 
@@ -3108,11 +3143,8 @@ X<-databetaindex3[which(names(databetaindex3)!="Richesse")]
 predictor <- Predictor$new(rf, data = X, y = databetaindex3$Richesse)
 
 
-imp <- FeatureImp$new(predictor, loss = "mae")
-plot(imp)
-
-# ale <- FeatureEffect$new(predictor, feature = "lstat", grid.size = 10)
-# ale$plot()
+# imp <- FeatureImp$new(predictor, loss = "mae")
+# plot(imp)
 
 interact <- Interaction$new(predictor, grid.size = 15)
 plot(interact)
@@ -3120,14 +3152,6 @@ plot(interact)
 effs <- FeatureEffects$new(predictor, grid.size = 10)
 plot(effs)
 
-tree <- TreeSurrogate$new(predictor, maxdepth = 2)
-plot(tree)
-
-lime.explain <- LocalModel$new(predictor, x.interest = X[1, ])
-plot(lime.explain)
-
-# shapley <- Shapley$new(predictor, x.interest = X[1, ], sample.size = 50)
-# shapley$plot()
 
 ```
 
