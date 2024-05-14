@@ -1698,7 +1698,7 @@ distdataR<-vegdist(Comp_mat, method='bray')
 ##### Distance totale Structure par structure
 data_comp2=dataR %>% ungroup %>%
   select(spp,Site,Structure2,Micro,Date_courte,Day_delta,Mcov,Quad2,saison) %>%
-  filter(Structure2 == "Inner_slots") %>% 
+  filter(Structure2 == "Pillars") %>% 
   filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>%
   distinct()%>%
   group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
@@ -1750,32 +1750,42 @@ ggplot(sDlength, aes(Structure,Trajectory,fill=Structure))+
 
 ##### Trajectoire entre inventaires #####
 
-sDlengthpre = sDlength %>% select("premier","Structure","Site") %>% mutate(Numinv=1)
+sDlengthpre = sDlength %>% select("premier","Structure","Site") %>% mutate(Numinv="1 Avr-Juil")
+sDlengthpre$Numinv[sDlengthpre$Site=="Fe" | sDlengthpre$Site=="Fe1" | sDlengthpre$Site=="Fe2" | sDlengthpre$Site=="Fe3"]<- "1.5 Avr-Nov"
 colnames(sDlengthpre)[1]<-"value"
 
-sDlengthdeu = sDlength %>% select("deuxieme","Structure","Site") %>% mutate(Numinv=2)
+sDlengthdeu = sDlength %>% select("deuxieme","Structure","Site") %>% mutate(Numinv="2 Juil-Nov")
+sDlengthdeu$Numinv[sDlengthdeu$Site=="Fe" | sDlengthdeu$Site=="Fe1" | sDlengthdeu$Site=="Fe2" | sDlengthdeu$Site=="Fe3"]<- "3 Nov-Jan"
 colnames(sDlengthdeu)[1]<-"value"
 
-sDlengthtro = sDlength %>% select("troisieme","Structure","Site") %>% mutate(Numinv=3)
+sDlengthtro = sDlength %>% select("troisieme","Structure","Site") %>% mutate(Numinv="3 Nov-Jan")
+sDlengthtro$Numinv[sDlengthtro$Site=="Fe" | sDlengthtro$Site=="Fe1" | sDlengthtro$Site=="Fe2" | sDlengthtro$Site=="Fe3"]<- "4 Jan-Avr"
 colnames(sDlengthtro)[1]<-"value"
 
-sDlengthqua = sDlength %>% select("quatrieme","Structure","Site") %>% mutate(Numinv=4)
+sDlengthqua = sDlength %>% select("quatrieme","Structure","Site") %>% mutate(Numinv="4 Jan-Avr")
 colnames(sDlengthqua)[1]<-"value"
 
-sDlengthcin = sDlength %>% select("cinquieme","Structure","Site") %>% mutate(Numinv=5)
+sDlengthcin = sDlength %>% select("cinquieme","Structure","Site") %>% mutate(Numinv="5 Avr-Nov")
 colnames(sDlengthcin)[1]<-"value"
 
 sDlengthtot<-rbind(sDlengthpre,sDlengthdeu,sDlengthtro,sDlengthqua,sDlengthcin)
 
+sDlengthtot$Structure<-as.factor(sDlengthtot$Structure)
+sDlengthtot$Site<-as.factor(sDlengthtot$Site)
+sDlengthtot$Numinv<-as.factor(sDlengthtot$Numinv)
+sDlengthtot=sDlengthtot %>% mutate(Structure_site=paste(Structure,Site))
+
 ggplot(sDlengthtot, aes(Numinv,value,colour=Structure))+ 
   geom_point(stat="identity",alpha=.7)+
-  geom_line()+
+  geom_line(aes(group=c(Structure_site)))+
   theme_bw()+ 
-  xlab("numéro d'inventaire")+ylab("Angles des vecteurs entre deux dates")+ # pas sûr des dates parce que possible que les structures n'ont pas été échantillonnées tout le temps
+  theme(axis.text.x = element_text(angle = -90, vjust = 0.7))+
+  xlab("Comparaison entre les mois")+ylab("Angles des vecteurs entre deux dates")+ # pas sûr des dates parce que possible que les structures n'ont pas été échantillonnées tout le temps
 facet_wrap(~Site)
 
 # test significativité
-aov1<-aov(Trajectory~Structure+Site,data=sDlength)
+aov1<-aov(Trajectory~Structure+Site+Structure*Site,data=sDlength)
+aov1<-aov(value~Structure+Site+Structure*Site,data=sDlengthtot)
 summary(aov1)
 
 adonis2(sDlength$Trajectory~Site+Structure,data=sDlength,permutations=999)
@@ -1796,7 +1806,7 @@ adonis3<-permanova_pairwise(sDlength[,-c(2:4)],groupe,permutations=999,method='b
 ##### Angles moyens Structure par structure
 data_comp2=dataR %>% ungroup %>%
   select(spp,Site,Structure2,Micro,Date_courte,Day_delta,Mcov,Quad2,saison) %>%
-  filter(Structure2 == "Inner_slots") %>%
+  filter(Structure2 == "Pillars") %>%
   filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>%
   distinct()%>%
   group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
@@ -1821,14 +1831,16 @@ distdataR<-vegdist(Comp_mat, method='bray')
 
 sDA<-trajectoryAngles(distdataR,data_comp2$Site,surveys=NULL) #angle des vecteurs
 
-sDACo=sDA %>%  select(-rho)%>% mutate("S5-S6"=="0") 
-# colnames(sDACo)[7]<-"S5-S6"
-sDACo<-sDACo[,-7]
+sDACo=sDA%>%  select(-rho)
+# %>% mutate("S5-S6"=="0") 
+# # colnames(sDACo)[7]<-"S5-S6"
+# sDACo<-sDACo[,-7]
 # sDACo<-sDACo[,c(1:4,7,5:6)] 
 sDADi=sDA %>%  select(-rho)
-sDAPi=sDA %>%  select(-rho) %>% mutate("S5-S6"=="0") 
-colnames(sDAPi)[7]<-"S5-S6"
-sDAPi<-sDAPi[,-7]
+sDAPi=sDA %>%  select(-rho)
+# %>% mutate("S5-S6"=="0") 
+# colnames(sDAPi)[7]<-"S5-S6"
+# sDAPi<-sDAPi[,-7]
 # sDAPi<-sDAPi[,c(1:4,7,5:6)]
 sDAF=sDA  %>%  select(-rho)
 
@@ -1843,25 +1855,29 @@ load("sDAngle")
 
 
 ##### Angle entre inventaires #####
-sDAnglepre = sDAngle %>% select("premier","Structure","Site") %>% mutate(Numinv=1)
+sDAnglepre = sDAngle %>% select("premier","Structure","Site") %>% mutate(Numinv='1 Avr-Juil-Nov')
+sDAnglepre$Numinv[sDAnglepre$Site=="Fe" | sDAnglepre$Site=="Fe1" | sDAnglepre$Site=="Fe2" | sDAnglepre$Site=="Fe3"]<- "1.5 Avr-Nov-Jan"
 colnames(sDAnglepre)[1]<-"value"
 
-sDAngledeu = sDAngle %>% select("deuxieme","Structure","Site") %>% mutate(Numinv=2)
+sDAngledeu = sDAngle %>% select("deuxieme","Structure","Site") %>% mutate(Numinv='2 Juil-Nov-Jan')
+sDAngledeu$Numinv[sDAngledeu$Site=="Fe" | sDAngledeu$Site=="Fe1" | sDAngledeu$Site=="Fe2" | sDAngledeu$Site=="Fe3"]<- "3 Nov-Jan-Avr"
 colnames(sDAngledeu)[1]<-"value"
 
-sDAngletro = sDAngle %>% select("troisieme","Structure","Site") %>% mutate(Numinv=3)
+sDAngletro = sDAngle %>% select("troisieme","Structure","Site") %>% mutate(Numinv='3 Nov-Jan-Avr')
 colnames(sDAngletro)[1]<-"value"
 
-sDAnglequa = sDAngle %>% select("quatrieme","Structure","Site") %>% mutate(Numinv=4)
+sDAnglequa = sDAngle %>% select("quatrieme","Structure","Site") %>% mutate(Numinv='4 Jan-Avr-Nov')
 colnames(sDAnglequa)[1]<-"value"
 
 sDAngletot<-rbind(sDAnglepre,sDAngledeu,sDAngletro,sDAnglequa)
+sDAngletot=sDAngletot %>% mutate(Structure_site=paste(Structure,Site))
 
 ggplot(sDAngletot, aes(Numinv,value,colour=Structure))+ 
   geom_point(stat="identity",alpha=.7)+
-  geom_line()+
-  theme_bw()+ 
-  xlab("numéro d'inventaire")+ylab("Angles des vecteurs entre deux dates")+ # pas sûr des dates parce que possible que les structures n'ont pas été échantillonnées tout le temps
+  geom_line(aes(group=c(Structure_site)))+
+  theme_bw()+
+    theme(axis.text.x = element_text(angle = -90, vjust = 0.7))+
+  xlab("Comparaison d'inventaire")+ylab("Angles des vecteurs entre deux dates")+ # pas sûr des dates parce que possible que les structures n'ont pas été échantillonnées tout le temps
 facet_wrap(~Site)
 
 
@@ -1880,6 +1896,7 @@ ggplot(sDAngle, aes(Structure,mean,fill=Structure))+
 
 #test significativité
 aov1<-aov(mean~Structure+Site,data=sDAngle)
+aov1<-aov(value~Structure+Site+Structure*Site,data=sDAngletot)
 summary(aov1)
 
 groupe<-sDAngle$Site
@@ -1944,8 +1961,6 @@ groupe<-sDDirection$Site
 groupe<-sDDirection$Structure
 
 adonis3<-permanova_pairwise(sDDirection$value,groupe,permutations=999,method='bray',padj="bonferroni")
-
-
 
 
 
