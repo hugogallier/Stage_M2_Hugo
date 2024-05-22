@@ -985,7 +985,6 @@ datatern2=datatern %>%
   # filter(Date1==Date2) %>%
   # filter(Date1 == '2022-01') %>%
   # filter(Date2 == '2022-01') %>%
-  # filter(!Date2 %in% c("2021-04","2021-07",'2021-10','2021-11')) %>%
   mutate(Comp_site=Site1,Comp_struct=Structure1,Comp_date=Date1)
 
 
@@ -995,10 +994,6 @@ datatern2=datatern2 %>%
   mutate(Compadate<-paste(Date1,Date2,sep="/")) %>% 
   mutate(Compasaison<-paste(Saison1,Saison2,sep="/")) %>% 
   mutate(Compasite_date<-paste(Site1,Date1,sep="/"))
-  # mutate(Compaday<-paste(Day1,sep="/"))
-# colnames(datatern2)[14]<-"Comp_site"
-# colnames(datatern2)[15]<-"Comp_struct"
-# colnames(datatern2)[16]<-"Comp_date"
 colnames(datatern2)[15]<-"Compasite"
 colnames(datatern2)[16]<-"Compastruct"
 colnames(datatern2)[17]<-"Compadate"
@@ -1084,12 +1079,6 @@ datameansimi3<-aggregate(BIvalue~Betaindex+Compastruct+Comp_date+Compasaison+Com
 
 datameansimi4<-rbind(datameansimi2,datameansimi3)
 
-
-# datameansimi$Compasite<-as.factor(datameansimi$Compasite)
-# datameansimi$Compastruct<-as.factor(datameansimi$Compastruct)
-# datameansimi$Comp_date<-as.factor(datameansimi$Comp_date)
-# datameansimi$Compasaison<-as.factor(datameansimi$Compasaison)
-# datameansimi$Compa<-as.factor(datameansimi$Compa)
 
 
 # Data remplacement
@@ -1192,7 +1181,7 @@ databetaindex2$Compasaison<-as.factor(databetaindex2$Compasaison)
 # databetaindex3=databetaindex2[,-c(1:3)]
 # databetaindex3<-databetaindex3[,-c(4:5)]
 
-databetaindex3=databetaindex2[,-c(1:2,5,9)]
+databetaindex3=databetaindex2[,-c(1:2,5)]
 databetaindex3<-databetaindex3[,-c(4:5)]
 
 rf <- randomForest(Similarité ~ ., data = databetaindex3, ntree = 10)
@@ -1223,13 +1212,15 @@ plot(effs)+theme(axis.text.x = element_text(size=15))
 ### Remplacement ###
 # databetaindex3=databetaindex2[,-c(1:3)]
 
-databetaindex3=databetaindex2[,-c(1:2,5,9)]
+databetaindex3=databetaindex2[,-c(1:2,4,9)]
 databetaindex3<-databetaindex3[,-c(3,5)]
 
-rf <- randomForest(Remplacement ~ ., data = databetaindex3, ntree = 10)
+databetaindex4<- databetaindex3[-which(databetaindex3$Compasite == "Bi/Bi"| databetaindex3$Compasite == "Bu/Bu"| databetaindex3$Compasite == "Fe/Fe"| databetaindex3$Compasite == "VB/VB"|databetaindex3$Compasite == "recif1/recif1"|databetaindex3$Compasite == "recif2/recif2"|databetaindex3$Compasite == "recif3/recif3"|databetaindex3$Compasite == "goelo"),] 
 
-X<-databetaindex3[which(names(databetaindex3)!="Remplacement")]
-predictor <- Predictor$new(rf, data = X, y = databetaindex3$Remplacement)
+rf <- randomForest(Remplacement ~ ., data = databetaindex4, ntree = 10)
+
+X<-databetaindex4[which(names(databetaindex4)!="Remplacement")]
+predictor <- Predictor$new(rf, data = X, y = databetaindex4$Remplacement)
 
 #importance des variables
 # imp <- FeatureImp$new(predictor, loss = "mae")
@@ -1241,7 +1232,7 @@ predictor <- Predictor$new(rf, data = X, y = databetaindex3$Remplacement)
 
 #variables expliquant les variations de la betadiversité
 effs <- FeatureEffects$new(predictor, grid.size = 10)
-plot(effs)+theme(axis.text.x = element_text(size=15))
+plot(effs)+theme(axis.text.x = element_text(size=10,angle=30))
 
 # tree <- TreeSurrogate$new(predictor, maxdepth = 2)
 # plot(tree)
@@ -1279,6 +1270,65 @@ plot(effs)+theme(axis.text.x = element_text(size=15))
 # 
 # lime.explain <- LocalModel$new(predictor, x.interest = X[1, ])
 # plot(lime.explain)
+
+
+
+######## boxplot ######## 
+datameansimi4
+datameanremp4
+datameanrich4
+
+datameansimi5=datameansimi4 %>% filter(!Compa == "Interbaie 2")
+
+ggplot(datameansimi5, aes(x=Compa, y=BIvalue,fill=Compa))+
+  geom_point(aes(x= Compa, y=BIvalue, color=Compa),alpha=.5)+
+  geom_boxplot(outlier.shape=NA)+
+  theme_bw()+
+  xlab("Echelle")+ ylab("Similarité")
+
+
+
+datameanremp5=datameanremp4 %>% filter(!Compa == "Interbaie 2")
+
+ggplot(datameanremp5, aes(x=Compa, y=BIvalue,fill=Compa))+
+  geom_point(aes(x= Compa, y=BIvalue, color=Compa),alpha=.5)+
+  geom_boxplot(outlier.shape=NA)+
+  theme_bw()+
+  xlab("Echelle")+ ylab("Remplacement")
+
+
+datameanrich5=datameanrich4 %>% filter(!Compa == "Interbaie 2")
+
+ggplot(datameanrich5, aes(x=Compa, y=BIvalue,fill=Compa))+
+  geom_point(aes(x= Compa, y=BIvalue, color=Compa),alpha=.5)+
+  geom_boxplot(outlier.shape=NA)+
+  theme_bw()+
+  xlab("Echelle")+ ylab("Richesse")
+
+
+
+######## violin plot ######## 
+
+ggplot(datameansimi4, aes(x=Compa, y=BIvalue,fill=Compa))+
+  geom_violin()+
+  geom_boxplot(width=0.2)+
+  theme_bw()+
+  xlab("Echelle")+ ylab("Similarité")+
+  theme(legend.position="none")
+
+ggplot(datameanremp4, aes(x=Compa, y=BIvalue,fill=Compa))+
+  geom_violin()+
+  geom_boxplot(width=0.2)+
+  theme_bw()+
+  xlab("Echelle")+ ylab("Remplacement")+
+  theme(legend.position="none")
+
+ggplot(datameanrich4, aes(x=Compa, y=BIvalue,fill=Compa))+
+  geom_violin()+
+  geom_boxplot(width=0.2)+
+  theme_bw()+
+  xlab("Echelle")+ ylab("Richesse")+
+  theme(legend.position="none")
 
 ```
 
@@ -1466,7 +1516,7 @@ databetaindex2$Compasaison<-as.factor(databetaindex2$Compasaison)
 datameansimi5<-datameansimi
 
 datameansimi5$dist<-rep(0)
-datameansimi5$dist[datameansimi5$Compasite == "Bi/recif1" | datameansimi5$Compasite == "Bi/recif2" | datameansimi5$Compasite == "Bi/recif3" | datameansimi5$Compasite == "Bu/recif1" | datameansimi5$Compasite == "Bu/recif2" | datameansimi5$Compasite == "Bu/recif3" | datameansimi5$Compasite == "Fe/recif1" | datameansimi5$Compasite == "Fe/recif2" | datameansimi5$Compasite == "Fe/recif3" | datameansimi5$Compasite == "VB/recif1" | datameansimi5$Compasite == "VB/recif2" | datameansimi5$Compasite == "VB/recif3"   | datameansimi5$Compasite == "VB/recif3" | datameansimi5$Compasite == "VB/recif3"| datameansimi5$Compasite == "recif1/Bu" | datameansimi5$Compasite == "recif1/Fe" | datameansimi5$Compasite == "recif1/Bi" | datameansimi5$Compasite == "recif2/Bu" | datameansimi5$Compasite == "recif2/Bi" | datameansimi5$Compasite == "recif2/Fe" | datameansimi5$Compasite == "recif3/Bi" | datameansimi5$Compasite == "recif3/Bu" | datameansimi5$Compasite == "recif3/Fe"]<-"100000"
+datameansimi5$dist[datameansimi5$Compasite == "Bi/recif1" | datameansimi5$Compasite == "Bi/recif2" | datameansimi5$Compasite == "Bi/recif3" | datameansimi5$Compasite == "Bu/recif1" | datameansimi5$Compasite == "Bu/recif2" | datameansimi5$Compasite == "Bu/recif3" | datameansimi5$Compasite == "Fe/recif1" | datameansimi5$Compasite == "Fe/recif2" | datameansimi5$Compasite == "Fe/recif3" | datameansimi5$Compasite == "VB/recif1" | datameansimi5$Compasite == "VB/recif2" | datameansimi5$Compasite == "VB/recif3"   | datameansimi5$Compasite == "VB/recif3" | datameansimi5$Compasite == "VB/recif3"| datameansimi5$Compasite == "recif1/Bu" | datameansimi5$Compasite == "recif1/Fe" | datameansimi5$Compasite == "recif1/Bi" | datameansimi5$Compasite == "recif2/Bu" | datameansimi5$Compasite == "recif2/Bi" | datameansimi5$Compasite == "recif2/Fe" | datameansimi5$Compasite == "recif3/Bi" | datameansimi5$Compasite == "recif3/Bu" | datameansimi5$Compasite == "recif3/Fe"]<-"67"
 
 
 datameansimi5$dist[datameansimi5$Compasite == "Bi/Bi"| datameansimi5$Compasite == "Bu/Bu"| datameansimi5$Compasite == "Fe/Fe"| datameansimi5$Compasite == "VB/VB"|datameansimi5$Compasite == "recif1/recif1"|datameansimi5$Compasite == "recif2/recif2"|datameansimi5$Compasite == "recif3/recif3"] <- "0.01"
@@ -1474,7 +1524,22 @@ datameansimi5$dist[datameansimi5$Compasite == "Bi/Bi"| datameansimi5$Compasite =
 
 datameansimi5$dist[datameansimi5$Compasite == "recif1/recif3"| datameansimi5$Compasite == "recif1/recif2"| datameansimi5$Compasite == "recif2/recif3"| datameansimi5$Compasite == "recif3/recif1"|datameansimi5$Compasite == "recif3/recif2"|datameansimi5$Compasite == "recif2/recif1"] <- "10"
 
-datameansimi5$dist[datameansimi5$Compasite == "Bi/Bu"| datameansimi5$Compasite == "Bi/Fe"| datameansimi5$Compasite == "Bi/VB"| datameansimi5$Compasite == "Bu/Bi"|datameansimi5$Compasite == "Bu/Fe"|datameansimi5$Compasite == "Bu/VB" |datameansimi5$Compasite == "Fe/Bi" |datameansimi5$Compasite == "Fe/Bu" |datameansimi5$Compasite == "Fe/VB" |datameansimi5$Compasite == "VB/Bi" |datameansimi5$Compasite == "VB/Bu" |datameansimi5$Compasite == "VB/Fe"] <- "1000"
+# datameansimi5$dist[datameansimi5$Compasite == "Bi/Bu"| datameansimi5$Compasite == "Bi/Fe"| datameansimi5$Compasite == "Bi/VB"| datameansimi5$Compasite == "Bu/Bi"|datameansimi5$Compasite == "Bu/Fe"|datameansimi5$Compasite == "Bu/VB" |datameansimi5$Compasite == "Fe/Bi" |datameansimi5$Compasite == "Fe/Bu" |datameansimi5$Compasite == "Fe/VB" |datameansimi5$Compasite == "VB/Bi" |datameansimi5$Compasite == "VB/Bu" |datameansimi5$Compasite == "VB/Fe"] <- "1000"
+
+
+
+datameansimi5$dist[datameansimi5$Compasite == "Bi/Bu"]<-"8.6"
+datameansimi5$dist[datameansimi5$Compasite == "Bi/VB"]<-"12.8"
+datameansimi5$dist[datameansimi5$Compasite == "Bi/Fe"]<-"7"
+datameansimi5$dist[datameansimi5$Compasite == "Bu/Bi"]<-"8.6"
+datameansimi5$dist[datameansimi5$Compasite == "Bu/VB"]<-"4.4"
+datameansimi5$dist[datameansimi5$Compasite == "Bu/Fe"]<-"3.3"
+datameansimi5$dist[datameansimi5$Compasite == "Fe/VB"]<-"6.5"
+datameansimi5$dist[datameansimi5$Compasite == "Fe/Bi"]<-"7"
+datameansimi5$dist[datameansimi5$Compasite == "VB/Bi"]<-"12.8"
+datameansimi5$dist[datameansimi5$Compasite == "VB/Bu"]<-"4.4"
+datameansimi5$dist[datameansimi5$Compasite == "VB/Fe"]<-"6.5"
+
 
 datameansimi6<-aggregate(BIvalue~dist+Betaindex+Compasite,data=datameansimi5,FUN=mean)
 
@@ -1484,7 +1549,7 @@ datameansimi6<-aggregate(BIvalue~dist+Betaindex+Compasite,data=datameansimi5,FUN
 datameanremp5<-datameanremp
 
 datameanremp5$dist<-rep(0)
-datameanremp5$dist[datameanremp5$Compasite == "Bi/recif1" | datameanremp5$Compasite == "Bi/recif2" | datameanremp5$Compasite == "Bi/recif3" | datameanremp5$Compasite == "Bu/recif1" | datameanremp5$Compasite == "Bu/recif2" | datameanremp5$Compasite == "Bu/recif3" | datameanremp5$Compasite == "Fe/recif1" | datameanremp5$Compasite == "Fe/recif2" | datameanremp5$Compasite == "Fe/recif3" | datameanremp5$Compasite == "VB/recif1" | datameanremp5$Compasite == "VB/recif2" | datameanremp5$Compasite == "VB/recif3"   | datameanremp5$Compasite == "VB/recif3" | datameanremp5$Compasite == "VB/recif3"| datameanremp5$Compasite == "recif1/Bu" | datameanremp5$Compasite == "recif1/Fe" | datameanremp5$Compasite == "recif1/Bi" | datameanremp5$Compasite == "recif2/Bu" | datameanremp5$Compasite == "recif2/Bi" | datameanremp5$Compasite == "recif2/Fe" | datameanremp5$Compasite == "recif3/Bi" | datameanremp5$Compasite == "recif3/Bu" | datameanremp5$Compasite == "recif3/Fe"]<-"100000"
+datameanremp5$dist[datameanremp5$Compasite == "Bi/recif1" | datameanremp5$Compasite == "Bi/recif2" | datameanremp5$Compasite == "Bi/recif3" | datameanremp5$Compasite == "Bu/recif1" | datameanremp5$Compasite == "Bu/recif2" | datameanremp5$Compasite == "Bu/recif3" | datameanremp5$Compasite == "Fe/recif1" | datameanremp5$Compasite == "Fe/recif2" | datameanremp5$Compasite == "Fe/recif3" | datameanremp5$Compasite == "VB/recif1" | datameanremp5$Compasite == "VB/recif2" | datameanremp5$Compasite == "VB/recif3"   | datameanremp5$Compasite == "VB/recif3" | datameanremp5$Compasite == "VB/recif3"| datameanremp5$Compasite == "recif1/Bu" | datameanremp5$Compasite == "recif1/Fe" | datameanremp5$Compasite == "recif1/Bi" | datameanremp5$Compasite == "recif2/Bu" | datameanremp5$Compasite == "recif2/Bi" | datameanremp5$Compasite == "recif2/Fe" | datameanremp5$Compasite == "recif3/Bi" | datameanremp5$Compasite == "recif3/Bu" | datameanremp5$Compasite == "recif3/Fe"]<-"67"
 
 
 datameanremp5$dist[datameanremp5$Compasite == "Bi/Bi"| datameanremp5$Compasite == "Bu/Bu"| datameanremp5$Compasite == "Fe/Fe"| datameanremp5$Compasite == "VB/VB"|datameanremp5$Compasite == "recif1/recif1"|datameanremp5$Compasite == "recif2/recif2"|datameanremp5$Compasite == "recif3/recif3"] <- "0.01"
@@ -1492,7 +1557,17 @@ datameanremp5$dist[datameanremp5$Compasite == "Bi/Bi"| datameanremp5$Compasite =
 
 datameanremp5$dist[datameanremp5$Compasite == "recif1/recif3"| datameanremp5$Compasite == "recif1/recif2"| datameanremp5$Compasite == "recif2/recif3"| datameanremp5$Compasite == "recif3/recif1"|datameanremp5$Compasite == "recif3/recif2"|datameanremp5$Compasite == "recif2/recif1"] <- "10"
 
-datameanremp5$dist[datameanremp5$Compasite == "Bi/Bu"| datameanremp5$Compasite == "Bi/Fe"| datameanremp5$Compasite == "Bi/VB"| datameanremp5$Compasite == "Bu/Bi"|datameanremp5$Compasite == "Bu/Fe"|datameanremp5$Compasite == "Bu/VB" |datameanremp5$Compasite == "Fe/Bi" |datameanremp5$Compasite == "Fe/Bu" |datameanremp5$Compasite == "Fe/VB" |datameanremp5$Compasite == "VB/Bi" |datameanremp5$Compasite == "VB/Bu" |datameanremp5$Compasite == "VB/Fe"] <- "1000"
+datameansimi5$dist[datameansimi5$Compasite == "Bi/Bu"]<-"8.6"
+datameansimi5$dist[datameansimi5$Compasite == "Bi/VB"]<-"12.8"
+datameansimi5$dist[datameansimi5$Compasite == "Bi/Fe"]<-"7"
+datameansimi5$dist[datameansimi5$Compasite == "Bu/Bi"]<-"8.6"
+datameansimi5$dist[datameansimi5$Compasite == "Bu/VB"]<-"4.4"
+datameansimi5$dist[datameansimi5$Compasite == "Bu/Fe"]<-"3.3"
+datameansimi5$dist[datameansimi5$Compasite == "Fe/VB"]<-"6.5"
+datameansimi5$dist[datameansimi5$Compasite == "Fe/Bi"]<-"7"
+datameansimi5$dist[datameansimi5$Compasite == "VB/Bi"]<-"12.8"
+datameansimi5$dist[datameansimi5$Compasite == "VB/Bu"]<-"4.4"
+datameansimi5$dist[datameansimi5$Compasite == "VB/Fe"]<-"6.5"
 
 datameanremp6<-aggregate(BIvalue~dist+Betaindex+Compasite,data=datameanremp5,FUN=mean)
 
@@ -1502,7 +1577,7 @@ datameanremp6<-aggregate(BIvalue~dist+Betaindex+Compasite,data=datameanremp5,FUN
 datameanrich5<-datameanrich
 
 datameanrich5$dist<-rep(0)
-datameanrich5$dist[datameanrich5$Compasite == "Bi/recif1" | datameanrich5$Compasite == "Bi/recif2" | datameanrich5$Compasite == "Bi/recif3" | datameanrich5$Compasite == "Bu/recif1" | datameanrich5$Compasite == "Bu/recif2" | datameanrich5$Compasite == "Bu/recif3" | datameanrich5$Compasite == "Fe/recif1" | datameanrich5$Compasite == "Fe/recif2" | datameanrich5$Compasite == "Fe/recif3" | datameanrich5$Compasite == "VB/recif1" | datameanrich5$Compasite == "VB/recif2" | datameanrich5$Compasite == "VB/recif3"   | datameanrich5$Compasite == "VB/recif3" | datameanrich5$Compasite == "VB/recif3"| datameanrich5$Compasite == "recif1/Bu" | datameanrich5$Compasite == "recif1/Fe" | datameanrich5$Compasite == "recif1/Bi" | datameanrich5$Compasite == "recif2/Bu" | datameanrich5$Compasite == "recif2/Bi" | datameanrich5$Compasite == "recif2/Fe" | datameanrich5$Compasite == "recif3/Bi" | datameanrich5$Compasite == "recif3/Bu" | datameanrich5$Compasite == "recif3/Fe"]<-"100 000"
+datameanrich5$dist[datameanrich5$Compasite == "Bi/recif1" | datameanrich5$Compasite == "Bi/recif2" | datameanrich5$Compasite == "Bi/recif3" | datameanrich5$Compasite == "Bu/recif1" | datameanrich5$Compasite == "Bu/recif2" | datameanrich5$Compasite == "Bu/recif3" | datameanrich5$Compasite == "Fe/recif1" | datameanrich5$Compasite == "Fe/recif2" | datameanrich5$Compasite == "Fe/recif3" | datameanrich5$Compasite == "VB/recif1" | datameanrich5$Compasite == "VB/recif2" | datameanrich5$Compasite == "VB/recif3"   | datameanrich5$Compasite == "VB/recif3" | datameanrich5$Compasite == "VB/recif3"| datameanrich5$Compasite == "recif1/Bu" | datameanrich5$Compasite == "recif1/Fe" | datameanrich5$Compasite == "recif1/Bi" | datameanrich5$Compasite == "recif2/Bu" | datameanrich5$Compasite == "recif2/Bi" | datameanrich5$Compasite == "recif2/Fe" | datameanrich5$Compasite == "recif3/Bi" | datameanrich5$Compasite == "recif3/Bu" | datameanrich5$Compasite == "recif3/Fe"]<-"67"
 
 
 datameanrich5$dist[datameanrich5$Compasite == "Bi/Bi"| datameanrich5$Compasite == "Bu/Bu"| datameanrich5$Compasite == "Fe/Fe"| datameanrich5$Compasite == "VB/VB"|datameanrich5$Compasite == "recif1/recif1"|datameanrich5$Compasite == "recif2/recif2"|datameanrich5$Compasite == "recif3/recif3"] <- "0.01"
@@ -1510,23 +1585,36 @@ datameanrich5$dist[datameanrich5$Compasite == "Bi/Bi"| datameanrich5$Compasite =
 
 datameanrich5$dist[datameanrich5$Compasite == "recif1/recif3"| datameanrich5$Compasite == "recif1/recif2"| datameanrich5$Compasite == "recif2/recif3"| datameanrich5$Compasite == "recif3/recif1"|datameanrich5$Compasite == "recif3/recif2"|datameanrich5$Compasite == "recif2/recif1"] <- "10"
 
-datameanrich5$dist[datameanrich5$Compasite == "Bi/Bu"| datameanrich5$Compasite == "Bi/Fe"| datameanrich5$Compasite == "Bi/VB"| datameanrich5$Compasite == "Bu/Bi"|datameanrich5$Compasite == "Bu/Fe"|datameanrich5$Compasite == "Bu/VB" |datameanrich5$Compasite == "Fe/Bi" |datameanrich5$Compasite == "Fe/Bu" |datameanrich5$Compasite == "Fe/VB" |datameanrich5$Compasite == "VB/Bi" |datameanrich5$Compasite == "VB/Bu" |datameanrich5$Compasite == "VB/Fe"] <- "1000"
+datameansimi5$dist[datameansimi5$Compasite == "Bi/Bu"]<-"8.6"
+datameansimi5$dist[datameansimi5$Compasite == "Bi/VB"]<-"12.8"
+datameansimi5$dist[datameansimi5$Compasite == "Bi/Fe"]<-"7"
+datameansimi5$dist[datameansimi5$Compasite == "Bu/Bi"]<-"8.6"
+datameansimi5$dist[datameansimi5$Compasite == "Bu/VB"]<-"4.4"
+datameansimi5$dist[datameansimi5$Compasite == "Bu/Fe"]<-"3.3"
+datameansimi5$dist[datameansimi5$Compasite == "Fe/VB"]<-"6.5"
+datameansimi5$dist[datameansimi5$Compasite == "Fe/Bi"]<-"7"
+datameansimi5$dist[datameansimi5$Compasite == "VB/Bi"]<-"12.8"
+datameansimi5$dist[datameansimi5$Compasite == "VB/Bu"]<-"4.4"
+datameansimi5$dist[datameansimi5$Compasite == "VB/Fe"]<-"6.5"
 
 datameanrich6<-aggregate(BIvalue~dist+Betaindex+Compasite,data=datameanrich5,FUN=mean)
 
 
-datameansimi6<-datameansimi6[,-3]
-datameansimi7<-datameansimi6  %>% summarize(BIvalue=mean(BIvalue,.by=c(dist)))
-datameansimi6$dist<-as.factor(datameansimi6$dist)
 
+
+datameansimi6<-datameansimi6[,-3]
+# datameansimi7<-datameansimi6  %>% summarize(BIvalue=mean(BIvalue,.by=c(dist)))
+datameansimi6$dist<-as.numeric(datameansimi6$dist)
 
   summarize(Mcov = mean(Mcov,.by=c(spp,Micro,Day_delta,Quad2)))
 
-
+  
+datameansimi6$dist<-as.factor(datameansimi6$dist)
+datameansimi7<-datameansimi6[order(datameansimi6$dist),]
 
 datameanbetadiv<-rbind(datameansimi6,datameanremp6,datameanrich6)
 
-ggplot(datameansimi6,aes(x = dist, y = BIvalue, colour=Betaindex ))+
+ggplot(datameansimi7,aes(x = dist, y = BIvalue, color=Betaindex ))+
   stat_summary(fun = mean,
         geom = "point",
         size = 2,

@@ -816,7 +816,7 @@ summary(model111111)
 AIC(model1,model11,model111,model1111,model11111,model111111)
 AIC(model2,model22,model222,model2222,model22222,model222222,model2222222)
 
-plot_smooths(model=model111111, series=Day_delta,comparison=Site)+theme_bw()
+plot_smooths(model=model111111, series=Day_delta,comparison=Structure2)+theme_bw()
 
 
 #test comparaison tous les paramètres
@@ -890,7 +890,7 @@ dev_mod <- ggplot(df_mod, aes(x = log_fitted, y = residuals))+
 
 
 dig_plot_tot=ggarrange(qq_plot, dev_mod, ncol=2)
-
+dig_plot_tot
 
 ```
 
@@ -1729,7 +1729,7 @@ sDLDi=sDL
 sDLPi=sDL
 sDLF=sDL
 sDlength<-rbind(sDLCo,sDLDi,sDLPi,sDLF)
-sDlength$Structure<-rep(c("Colonnes","Disques","Piliers","Faille"),each=4)
+sDlength$Structure<-rep(c("Colonnes","Disques","Piliers","Failles"),each=4)
 sDlength$Site<-c("Bi","Bu","Fe","VB")
 sDlength$sd<-sqrt(sDlength$Trajectory)
 colnames(sDlength)[1:5]<-c("premier","deuxieme","troisieme","quatrieme","cinquieme")
@@ -1743,7 +1743,7 @@ ggplot(sDlength, aes(Structure,Trajectory,fill=Structure))+
   # geom_boxplot()+
   # geom_errorbar(aes(ymin=Trajectory-sd, ymax=Trajectory+sd), width=.2, position=position_dodge(.9))+ #ajout des barres d'erreur
   theme_bw()+ 
-  xlab("")+ylab("Distance total de la trajectoire")+
+  xlab("")+ylab("Distance totale de la trajectoire")+
   facet_wrap(~Site)
 
 
@@ -1784,8 +1784,9 @@ ggplot(sDlengthtot, aes(Numinv,value,colour=Structure))+
 facet_wrap(~Site)
 
 # test significativité
+sDlength=sDlength %>% filter(!Site=="Fe")
 aov1<-aov(Trajectory~Structure+Site+Structure*Site,data=sDlength)
-aov1<-aov(value~Structure+Site+Structure*Site,data=sDlengthtot)
+aov1<-aov(value~Structure*Site+Numinv,data=sDlengthtot)
 summary(aov1)
 
 adonis2(sDlength$Trajectory~Site+Structure,data=sDlength,permutations=999)
@@ -1796,7 +1797,13 @@ groupe<-sDlength$Structure
 adonis3<-permanova_pairwise(sDlength[,-c(2:4)],groupe,permutations=999,method='bray',padj="bonferroni")
 
 
-##### Essayer de diviser les longeurs à chaque poitn par le temps pour avoir la vitesse
+## box plot longueur 
+ggplot(sDlengthtot,aes(x= Site, y=value, fill=Structure))+
+  geom_point(aes(x= Site, y=value, color=Structure),position=position_dodge(0.75),alpha=.5)+
+  geom_boxplot(outlier.shape=NA)+
+  ylab("Distance entre les segments de la trajectoire")+
+  theme_bw()
+
 
 ```
 
@@ -1806,7 +1813,7 @@ adonis3<-permanova_pairwise(sDlength[,-c(2:4)],groupe,permutations=999,method='b
 ##### Angles moyens Structure par structure
 data_comp2=dataR %>% ungroup %>%
   select(spp,Site,Structure2,Micro,Date_courte,Day_delta,Mcov,Quad2,saison) %>%
-  filter(Structure2 == "Pillars") %>%
+  filter(Structure2 == "Inner_slots") %>%
   filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>%
   distinct()%>%
   group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
@@ -1896,12 +1903,20 @@ ggplot(sDAngle, aes(Structure,mean,fill=Structure))+
 
 #test significativité
 aov1<-aov(mean~Structure+Site,data=sDAngle)
-aov1<-aov(value~Structure+Site+Structure*Site,data=sDAngletot)
+aov1<-aov(value~Structure*Site+Numinv,data=sDAngletot)
 summary(aov1)
 
 groupe<-sDAngle$Site
 groupe<-sDAngle$Structure
 adonis3<-permanova_pairwise(sDAngle$mean,groupe,permutations=999,method='bray',padj="bonferroni")
+
+
+## box plot angles 
+ggplot(sDAngletot,aes(x= Site, y=value, fill=Structure))+
+  geom_point(aes(x= Site, y=value, color=Structure),position=position_dodge(0.75),alpha=.5)+
+  geom_boxplot(outlier.shape=NA)+
+  ylab("Angles entre les segments de la trajectoire")+
+  theme_bw()
 
 ```
 
@@ -1965,7 +1980,10 @@ adonis3<-permanova_pairwise(sDDirection$value,groupe,permutations=999,method='br
 
 
 ##### Convergence
-sDD<-trajectoryConvergence(distdataR,data_comp2$Site,surveys=NULL) #convergence des vecteurs
+sDAngle1=sDAngle %>% filter(!Site=="Fe")
+distdataR1<-vegdist(sDAngle1[,c(1:4)], method='bray') 
+
+sDD<-trajectoryConvergence(distdataR,sDAngle$Site,surveys=NULL) #convergence des vecteurs
 #les données ne sont pas significatives donc pas pris en compte
 ```
 
@@ -2529,8 +2547,7 @@ annotate("text",x = c(159,252,344,433,524,617,708),y=0.45,
 ```
 
 
-
-## Calcul nestedness/replacement/richesse
+# Calcul des indices de beta diversité
 ```{r}
 
 dataR$saison<-dataR$Date_courte
