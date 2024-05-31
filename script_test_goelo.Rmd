@@ -212,13 +212,12 @@ dataR=dataR1 %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte",'NA','None
 
 # Indice gamma par site 
 dataR2=dataR %>% ungroup %>% 
-  select(spp,Site) %>% 
-  # filter(Site == 'recif3') %>% 
+  select(spp,Site,Date_courte) %>% 
+  # filter(Date_courte == '2022-09') %>%
   distinct()%>% 
   group_by(spp) %>% 
   summarize(S=n()) %>%
   na.omit()
-length(unique(dataR2$spp))
 
 
 # Indice gamma Quad2# Indice gamma global

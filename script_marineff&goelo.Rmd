@@ -51,6 +51,7 @@ library(iml)
 library(randomForest)
 library(partykit)
 library(glmnet)
+library(forcats)
 
 ```
 
@@ -363,6 +364,7 @@ dataRM=dataR1 %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte",'None','N
 
 
 
+
 # # MARINEFF+GOELO
 ## Matrice de distance
 ```{r}
@@ -420,6 +422,39 @@ Comp_mat=data_comp2GM %>% select(-c(Site,Micro,Structure2,Date_courte,saison,Yea
 Meta_data=data_comp2GM %>% select(Site,Micro,Structure2,Date_courte,saison,Years,Day_delta) #meta données
 
 distdataR<-vegdist(Comp_mat, method='bray') #library vegan - distance de Bray-Curtis, considéré face aux distances euclidiennes comme plus efficace pour les données écologiques
+
+```
+
+
+## Comparaison richesse interbaie
+```{r}
+dataR2=dataRGM %>% ungroup %>% 
+  select(spp,Site,Structure2,Micro,Date_courte) %>% 
+  filter(!Date_courte == "2021-01") %>%
+  distinct()%>% 
+  group_by(Site,Structure2,Micro,Date_courte) %>% 
+  summarize(S=n()) %>%
+  na.omit()
+
+dataR3=dataR2 %>% 
+  group_by(Structure2,Date_courte,Site) %>% 
+  summarize(S2 = mean(S)) %>% 
+  mutate(sd=sqrt(S2))
+
+dataR3$Site<-fct_relevel(dataR3$Site,c("Bi","Bu","Fe","VB","recif1","recif2","recif3"))
+
+ggplot(dataR3, aes(Structure2,S2, fill=Site))+ # Avec "fill" ou "col" du peut ajout une séparation de tes données par facteur (ici le site)
+  xlab("Structure")+
+  ylab("Richesse taxonomique moyenne")+
+  geom_point(aes(colour=Site),alpha=.3,position=position_dodge(0.75))+
+  # geom_jitter(alpha=.3,aes(colour=Site))+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
+  geom_boxplot(outlier.shape=NA)+
+  theme_bw()+  
+  stat_summary(fun.y = mean, geom = "point", size = 2, color = "black",position = position_dodge(width = .75))+
+  theme(axis.text.x = element_text(size=12,colour="black"))+
+  theme(axis.text.y = element_text(size=12,colour="black"))
+ggsave("richesse taxo interbaie.png",width=9,height=8,dpi=350)
+
 
 ```
 
@@ -1273,63 +1308,192 @@ plot(effs)+theme(axis.text.x = element_text(size=15))
 
 
 
-######## boxplot ######## 
-datameansimi4
-datameanremp4
-datameanrich4
-
-datameansimi5=datameansimi4 %>% filter(!Compa == "Interbaie 2")
-
-ggplot(datameansimi5, aes(x=Compa, y=BIvalue,fill=Compa))+
-  geom_point(aes(x= Compa, y=BIvalue, color=Compa),alpha=.5)+
-  geom_boxplot(outlier.shape=NA)+
-  theme_bw()+
-  xlab("Echelle")+ ylab("Similarité")
-
-
-
-datameanremp5=datameanremp4 %>% filter(!Compa == "Interbaie 2")
-
-ggplot(datameanremp5, aes(x=Compa, y=BIvalue,fill=Compa))+
-  geom_point(aes(x= Compa, y=BIvalue, color=Compa),alpha=.5)+
-  geom_boxplot(outlier.shape=NA)+
-  theme_bw()+
-  xlab("Echelle")+ ylab("Remplacement")
-
-
-datameanrich5=datameanrich4 %>% filter(!Compa == "Interbaie 2")
-
-ggplot(datameanrich5, aes(x=Compa, y=BIvalue,fill=Compa))+
-  geom_point(aes(x= Compa, y=BIvalue, color=Compa),alpha=.5)+
-  geom_boxplot(outlier.shape=NA)+
-  theme_bw()+
-  xlab("Echelle")+ ylab("Richesse")
-
-
-
 ######## violin plot ######## 
+compar<-list(c("Interstruct","Intrastruct"),c("Interstruct","Intersite 2"),c("Interbaie 2","Intersite 2"),c("Interstruct","Interbaie 2"),c("Intrastruct","Intersite 2"),c("Intrastruct","Interbaie 2"))
 
-ggplot(datameansimi4, aes(x=Compa, y=BIvalue,fill=Compa))+
-  geom_violin()+
-  geom_boxplot(width=0.2)+
+ggplot(datameansimi4, aes(x=Compa, y=BIvalue))+
+  geom_violin(aes(fct_reorder(Compa,-BIvalue),fill=Compa),trim=FALSE)+
+  geom_boxplot(width=0.2,aes(fill=Compa))+
+  # scale_color_manual(values = c("gray77", "gray63", "gray40","gray8"))+
   theme_bw()+
   xlab("Echelle")+ ylab("Similarité")+
-  theme(legend.position="none")
+  theme(legend.position="none")+
+  geom_signif(comparisons=compar,map_signif_level = TRUE,step_increase = 0.05,color="black",text_size=5)+
+  theme(axis.text.x = element_text(size=16,colour="black"))+
+  theme(axis.text.y = element_text(size=16,colour="black"))
+ggsave("Similarité selon échelles avec sign.png",width=8,height=8,dpi=350)
 
-ggplot(datameanremp4, aes(x=Compa, y=BIvalue,fill=Compa))+
-  geom_violin()+
-  geom_boxplot(width=0.2)+
+
+compar<-list(c("Interbaie 2","Intersite 2"),c("Interstruct","Interbaie 2"),c("Interstruct","Intrastruct"),c("Intrastruct","Interbaie 2"),c("Interstruct","Intersite 2"),c("Intrastruct","Intersite 2"))
+
+ggplot(datameanremp4, aes(x=Compa, y=BIvalue))+
+  geom_violin(aes(fct_reorder(Compa,-BIvalue),fill=Compa))+
+  geom_boxplot(width=0.2,aes(fill=Compa))+
+  # scale_color_manual(values = c("gray77", "gray63", "gray40","gray8"))+
   theme_bw()+
   xlab("Echelle")+ ylab("Remplacement")+
-  theme(legend.position="none")
+  theme(legend.position="none")+
+  geom_signif(comparisons=compar,map_signif_level = TRUE,step_increase = 0.05,color="black",text_size=5)+
+  theme(axis.text.x = element_text(size=16,colour="black"))+
+  theme(axis.text.y = element_text(size=16,colour="black"))
+ggsave("Remplacement selon échelles avec sign.png",width=8,height=8,dpi=350)
 
-ggplot(datameanrich4, aes(x=Compa, y=BIvalue,fill=Compa))+
-  geom_violin()+
-  geom_boxplot(width=0.2)+
+
+compar<-list(c("Interstruct","Interbaie 2"),c("Interstruct","Intersite 2"),c("Intrastruct","Intersite 2"),c("Interstruct","Intrastruct"),c("Interbaie 2","Intersite 2"),c("Intrastruct","Interbaie 2"))
+
+ggplot(datameanrich4, aes(x=Compa, y=BIvalue))+
+  geom_violin(aes(fct_reorder(Compa,-BIvalue),fill=Compa))+
+  geom_boxplot(width=0.2,aes(fill=Compa))+
+  # scale_color_manual(values = c("gray77", "gray63", "gray40","gray8"))+
   theme_bw()+
   xlab("Echelle")+ ylab("Richesse")+
-  theme(legend.position="none")
+  theme(legend.position="none")+
+  geom_signif(comparisons=compar,map_signif_level = TRUE,step_increase = 0.05,text_size=5)+
+  theme(axis.text.x = element_text(size=16,colour="black"))+
+  theme(axis.text.y = element_text(size=16,colour="black"))
+ggsave("Richesse selon échelles avec sign.png",width=8,height=8,dpi=350)
 
+
+
+# Signficativité
+aov1<-aov(BIvalue~Compa,data=datameansimi4)
+aov1<-aov(BIvalue~Compa,data=datameanremp4)
+aov1<-aov(BIvalue~Compa,data=datameanrich4)
+summary(aov1)
+aov1<-aov(BIvalue~Comp_date,data=datameansimi4)
+
+
+datameansimi5=datameansimi4 %>% filter(!BIvalue<"0.001")
+datameanremp5=datameanremp4 %>% filter(!BIvalue<"0.001")
+datameanrich5=datameanrich4 %>% filter(!BIvalue<"0.001")
+
+adonis3<-permanova_pairwise(datameansimi5$BIvalue,datameansimi5$Compa,permutations=999,method='bray',padj="bonferroni")
+adonis3<-permanova_pairwise(datameanremp5$BIvalue,datameanremp5$Compa,permutations=999,method='bray',padj="bonferroni")
+adonis3<-permanova_pairwise(datameanrich5$BIvalue,datameanrich5$Compa,permutations=999,method='bray',padj="bonferroni")
+adonis3
+
+
+
+###### boxplot comparaison sites ######
+datameansimi5=datameansimi4 %>% filter(Compa=="Intersite 2") %>% filter(!Compasite2=="goelo")
+dataleansimi5<-datameansimi5[order(datameansimi5$BIvalue),]
+
+compar1<-list(c("Bu/Bi","Fe/Bi"),c("VB/Bu","VB/Fe"),c("Fe/Bi","VB/Bu"))
+
+ggplot(datameansimi5,aes(x=Compasite2,y=BIvalue))+
+  geom_boxplot(aes(fct_reorder(Compasite2,-BIvalue)))+
+  geom_signif(comparisons=compar1,map_signif_level = TRUE,step_increase = 0.05)+
+   theme_bw()+
+  theme(axis.text.x = element_text(size=12,colour="black"))+
+  theme(axis.text.y = element_text(size=12,colour="black"))
+ggsave("Similarité selon les comparaisons des sites.png",width=8,height=8,dpi=350)
+
+
+datameanremp5=datameanremp4 %>% filter(Compa=="Intersite 2") %>% filter(!Compasite2=="goelo")
+datameanremp5<-datameanremp5[order(datameanremp5$BIvalue),]
+
+compar1<-list(c("VB/Bu","VB/Fe"),c("VB/Bu","Fe/Bi"))
+
+ggplot(datameanremp5,aes(x=Compasite2,y=BIvalue))+
+  geom_boxplot(aes(fct_reorder(Compasite2,-BIvalue)))+
+  geom_signif(comparisons=compar1,map_signif_level = TRUE,step_increase = 0.05)+
+   theme_bw()+
+  theme(axis.text.x = element_text(size=12,colour="black"))+
+  theme(axis.text.y = element_text(size=12,colour="black"))
+ggsave("Remplacement selon les comparaisons des sites.png",width=8,height=8,dpi=350)
+
+
+datameanrich5=datameanrich4 %>% filter(Compa=="Intersite 2") %>% filter(!Compasite2=="goelo")
+datameanrich5<-datameanrich5[order(datameanrich5$BIvalue),]
+
+ggplot(datameanrich5,aes(x=Compasite2,y=BIvalue))+
+  geom_boxplot(aes(fct_reorder(Compasite2,-BIvalue)))+
+  # geom_signif(comparisons=compar1,map_signif_level = TRUE,step_increase = 0.05)+
+  theme_bw()+
+  theme(axis.text.x = element_text(size=12,colour="black"))+
+  theme(axis.text.y = element_text(size=12,colour="black"))
+  
+ggsave("Richesse selon les comparaisons des sites.png",width=8,height=8,dpi=350)
+
+
+
+
+# significativité
+aov2<-aov(BIvalue~Compasite2,data=datameansimi5)
+aov2<-aov(BIvalue~Compasite2,data=datameanremp5)
+aov2<-aov(BIvalue~Compasite2,data=datameanrich5)
+summary(aov2)
+
+
+adonis3<-permanova_pairwise(datameansimi5$BIvalue,datameansimi5$Compasite2,permutations=999,method='bray',padj="bonferroni")
+adonis3<-permanova_pairwise(datameanremp5$BIvalue,datameanremp5$Compasite2,permutations=999,method='bray',padj="bonferroni")
+adonis3<-permanova_pairwise(datameanrich5$BIvalue,datameanrich5$Compasite2,permutations=999,method='bray',padj="bonferroni")
+adonis3
+
+
+
+###### boxplot comparaison structures ######
+compar2<-list(c("Columns/Disc","Inner_slots/Columns"),c("Pillars/Columns","Inner_slots/Columns"),c("Columns/Disc","Inner_slots/Pillars"),c("Pillars/Disc","Inner_slots/Columns"),c("Pillars/Columns","Inner_slots/Pillars"),c("Columns/Disc","Inner_slots/Disc"),c("Pillars/Disc","Inner_slots/Pillars"),c("Pillars/Columns","Inner_slots/Disc"),c("Pillars/Disc","Inner_slots/Disc"))
+
+datameansimi5=datameansimi4 %>% filter(Compa=="Interstruct")
+dataleansimi5<-datameansimi5[order(datameansimi5$BIvalue),]
+
+ggplot(datameansimi5,aes(x=Compastruct,y=BIvalue))+
+  geom_boxplot(aes(fct_reorder(Compastruct,-BIvalue)))+
+  geom_signif(comparisons=compar2,map_signif_level = TRUE,step_increase = 0.05)+
+  theme_bw()+
+  theme(axis.text.x = element_text(size=16,colour="black",angle=30,vjust = 0.7))+
+  theme(axis.text.y = element_text(size=16,colour="black"))
+ggsave("Similarité selon les comparaisons des structures avec sign.png",width=8,height=8,dpi=350)
+
+
+
+compar2<-list(c("Inner_slots/Pillars","Inner_slots/Disc"),c("Columns/Disc","Inner_slots/Disc"),c("Pillars/Disc","Inner_slots/Disc"),c("Pillars/Columns","Inner_slots/Columns"),c("Pillars/Columns","Inner_slots/Disc"))
+
+datameanremp5=datameanremp4 %>% filter(Compa=="Interstruct")
+datameanremp5<-datameanremp5[order(datameanremp5$BIvalue),]
+
+ggplot(datameanremp5,aes(x=Compastruct,y=BIvalue))+
+  geom_boxplot(aes(fct_reorder(Compastruct,-BIvalue)))+theme(axis.text.x = element_text(size=12,angle=30,vjust = 0.7))+
+  geom_signif(comparisons=compar2,map_signif_level = TRUE,step_increase = 0.05)+
+  theme_bw()+
+  theme(axis.text.x = element_text(size=16,colour="black",angle=30,vjust = 0.7))+
+  theme(axis.text.y = element_text(size=16,colour="black"))
+ggsave("Remplacement selon les comparaisons des structures avec sign.png",width=8,height=8,dpi=350)
+
+
+
+compar2<-list(c("Inner_slots/Columns","Inner_slots/Pillars"),c("Pillars/Disc","Inner_slots/Disc"),c("Pillars/Columns","Inner_slots/Pillars"),c("Pillars/Disc","Inner_slots/Columns"),c("Columns/Disc","Inner_slots/Disc"),c("Pillars/Disc","Inner_slots/Pillars"),c("Columns/Disc","Inner_slots/Columns"),c("Columns/Disc","Inner_slots/Pillars"))
+
+datameanrich5=datameanrich4 %>% filter(Compa=="Interstruct")
+datameanrich5<-datameanrich5[order(datameanrich5$BIvalue),]
+
+ggplot(datameanrich5,aes(x=Compastruct,y=BIvalue))+
+  geom_boxplot(aes(fct_reorder(Compastruct,-BIvalue)))+theme(axis.text.x = element_text(size=12,angle=30,vjust = 0.7))+
+  geom_signif(comparisons=compar2,map_signif_level = TRUE,step_increase = 0.05)+
+  theme_bw()+
+  theme(axis.text.x = element_text(size=16,colour="black",angle=30,vjust = 0.7))+
+  theme(axis.text.y = element_text(size=16,colour="black"))
+ggsave("Richesse selon les comparaisons des structures avec sign.png",width=8,height=8,dpi=350)
+
+#significativité
+aov2<-aov(BIvalue~Compastruct,data=datameansimi5)
+aov2<-aov(BIvalue~Compastruct,data=datameanremp5)
+aov2<-aov(BIvalue~Compastruct,data=datameanrich5)
+summary(aov2)
+lm(BIvalue ~ Compastruct, data = datameanrich5)
+mixed.lmer <- lmer(BIvalue ~ Comp_date+(1|Compastruct), data = datameanrich5)
+
+datameansimi6=datameansimi5 %>% ungroup() %>% 
+  group_by(Compa,Comp_date,BIvalue)
+  summarize(mean1=mean(BIvalue),.by=c(Compa,Comp_date))
+
+ggplot(datameansimi5,aes(x=as.factor(Comp_date),y=BIvalue,color=as.factor(Compa)))+
+  # geom_point(aes(color=Compa))+
+  stat_summary(fun = 'mean', geom = "point", size = 2,position = position_dodge(width = .75),aes(fill=Compa))
+  geom_line()
+  
+  
 ```
 
 
@@ -1342,13 +1506,13 @@ ggplot(datameanrich4, aes(x=Compa, y=BIvalue,fill=Compa))+
   #### Comparaison intersites - indices de beta diversité 
 datatern2=datatern %>%
   # filter(Structure1 == 'Disc') %>%
-    # filter(Structure1 %in% c('Disc','Inner_slots')) %>%
-    # filter(Structure2 %in% c('Disc','Inner_slots')) %>%
+  # filter(Structure1 %in% c('Disc','Inner_slots')) %>%
+  # filter(Structure2 %in% c('Disc','Inner_slots')) %>%
   # filter(Structure2%in% c('Disc')) %>%
-    # filter(Structure1 %in% c('Inner_slots')) %>%
+  # filter(Structure1 %in% c('Inner_slots')) %>%
   # filter(Site1 == 'Fe') %>%
-    # filter(Site2 == 'Fe') %>%
-  #   filter(Site1!=Site2) %>%
+  # filter(Site2 == 'Fe') %>%
+  # filter(Site1!=Site2) %>%
   # filter(Site1 == Site2) %>%
   filter(Saison1 == Saison2) %>%
   # filter(Structure1!=Structure2) %>%
@@ -1625,4 +1789,13 @@ ggplot(datameansimi7,aes(x = dist, y = BIvalue, color=Betaindex ))+
   geom_line()
 
   
+```
+
+
+#model null
+```{r}
+
+sppdata<-levels(as.factor(dataRGM$spp))
+
+
 ```
