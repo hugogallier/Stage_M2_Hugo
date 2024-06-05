@@ -364,17 +364,21 @@ dataR3=dataR2 %>%
   summarize(S2 = mean(S)) %>% 
   mutate(sd=sqrt(S2))
 
-# ggplot(dataR3, aes(Structure2,S2,fill=Structure2))+ #Structure
-  ggplot(dataR3, aes(Site,S2,fill=Site))+ #Site
+ggplot(dataR3, aes(Structure2,S2,fill=Structure2))+ #Structure
+  # ggplot(dataR3, aes(Site,S2,fill=Site))+ #Site
   geom_bar(stat="identity",alpha=.7)+
   geom_errorbar(aes(ymin=S2, ymax=S2+sd), width=.2, position=position_dodge(.9))+ #ajout des barres d'erreur
   theme_bw()+  # Juste pour retirer le fond gris pas défaut
   xlab("")+ylab("Richesse taxonomique moyenne")+
   theme(axis.text.x = element_blank(), axis.ticks = element_blank())+
   facet_wrap(.~Date_courte)+
-   # theme(axis.text.x = element_text(size=12,color="black"))+
-  theme(axis.text.y = element_text(size=10,color="black"))
+   # theme(axis.text.x = element_text(size=16,colour="black"))+
+   theme(axis.text.y = element_text(size=15,colour="black"))+
+   # theme(axis.title.x = element_text(size=16,colour="black",vjust=0))+
+  theme(axis.title.y = element_text(size=16,colour="black",vjust=2))+
+   theme(strip.text.x = element_text(size = 16))
 ggsave("RTM selon site par date.png",width=9,height=8,dpi=350)
+ggsave("RTM selon structure par date.png",width=9,height=8,dpi=350)
 
 
  
@@ -903,8 +907,11 @@ dev_mod <- ggplot(df_mod, aes(x = log_fitted, y = residuals))+
   theme_bw()
 
 
-dig_plot_tot=ggarrange(qq_plot, dev_mod, ncol=2)+theme(axis.text.x = element_text(size=12,color="black"))+
-  theme(axis.text.y = element_text(size=12,color="black"))
+dig_plot_tot=ggarrange(qq_plot, dev_mod, ncol=2)+theme(axis.text.x = element_text(size=20,color="red"))+
+  theme(axis.text.y = element_text(size=20,color="black"))+
+  theme(axis.title.x = element_text(size = 14))+
+ theme(axis.title.y = element_text(size = 14))
+
 dig_plot_tot
 ggsave("conditionsapplications.png",width=11,height=8,dpi=350)
 
@@ -1177,8 +1184,8 @@ data_comp2=dataR %>% ungroup %>%
   select(spp,Mcov,Site,Micro,Date_courte,Structure2,saison,Quad2,Day_delta) %>% 
   mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
   group_by(spp,Site,Micro,Date_courte,Structure2,saison,Years,Day_delta) %>% 
-  filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>% #selection des dates ou il y a 4 dates (ou 3 sans fetlar)
-  # filter(!Date_courte %in% c("2021-01")) %>%
+  filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>% # a utiliser pour les trajectoires
+  # filter(!Date_courte %in% c("2021-01")) %>% # à utiliser pour l'influence des variables
   # filter(!Site == "Fe") %>%
   distinct() %>% drop_na() %>% 
   summarize(Mcov2 = mean(Mcov,.by=c(spp,Micro,Day_delta,Quad2))) %>%
@@ -1218,6 +1225,7 @@ distdataR<-vegdist(Comp_mat, method='bray') #library vegan - distance de Bray-Cu
 ```
 
 ##  PCoA
+### Variables
 ```{r}
 # Permet de représenter les données dans l'espace et voir les paramètres expliquant le plus la variance
 
@@ -1274,8 +1282,10 @@ ggplot(PCOA_df, aes(x = x, y = y,colour =Site )) +
                aes(x = x, y = y, xend = x.bary, yend = y.bary, color = Site),alpha=.3)+
   theme_bw()+labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+
   # theme(legend.position = "none")+
-  theme(axis.text.x = element_text(size=10,colour="black"))+
-   theme(axis.text.y = element_text(size=10,colour="black"))+
+  theme(axis.text.x = element_text(size=16,colour="black"))+
+   theme(axis.text.y = element_text(size=16,colour="black"))+
+   theme(axis.title.x = element_text(size=16,colour="black",vjust=0))+
+  theme(axis.title.y = element_text(size=16,colour="black",vjust=2))+
   geom_label(
     label="Bizeux", x=barycenters$x[which(barycenters$Site=="Bi")], y=barycenters$y[which(barycenters$Site=="Bi")],
     label.padding = unit(0.25, "lines"), # Rectangle size around label
@@ -1311,8 +1321,10 @@ ggplot(PCOA_df, aes(x = x, y = y,colour =Structure )) +
                aes(x = x, y = y, xend = x.bary, yend = y.bary, color = Structure),alpha=.3)+
   theme_bw()+
   # theme(legend.position = "none")+
-  theme(axis.text.x = element_text(size=10,colour="black"))+
-   theme(axis.text.y = element_text(size=10,colour="black"))+
+  theme(axis.text.x = element_text(size=16,colour="black"))+
+   theme(axis.text.y = element_text(size=16,colour="black"))+
+   theme(axis.title.x = element_text(size=16,colour="black",vjust=0))+
+  theme(axis.title.y = element_text(size=16,colour="black",vjust=2))+
   geom_label(
     label="Disc", x=barycenters$x[which(barycenters$Structure=="Disc")], y=barycenters$y[which(barycenters$Structure=="Disc")],
     label.padding = unit(0.25, "lines"), # Rectangle size around label
@@ -1345,8 +1357,11 @@ ggplot(PCOA_df, aes(x = x, y = y,colour =Date )) +
   # Ajout lignes entre les barycentres et les points
   geom_segment(data = merge(PCOA_df, barycenters, by ="Date", suffixes = c("",".bary")),
                aes(x = x, y = y, xend = x.bary, yend = y.bary, color = Date),alpha=.3)+
-  theme_bw()+theme(axis.text.x = element_text(size=10,colour="black"))+
-   theme(axis.text.y = element_text(size=10,colour="black"))+
+  theme_bw()+
+ theme(axis.text.x = element_text(size=16,colour="black"))+
+   theme(axis.text.y = element_text(size=16,colour="black"))+
+   theme(axis.title.x = element_text(size=16,colour="black",vjust=0))+
+  theme(axis.title.y = element_text(size=16,colour="black",vjust=2))+
   # theme(legend.position = "none")+
     # scale_color_paletteer_d("awtools::ppalette")+
       # scale_color_paletteer_d("ggthemes::colorblind")+
@@ -1383,13 +1398,15 @@ ggplot(PCOA_df, aes(x = x, y = y,colour =Date )) +
   #   label.padding = unit(0.25, "lines"), # Rectangle size around label
   #   label.size = 0.35,color = "#CC79A7",fill="white")+
   labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")
-ggsave("pcoainfluencedate.png",width=9,height=8,dpi=350)
+ggsave("pcoainfluencedate.png",width=9,height=8,dpi=350)`
+
+```
 
 
 
 
-
-
+### Trajectoire
+```{r}
 ######## trajectoires sites-dates 2021 et 2022 ##########
 load("PCOA_df")
 
@@ -1429,8 +1446,10 @@ ggplot(PCOA_df, aes(x = x, y = y,colour =Site )) +
   geom_segment(data = barycenters[which(barycenters$Site=="VB"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="#c77cff",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
   labs(color="Sites et dates")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+theme_bw()+
   theme(axis.text.x = element_text(size=16,colour="black"))+
-   theme(axis.text.y = element_text(size=16,colour="black"))
-  ggsave("pcoatrajectoire20212022.png",width=9,height=8,dpi=350)
+   theme(axis.text.y = element_text(size=16,colour="black"))+
+   theme(axis.title.x = element_text(size=16,colour="black",vjust=0))+
+  theme(axis.title.y = element_text(size=16,colour="black",vjust=2))
+ggsave("pcoatrajectoire20212022.png",width=9,height=8,dpi=350)
 
 
   ######## trajectoires sites-dates-structures 2021 et 2022 ##########
@@ -1472,8 +1491,10 @@ ggplot(PCOA_df, aes(x = x, y = y,colour = Site)) +
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="#c77cff",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Disc"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="#c77cff",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
   labs(color="Sites et dates")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+ theme_bw() +
-  theme(axis.text.x = element_text(size=12,colour="black"))+
-   theme(axis.text.y = element_text(size=12,colour="black"))
+  theme(axis.text.x = element_text(size=16,colour="black"))+
+   theme(axis.text.y = element_text(size=16,colour="black"))+
+   theme(axis.title.x = element_text(size=16,colour="black",vjust=0))+
+  theme(axis.title.y = element_text(size=16,colour="black",vjust=2))
 ggsave("pcoatrajectoiredisques.png",width=9,height=8,dpi=350)
 
 
@@ -1515,8 +1536,10 @@ ggplot(PCOA_df, aes(x = x, y = y,colour = Site)) +
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="#c77cff",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Columns"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="#c77cff",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
   labs(color="Sites et dates")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+ theme_bw() +
-  theme(axis.text.x = element_text(size=12,colour="black"))+
-   theme(axis.text.y = element_text(size=12,colour="black"))
+  theme(axis.text.x = element_text(size=16,colour="black"))+
+   theme(axis.text.y = element_text(size=16,colour="black"))+
+   theme(axis.title.x = element_text(size=16,colour="black",vjust=0))+
+  theme(axis.title.y = element_text(size=16,colour="black",vjust=2))
 ggsave("pcoatrajectoirecolonnes.png",width=9,height=8,dpi=350)
 
 
@@ -1559,8 +1582,10 @@ ggplot(PCOA_df, aes(x = x, y = y,colour = Site)) +
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="#c77cff",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Pillars"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="#c77cff",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
   labs(color="Sites et dates")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+ theme_bw()+  
-theme(axis.text.x = element_text(size=12,colour="black"))+
-   theme(axis.text.y = element_text(size=12,colour="black"))
+ theme(axis.text.x = element_text(size=16,colour="black"))+
+   theme(axis.text.y = element_text(size=16,colour="black"))+
+   theme(axis.title.x = element_text(size=16,colour="black",vjust=0))+
+  theme(axis.title.y = element_text(size=16,colour="black",vjust=2))
 ggsave("pcoatrajectoirePiliers.png",width=9,height=8,dpi=350)
 
 
@@ -1603,8 +1628,10 @@ ggplot(PCOA_df, aes(x = x, y = y,colour = Site)) +
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[6],y=y[6],xend=x[7],yend=y[7]),color="#c77cff",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
   geom_segment(data = barycenters[which(barycenters$Site=="VB" & barycenters$Structure=="Inner_slots"),],aes(x=x[7],y=y[7],xend=x[8],yend=y[8]),color="#c77cff",arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
   labs(color="Sites et dates")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,2%)")+ theme_bw()+
-   theme(axis.text.x = element_text(size=12,colour="black"))+
-   theme(axis.text.y = element_text(size=12,colour="black"))
+   theme(axis.text.x = element_text(size=16,colour="black"))+
+   theme(axis.text.y = element_text(size=16,colour="black"))+
+   theme(axis.title.x = element_text(size=16,colour="black",vjust=0))+
+  theme(axis.title.y = element_text(size=16,colour="black",vjust=2))
 ggsave("pcoatrajectoirefailles.png",width=9,height=8,dpi=350)
 
 
@@ -1653,10 +1680,12 @@ ggplot(PCOA_df, aes(x = x, y = y)) +
   geom_point(spp.scrs3,mapping=aes(x=Dim1,y=Dim2),size=2)+
     labs(color="Taxons significatifs")+ labs(x="Axe 1 (22,1%)",y="Axe 2 (12,1%)")+
   theme_bw() + 
-  geom_label_repel(data=spp.scrs3,aes(x=Dim1,y=Dim2,label=Abb), nudge_x = 0.0, nudge_y = 0.05, check_overlap = T,label.size=0.07,size=3,force=50)+ # ajout des labels au niveau de chaque point
+  geom_label_repel(data=spp.scrs3,aes(x=Dim1,y=Dim2,label=Abb), nudge_x = 0.0, nudge_y = 0.05, check_overlap = T,label.size=0.07,size=4,force=50)+ # ajout des labels au niveau de chaque point
   scale_x_continuous(limits=c(-0.83,0.7))+
   theme(axis.text.x = element_text(size=16,colour="black"))+
    theme(axis.text.y = element_text(size=16,colour="black"))+
+  theme(axis.title.x = element_text(size=16,colour="black",vjust=0))+
+  theme(axis.title.y = element_text(size=16,colour="black",vjust=2))+
   theme(legend.position="none") #enlève la légende
 ggsave("pcoainfluencetaxon.png",width=8,height=8,dpi=350)
 
@@ -1665,7 +1694,7 @@ ggsave("pcoainfluencetaxon.png",width=8,height=8,dpi=350)
 ```
 
 
-## # Analyse des trajectoires PCoA
+####  Analyse des trajectoires PCoA
 ```{r}
 dataR$saison<-dataR$Date_courte
 dataR$saison[dataR$saison == "2021-04" | dataR$saison == "2022-04"] <- "printemps"
@@ -2493,8 +2522,12 @@ names(comp_list_clean)<-c('Bi','Bu','Fe','Vb')
 # Fonction
 out.raw <- iNEXT(comp_list_clean,q=0,
                  datatype="incidence_raw",
-                 endpoint=250)
-plot(out.raw)
+                 endpoint=500)
+
+p1<-plot(out.raw,xlim=c(0,500))
+
+
+
 
 
 # Ici tu les données concernant l'estimation de la rich. totale
@@ -2615,23 +2648,49 @@ ggplot(Piélouind2, aes(Day_delta,Piélou, col=Site))+ # Avec "fill" ou "col" du
   ylab("Indice de Piélou")+
   # geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
   # geom_boxplot()+
+  annotate("rect",xmin=112,xmax=205.9,ymin=0.45,ymax=0.9,alpha=.3,fill="grey")+
+  annotate("rect",xmin=206,xmax=298.9,ymin=0.45,ymax=0.9,alpha=.3,fill="#666666")+
+  annotate("rect",xmin=299,xmax=388.9,ymin=0.45,ymax = 0.9,alpha=.3,fill="grey")+
+  annotate("rect",xmin=389,xmax=477.9,ymin=0.45,ymax = 0.9,alpha=.3,fill="#666666")+
+annotate("rect",xmin=478,xmax=570.9,ymin=0.45,ymax = 0.9,alpha=.3,fill="grey")+
+  annotate("rect",xmin=571,xmax=663.9,ymin=0.45,ymax = 0.9,alpha=.3,fill="#666666")+
+  annotate("rect",xmin=664,xmax=750,ymin=0.45,ymax = 0.9,alpha=.3,fill="grey")+
   geom_line(aes(group=Site))+
   geom_point()+
   theme_bw() +
-    (scale_y_continuous(limits=c(0.4,0.9)))+
+    (scale_y_continuous(limits=c(0.45,0.9)))+
       (scale_x_continuous(limits=c(110,750)))+
+  theme(axis.text.x = element_text(size=16,colour="black"))+
+   theme(axis.text.y = element_text(size=16,colour="black"))+
+  theme(axis.title.x = element_text(size=16,colour="black",vjust=0))+
+  theme(axis.title.y = element_text(size=16,colour="black",vjust=2))+
    # (scale_x_continuous(minor_breaks=seq(0,27,by=2)))+
      # (scale_x_continuous(breaks=seq(0,25,by=2)))+
-  annotate("rect",xmin=112,xmax=205.9,ymin=0.4,ymax=0.9,alpha=.1,fill="green")+
-  annotate("rect",xmin=206,xmax=298.9,ymin=0.4,ymax=0.9,alpha=.1,fill="orange")+
-  annotate("rect",xmin=299,xmax=388.9,ymin=0.4,ymax = 0.9,alpha=.1,fill="brown")+
-  annotate("rect",xmin=389,xmax=477.9,ymin=0.4,ymax = 0.9,alpha=.1,fill="blue")+
-annotate("rect",xmin=478,xmax=570.9,ymin=0.4,ymax = 0.9,alpha=.1,fill="green")+
-  annotate("rect",xmin=571,xmax=663.9,ymin=0.4,ymax = 0.9,alpha=.1,fill="orange")+
-  annotate("rect",xmin=664,xmax=750,ymin=0.4,ymax = 0.9,alpha=.1,fill="brown")+
-annotate("text",x = c(159,252,344,433,524,617,708),y=0.45,
-           label=c("Printemps","Eté","Automne","Hiver","Printemps","Eté","Automne"),
-           colour=c("green","orange","brown","blue","green","orange","brown"))
+#   annotate("rect",xmin=112,xmax=205.9,ymin=0.45,ymax=0.9,alpha=.1,fill="#33CC00")+
+#   annotate("rect",xmin=206,xmax=298.9,ymin=0.45,ymax=0.9,alpha=.1,fill="orange")+
+#   annotate("rect",xmin=299,xmax=388.9,ymin=0.45,ymax = 0.9,alpha=.1,fill="brown")+
+#   annotate("rect",xmin=389,xmax=477.9,ymin=0.45,ymax = 0.9,alpha=.1,fill="blue")+
+# annotate("rect",xmin=478,xmax=570.9,ymin=0.45,ymax = 0.9,alpha=.1,fill="#33CC00")+
+#   annotate("rect",xmin=571,xmax=663.9,ymin=0.45,ymax = 0.9,alpha=.1,fill="orange")+
+#   annotate("rect",xmin=664,xmax=750,ymin=0.45,ymax = 0.9,alpha=.1,fill="brown")+
+# annotate("text",x = c(159,252,344,433,524,617,708),y=0.85,
+#            label=c("Printemps","Eté","Automne","Hiver","Printemps","Eté","Automne"),
+#            colour=c("#33CC00","orange","brown","blue","#33CC00","orange","brown"),angle=35)
+
+# geom_vline(xintercept = 111,colour='#666666',alpha=.5)+
+#   geom_vline(xintercept = 206,colour='#666666',alpha=.5)+
+#   geom_vline(xintercept = 299,colour='#666666',alpha=.5)+
+#   geom_vline(xintercept = 389,colour='#666666',alpha=.5)+
+#   geom_vline(xintercept = 478,colour='#666666',alpha=.5)+
+#   geom_vline(xintercept = 571,colour='#666666',alpha=.5)+
+#   geom_vline(xintercept = 664,colour='#666666',alpha=.5)+
+# theme(legend.position = "bottom")+
+theme(legend.background = element_rect(fill="#ececec"))+
+  theme(legend.key = element_rect(fill="#ececec"))+
+  annotate("text",x = c(65,159,252,344,433,524,617,710),y=0.85,
+           label=c("Hiver","Printemps","Eté","Automne","Hiver","Printemps","Eté","Automne"),
+           colour=c("#666666","#666666","#666666","#666666","#666666","#666666","#666666","#666666"),size=5,angle=35)
+ggsave("Indicedepiélou.png",width=9,height=8,dpi=350)
 
 ```
 
@@ -4379,7 +4438,7 @@ model111111<-gam(Mcov3~s(Day_delta)+s(Structure2,bs="re")+s(Site,bs="re")+s(sais
 # model111111<-gam(Mcov3~s(Day_delta)+s(Structure2,bs="re")+s(Site,bs="re")+s(saison,bs="re")+s(Structure2,by=Site,bs='re')+Site*Day_delta,data=dataR3) 
 summary(model111111)
 
-plot_smooths(model=model111111, series=Day_delta,comparison=Site)+theme_bw()+ #permet de mettre les gam selon les sites
+plot_smooths(model=model111111, series=Day_delta)+theme_bw()+ #permet de mettre les gam selon les sites
   # (scale_y_continuous(limits=c(0,60)))+
       # (scale_x_continuous(limits=c(0,750)))+
       # (scale_y_continuous(limits=c(0,50)))+
@@ -4399,14 +4458,16 @@ plot_smooths(model=model111111, series=Day_delta,comparison=Site)+theme_bw()+ #p
 # annotate("rect",xmin=478,xmax=570.9,ymin=0,ymax=10,alpha=.1,fill="green")+
 #   annotate("rect",xmin=571,xmax=663.9,ymin=0,ymax=10,alpha=.1,fill="orange")+
 #   annotate("rect",xmin=664,xmax=750,ymin=0,ymax=10,alpha=.1,fill="brown")+
-annotate("text",x = c(65,159,252,344,433,524,617,715),y=5,
+annotate("text",x = c(65,159,252,344,433,524,617,715),y=110,
            label=c("Hiver","Printemps","Eté","Automne","Hiver","Printemps","Eté","Automne"),
-           colour=c("#666666","#666666","#666666","#666666","#666666","#666666","#666666","#666666"))+
+           colour=c("#666666","#666666","#666666","#666666","#666666","#666666","#666666","#666666"),size=4,angle=35)+
    xlab("Nombre de jours d'immersion")+
   ylab("Pourcentage de roche nue sur le récif (%)")+
-   theme(axis.text.x = element_text(size=12,color="black"))+
-  theme(axis.text.y = element_text(size=12,color="black"))+
-  theme(legend.position="none") #enlève la légende
+   theme(axis.text.x = element_text(size=16,color="black"))+
+  theme(axis.text.y = element_text(size=16,color="black"))+
+  theme(legend.position="none")+
+  theme(axis.title.x = element_text(size=16,colour="black",vjust=0))+
+  theme(axis.title.y = element_text(size=16,colour="black",vjust=2))
 ggsave("GAm recouvrement roche nue.png",width=8,height=8,dpi=350)
 
 ```
@@ -4547,7 +4608,7 @@ model111111<-gam(Mcov2~s(Day_delta)+s(Structure2,bs="re")+s(Site,bs="re")+s(sais
 
 model111111<-gam(Mcov3~s(Day_delta)+s(Structure2,bs="re")+s(Site,bs="re")+s(saison,bs="re"),data=dataRa2)
 
-plot_smooths(model=model111111, series=Day_delta,comparison=Site)+theme_bw()+ #permet de mettre les gam selon les sites
+plot_smooths(model=model111111, series=Day_delta,comparison=Site)+theme_bw() #permet de mettre les gam selon les sites
 
 ```
 
@@ -4749,13 +4810,41 @@ data_comp31VB=data_comp31 %>%  filter(Site == "VB") %>% summarize(Mcov3=mean(Mco
 
 
 
-ggplot(data_comp31Bu,aes(x = 0,y=Mcov3,fill=forcats::fct_inorder(spp)))+
+ggplot(data_comp31Bi,aes(x = 0,y=Mcov3,fill=forcats::fct_inorder(spp)))+
   geom_bar(aes(y=Mcov3),stat="identity",width=1,col="white")+
   scale_alpha(range=c(1,.2))+
   coord_polar("y",start=0)+
-  geom_label_repel(aes(label =paste(spp,":",format(Mcov3,digits=1),"%")), position=position_stacknudge(x = .9, y=.2,vjust=.5),size=5,force=25)+
+  geom_label_repel(aes(label =paste(spp,":",format(Mcov3,digits=1),"%")), position=position_stacknudge(x = .9, y=.2,vjust=.5),size=8,force=25)+
   theme_void()+
   theme(legend.position="none") 
+  ggsave("piechartBi.png",width=9,height=8,dpi=350)
+
+  ggplot(data_comp31Bu,aes(x = 0,y=Mcov3,fill=forcats::fct_inorder(spp)))+
+  geom_bar(aes(y=Mcov3),stat="identity",width=1,col="white")+
+  scale_alpha(range=c(1,.2))+
+  coord_polar("y",start=0)+
+  geom_label_repel(aes(label =paste(spp,":",format(Mcov3,digits=1),"%")), position=position_stacknudge(x = .9, y=.2,vjust=.5),size=8,force=25)+
+  theme_void()+
+  theme(legend.position="none") 
+  ggsave("piechartBu.png",width=9,height=8,dpi=350)
+  
+  ggplot(data_comp31Fe,aes(x = 0,y=Mcov3,fill=forcats::fct_inorder(spp)))+
+  geom_bar(aes(y=Mcov3),stat="identity",width=1,col="white")+
+  scale_alpha(range=c(1,.2))+
+  coord_polar("y",start=0)+
+  geom_label_repel(aes(label =paste(spp,":",format(Mcov3,digits=1),"%")), position=position_stacknudge(x = .9, y=.2,vjust=.5),size=8,force=25)+
+  theme_void()+
+  theme(legend.position="none") 
+  ggsave("piechartFe.png",width=9,height=8,dpi=350)
+  
+  ggplot(data_comp31VB,aes(x = 0,y=Mcov3,fill=forcats::fct_inorder(spp)))+
+  geom_bar(aes(y=Mcov3),stat="identity",width=1,col="white")+
+  scale_alpha(range=c(1,.2))+
+  coord_polar("y",start=0)+
+  geom_label_repel(aes(label =paste(spp,":",format(Mcov3,digits=1),"%")), position=position_stacknudge(x = .9, y=.2,vjust=.5),size=8,force=25)+
+  theme_void()+
+  theme(legend.position="none") 
+  ggsave("piechartVB.png",width=9,height=8,dpi=350)
   
 ```
   
@@ -4763,6 +4852,7 @@ ggplot(data_comp31Bu,aes(x = 0,y=Mcov3,fill=forcats::fct_inorder(spp)))+
   
 
 ### model null
+#### test changement
 ```{r}
 dataR
 
@@ -4875,5 +4965,414 @@ datarepl<-test.mat.repl2
 datarich<-test.mat.rich2
 
 datatern<-cbind(datadissi[,c(1:2,3)],Similarité=(1-datadissi[,3])*100,Remplacement=100*datarepl[,3],Richesse=100*datarich[,3])
+
+```
+
+
+#### réattribution des valeurs
+```{r}
+##### changement des valeurs du jeu de données de base
+dataR$saison<-dataR$Date_courte
+dataR$saison[dataR$saison == "2021-04" | dataR$saison == "2022-04"] <- "printemps"
+dataR$saison[dataR$saison == "2021-07" | dataR$saison == "2022-07"] <- "été"
+dataR$saison[dataR$saison == "2021-10" | dataR$saison == "2021-11"| dataR$saison == "2022-11"] <- "automne"
+dataR$saison[dataR$saison == "2022-01"] <- "hiver"
+dataR$saison[dataR$saison == "2021-01" |dataR$saison == "2022-01"] <- "hiver"
+
+dataR$Day_delta[dataR$Date_courte == "2021-10" & dataR$Site == "Fe"]<-"336"
+dataR$Day_delta[dataR$Date_courte == "2021-10" & dataR$Site == "VB"]<-"339"
+dataR$Date_courte[dataR$Date_courte == "2021-10" & dataR$Site == "Fe"]<-"2021-11"
+dataR$Date_courte[dataR$Date_courte == "2021-10" & dataR$Site == "VB"]<-"2021-11"
+
+
+data_comp2=dataR %>% ungroup %>% 
+  select(spp,Mcov,Site,Micro,Date_courte,Structure2,saison,Quad2,Day_delta) %>% 
+  mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
+  group_by(spp,Site,Micro,Date_courte,Structure2,saison,Years,Day_delta) %>% 
+  filter(Date_courte %in% c("2022-01")) %>% 
+  distinct() %>% drop_na() %>% 
+  summarize(Mcov2 = mean(Mcov,.by=c(spp,Micro,Day_delta,Quad2))) %>%
+  spread(spp,Mcov2) %>% ungroup() %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) %>% 
+  mutate(Compsite_date=paste(Site,Date_courte,sep=",")) %>% 
+  mutate(Name=paste(Site,Structure2,Date_courte,saison,sep=","))
+
+
+data_comp2$Site<-as.factor(data_comp2$Site)
+data_comp2$Micro<-as.factor(data_comp2$Micro)
+data_comp2$Date_courte<-as.factor(data_comp2$Date_courte)
+data_comp2$Day_delta<-as.factor(data_comp2$Day_delta)
+
+
+# réattribution aléatoire des valeurs du dataframe
+data_comp3<-data_comp2[,c(8:37)]
+data_comp3bis<-data_comp2[,c(1:7,38:39)]
+for (i in 1:nrow(data_comp3)) {
+  data1<- as.data.frame(sample(data_comp3[i,]))
+  colnames(data1)[1:ncol(data1)]<-seq(1:ncol(data1))
+  data_comp3[i, ]<-data1
+}
+
+data_comp4<-cbind(data_comp3bis,data_comp3)
+
+databetadiv2<-beta.div.comp(data_comp4[,-c(1:9)],coef="S")
+
+
+# Extraction des matrices
+mat.D=as.matrix(databetadiv2$D)
+mat.D[upper.tri(mat.D)]<-NA
+diag(mat.D)<-NA
+rownames(mat.D)<-data_comp2$Name #change le nom des lignes avec les metadonnées
+colnames(mat.D)<-data_comp2$Name #change le nom des colonnes avec les metadonnées
+ 
+mat.repl=as.matrix(databetadiv2$repl)
+mat.repl[upper.tri(mat.repl)]<-NA
+diag(mat.repl)<-NA
+rownames(mat.repl)<-data_comp2$Name #change le nom des lignes avec les metadonnées
+colnames(mat.repl)<-data_comp2$Name #change le nom des colonnes avec les metadonnées
+ 
+mat.rich=as.matrix(databetadiv2$rich)
+mat.rich[upper.tri(mat.rich)]<-NA
+diag(mat.rich)<-NA
+rownames(mat.rich)<-data_comp2$Name #change le nom des lignes avec les metadonnées
+colnames(mat.rich)<-data_comp2$Name #change le nom des colonnes avec les metadonnées
+ 
+
+# Transformation des matrices en df
+test.mat.D=na.omit(reshape2::melt(mat.D)) %>% mutate(Type='D') 
+test.mat.D2 <- test.mat.D %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.D2)<-c("Site1","Structure1","Date1","Saison1","Site2","Structure2","Date2","Saison2","Dissimilarité","type")
+
+
+test.mat.repl=na.omit(reshape2::melt(mat.repl)) %>% mutate(Type='repl')
+test.mat.repl2 <- test.mat.repl %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.repl2)<-c("Site1","Structure1","Date1","Saison1","Site2","Structure2","Date2","Saison2","Dissimilarité","type")
+
+
+test.mat.rich=na.omit(reshape2::melt(mat.rich)) %>% mutate(Type='rich')
+test.mat.rich2 <- test.mat.rich %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.rich2)<-c("Site1","Structure1","Date1","Saison1","Site2","Structure2","Date2","Saison2","Dissimilarité","type")
+
+
+
+#Création jeu de données rassemblant les différentes données
+datadissi<-test.mat.D2 %>% select(Site1,Structure1,Date1,Saison1,Site2,Structure2,Date2,Saison2,Dissimilarité) 
+datarepl<-test.mat.repl2 %>% select(Site1,Structure1,Date1,Saison1,Site2,Structure2,Date2,Saison2,Dissimilarité) 
+datarich<-test.mat.rich2 %>% select(Site1,Structure1,Date1,Saison1,Site2,Structure2,Date2,Saison2,Dissimilarité)
+
+datatern<-cbind(datadissi[,-c(9)],Similarité=(1-datadissi[,9])*100,Remplacement=100*datarepl[,9],Richesse=100*datarich[,9])
+
+
+
+####
+datatern2=datatern %>%
+  # filter(Structure1 == 'Disc') %>%
+    # filter(Structure1 %in% c('Disc','Inner_slots')) %>%
+    # filter(Structure2 %in% c('Disc','Inner_slots')) %>%
+  # filter(Structure2%in% c('Disc')) %>%
+    # filter(Structure1 %in% c('Inner_slots')) %>%
+  # filter(Site1 == 'Fe') %>%
+    # filter(Site2 == 'Fe') %>%
+  #   filter(Site1!=Site2) %>%
+  # filter(Site1 == Site2) %>%
+  filter(Saison1 == Saison2) %>%
+  # filter(Structure1!=Structure2) %>%
+  # filter(Structure1 == Structure2) %>%
+  # filter(Date1!=Date2) %>%
+  # filter(Date1==Date2) %>%
+  # filter(Date1 == '2022-01') %>%
+  # filter(Date2 == '2022-01') %>%
+  mutate(Comp_site=Site1,Comp_struct=Structure1,Comp_date=Date1)
+
+
+datatern2=datatern2 %>% 
+ mutate(Compasite<-paste(Site1,Site2,sep="/")) %>% 
+  mutate(Compastruct<-paste(Structure1,Structure2,sep="/")) %>% 
+  mutate(Compadate<-paste(Date1,Date2,sep="/")) %>% 
+  mutate(Compasaison<-paste(Saison1,Saison2,sep="/")) %>% 
+  mutate(Compasite_date<-paste(Site1,Date1,sep="/"))
+colnames(datatern2)[15]<-"Compasite"
+colnames(datatern2)[16]<-"Compastruct"
+colnames(datatern2)[17]<-"Compadate"
+colnames(datatern2)[18]<-"Compasaison"
+colnames(datatern2)[19]<-"Compasitedate"
+
+
+
+#pour pouvoir mettre mettre les données de structure et date ensemble
+# datatern2=datatern2 %>% mutate(Compasitedate=paste(Comp_struct,Compadate))
+datatern2=datatern2 %>% mutate(Compasite_struct=paste(Compasite,Structure1))
+datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+datatern2=datatern2 %>% mutate(Site_Years=paste(Compasite,Years))
+datatern2=datatern2 %>% mutate(Compastruct_date=paste(Compadate,Compastruct))
+datatern2=datatern2 %>% mutate(Compastruct_site_date=paste(Compasitedate,Compastruct))
+datatern2=datatern2 %>% mutate(Compasite_date=paste(Compasite,Date1))
+
+datamean<-datatern2 %>%  group_by(Compasite,Compastruct,Comp_date,Compasaison) %>% 
+  dplyr::summarize(Similarité=mean(Similarité),
+            Remplacement=mean(Remplacement),
+            Richesse=mean(Richesse))
+
+
+datameansimi=datamean %>% select(Compasite,Compastruct,Comp_date,Compasaison,Similarité) %>% 
+  mutate(Betaindex= "Similarité") %>% select(Betaindex,Compasite,Compastruct,Comp_date,Compasaison,Similarité)
+colnames(datameansimi)[6]<-"BIvalue"
+
+datameanremp=datamean %>% select(Compasite,Compastruct,Comp_date,Compasaison,Remplacement) %>% 
+  mutate(Betaindex= "Remplacement") %>% select(Betaindex,Compasite,Compastruct,Comp_date,Compasaison,Remplacement)
+colnames(datameanremp)[6]<-"BIvalue"
+
+datameanrich=datamean %>% select(Compasite,Compastruct,Comp_date,Compasaison,Richesse)  %>% 
+  mutate(Betaindex= "Richesse") %>% select(Betaindex,Compasite,Compastruct,Comp_date,Compasaison,Richesse)
+colnames(datameanrich)[6]<-"BIvalue"
+
+databetaindex <- rbind(datameansimi,datameanremp,datameanrich)
+
+databetaindex$BIvalue<-as.numeric(databetaindex$BIvalue)
+databetaindex$Betaindex<-as.factor(databetaindex$Betaindex)
+databetaindex$Compastruct<-as.factor(databetaindex$Compastruct)
+databetaindex$Compasite<-as.factor(databetaindex$Compasite)
+databetaindex$Comp_date<-as.factor(databetaindex$Comp_date)
+databetaindex$Compasaison<-as.factor(databetaindex$Compasaison)
+# databetaindex$Comp_day<-as.numeric(databetaindex$Comp_day)
+
+  
+##### Test comparaison interstructures et intersite avec binaire #####
+
+# Data similarité
+datameansimi$Compa<-rep(0)
+
+# site
+datameansimi$Compa[datameansimi$Compasite == "Bu/Bi"| datameansimi$Compasite == "Fe/Bi"| datameansimi$Compasite == "Fe/Bu"| datameansimi$Compasite == "VB/Bi" | datameansimi$Compasite == "VB/Bu" | datameansimi$Compasite == "VB/Fe" | datameansimi$Compasite == "recif1/Bi"| datameansimi$Compasite == "recif1/Bu" | datameansimi$Compasite == "recif1/Fe" | datameansimi$Compasite == "recif1/Bi" | datameansimi$Compasite == "recif2/Bu" | datameansimi$Compasite == "recif2/Bi" | datameansimi$Compasite == "recif2/Fe" | datameansimi$Compasite == "recif3/Bi" | datameansimi$Compasite == "recif3/Bu" | datameansimi$Compasite == "recif3/Fe" | datameansimi$Compasite == "Bi/recif1" | datameansimi$Compasite == "Bi/recif2" | datameansimi$Compasite == "Bi/recif3" | datameansimi$Compasite == "Bu/recif1" | datameansimi$Compasite == "Bu/recif2" | datameansimi$Compasite == "Bu/recif3" | datameansimi$Compasite == "Fe/recif1" | datameansimi$Compasite == "Fe/recif2" | datameansimi$Compasite == "Fe/recif3" | datameansimi$Compasite == "VB/recif1" | datameansimi$Compasite == "VB/recif2" | datameansimi$Compasite == "VB/recif3"   | datameansimi$Compasite == "VB/recif3" | datameansimi$Compasite == "VB/recif3" | datameansimi$Compasite == "recif2/recif1"| datameansimi$Compasite == "recif3/recif2"| datameansimi$Compasite == "recif3/recif1"]<-"Intersite"
+
+datameansimi$Compa[datameansimi$Compasite == "Bi/Bi"| datameansimi$Compasite == "Bu/Bu"| datameansimi$Compasite == "Fe/Fe"| datameansimi$Compasite == "VB/VB"|datameansimi$Compasite == "recif1/recif1"|datameansimi$Compasite == "recif2/recif2"|datameansimi$Compasite == "recif3/recif3"] <- "Intra"
+
+
+datameansimi$Compa[datameansimi$Compa == "Intersite" & datameansimi$Compastruct == "Columns/Columns" |datameansimi$Compa == "Intersite" & datameansimi$Compastruct == "Disc/Disc" |datameansimi$Compa == "Intersite" & datameansimi$Compastruct == "Pillars/Pillars" |datameansimi$Compa == "Intersite" & datameansimi$Compastruct == "Inner_slots/Inner_slots"]<-"Intersite 2"
+
+
+# structure
+datameansimi$Compa[datameansimi$Compastruct == "Columns/Disc" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Columns/Inner_slots" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Disc/Columns" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Disc/Inner_slots" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Disc/Pillars" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Inner_slots/Columns" & datameansimi$Compa =="Intra" | datameansimi$Compastruct == "Inner_slots/Disc" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Inner_slots/Pillars"  & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Pillars/Columns" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Pillars/Disc" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Pillars/Inner_slots"  & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Columns/Pillars" & datameansimi$Compa =="Intra"] <- "Interstruct"
+
+
+datameansimi$Compa[datameansimi$Compastruct == "Disc/Disc" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Inner_slots/Inner_slots" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Columns/Columns" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Pillars/Pillars" & datameansimi$Compa =="Intra"] <- "Intrastruct"
+
+# baie
+datameansimi$Compa[datameansimi$Compasite == "Bi/recif1" | datameansimi$Compasite == "Bi/recif2" | datameansimi$Compasite == "Bi/recif3" | datameansimi$Compasite == "Bu/recif1" | datameansimi$Compasite == "Bu/recif2" | datameansimi$Compasite == "Bu/recif3" | datameansimi$Compasite == "Fe/recif1" | datameansimi$Compasite == "Fe/recif2" | datameansimi$Compasite == "Fe/recif3" | datameansimi$Compasite == "VB/recif1" | datameansimi$Compasite == "VB/recif2" | datameansimi$Compasite == "VB/recif3"   | datameansimi$Compasite == "VB/recif3" | datameansimi$Compasite == "VB/recif3"| datameansimi$Compasite == "recif1/Bu" | datameansimi$Compasite == "recif1/Fe" | datameansimi$Compasite == "recif1/Bi" | datameansimi$Compasite == "recif2/Bu" | datameansimi$Compasite == "recif2/Bi" | datameansimi$Compasite == "recif2/Fe" | datameansimi$Compasite == "recif3/Bi" | datameansimi$Compasite == "recif3/Bu" | datameansimi$Compasite == "recif3/Fe"]<-"Interbaie"
+
+datameansimi$Compa[datameansimi$Compa=="Interbaie" & datameansimi$Compastruct == "Columns/Columns" | datameansimi$Compa=="Interbaie" & datameansimi$Compastruct == "Disc/Disc" | datameansimi$Compa=="Interbaie" & datameansimi$Compastruct == "Pillars/Pillars"| datameansimi$Compa=="Interbaie" & datameansimi$Compastruct == "Inner_slots/Inner_slots"]<-"Interbaie 2"
+
+datameansimi = datameansimi %>% filter(!Compa == "Intersite") %>% filter(!Compa == "Interbaie")
+
+# datameansimi$a<-rep(0)
+# datameansimi$a[datameansimi$Compasite=="recif1/recif2"| datameansimi$Compasite=="recif1/recif3"  | datameansimi$Compasite=="recif2/recif3" | datameansimi$Compasite=="recif3/recif2"| datameansimi$Compasite=="recif3/recif1"| datameansimi$Compasite=="recif2/recif1"]<-"ab"
+
+# datameansimi$Compasite2<-datameansimi$Compasite
+# datameansimi$Compasite2[datameansimi$Compasite=="recif1/recif2"| datameansimi$Compasite=="recif1/recif3"  | datameansimi$Compasite=="recif2/recif3" | datameansimi$Compasite=="recif3/recif2"| datameansimi$Compasite=="recif3/recif1"| datameansimi$Compasite=="recif2/recif1"]<-"goelo"
+
+
+# datameansimi2<-aggregate(BIvalue~Betaindex+Compastruct+Comp_date+Compasaison+Compa+Compasite2,data=datameansimi[datameansimi$Compasite2=="goelo",],FUN=mean)
+# datameansimi3<-aggregate(BIvalue~Betaindex+Compastruct+Comp_date+Compasaison+Compa+Compasite2,data=datameansimi[datameansimi$Compasite2!="goelo",],FUN=mean)
+# 
+# datameansimi4<-rbind(datameansimi2,datameansimi3)
+
+
+
+# Data remplacement
+datameanremp$Compa<-rep(0)
+# site
+datameanremp$Compa[datameanremp$Compasite == "Bu/Bi"| datameanremp$Compasite == "Fe/Bi"| datameanremp$Compasite == "Fe/Bu"| datameanremp$Compasite == "VB/Bi" | datameanremp$Compasite == "VB/Bu" | datameanremp$Compasite == "VB/Fe" | datameanremp$Compasite == "recif1/Bi"| datameanremp$Compasite == "recif1/Bu" | datameanremp$Compasite == "recif1/Fe" | datameanremp$Compasite == "recif1/Bi" | datameanremp$Compasite == "recif2/Bu" | datameanremp$Compasite == "recif2/Bi" | datameanremp$Compasite == "recif2/Fe" | datameanremp$Compasite == "recif3/Bi" | datameanremp$Compasite == "recif3/Bu" | datameanremp$Compasite == "recif3/Fe" | datameanremp$Compasite == "Bi/recif1" | datameanremp$Compasite == "Bi/recif2" | datameanremp$Compasite == "Bi/recif3" | datameanremp$Compasite == "Bu/recif1" | datameanremp$Compasite == "Bu/recif2" | datameanremp$Compasite == "Bu/recif3" | datameanremp$Compasite == "Fe/recif1" | datameanremp$Compasite == "Fe/recif2" | datameanremp$Compasite == "Fe/recif3" | datameanremp$Compasite == "VB/recif1" | datameanremp$Compasite == "VB/recif2" | datameanremp$Compasite == "VB/recif3"   | datameanremp$Compasite == "VB/recif3" | datameanremp$Compasite == "VB/recif3" | datameanremp$Compasite == "recif2/recif1"| datameanremp$Compasite == "recif3/recif2"| datameanremp$Compasite == "recif3/recif1"]<-"Intersite"
+
+datameanremp$Compa[datameanremp$Compasite == "Bi/Bi"| datameanremp$Compasite == "Bu/Bu"| datameanremp$Compasite == "Fe/Fe"| datameanremp$Compasite == "VB/VB"|datameanremp$Compasite == "recif1/recif1"|datameanremp$Compasite == "recif2/recif2"|datameanremp$Compasite == "recif3/recif3"] <- "Intra"
+
+
+datameanremp$Compa[datameanremp$Compa == "Intersite" & datameanremp$Compastruct == "Columns/Columns" |datameanremp$Compa == "Intersite" & datameanremp$Compastruct == "Disc/Disc" |datameanremp$Compa == "Intersite" & datameanremp$Compastruct == "Pillars/Pillars" |datameanremp$Compa == "Intersite" & datameanremp$Compastruct == "Inner_slots/Inner_slots"]<-"Intersite 2"
+
+
+# structure
+datameanremp$Compa[datameanremp$Compastruct == "Columns/Disc" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Columns/Inner_slots" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Disc/Columns" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Disc/Inner_slots" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Disc/Pillars" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Inner_slots/Columns" & datameanremp$Compa =="Intra" | datameanremp$Compastruct == "Inner_slots/Disc" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Inner_slots/Pillars"  & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Pillars/Columns" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Pillars/Disc" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Pillars/Inner_slots"  & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Columns/Pillars" & datameanremp$Compa =="Intra"] <- "Interstruct"
+
+
+datameanremp$Compa[datameanremp$Compastruct == "Disc/Disc" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Inner_slots/Inner_slots" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Columns/Columns" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Pillars/Pillars" & datameanremp$Compa =="Intra"] <- "Intrastruct"
+
+# baie
+datameanremp$Compa[datameanremp$Compasite == "Bi/recif1" | datameanremp$Compasite == "Bi/recif2" | datameanremp$Compasite == "Bi/recif3" | datameanremp$Compasite == "Bu/recif1" | datameanremp$Compasite == "Bu/recif2" | datameanremp$Compasite == "Bu/recif3" | datameanremp$Compasite == "Fe/recif1" | datameanremp$Compasite == "Fe/recif2" | datameanremp$Compasite == "Fe/recif3" | datameanremp$Compasite == "VB/recif1" | datameanremp$Compasite == "VB/recif2" | datameanremp$Compasite == "VB/recif3"   | datameanremp$Compasite == "VB/recif3" | datameanremp$Compasite == "VB/recif3"| datameanremp$Compasite == "recif1/Bu" | datameanremp$Compasite == "recif1/Fe" | datameanremp$Compasite == "recif1/Bi" | datameanremp$Compasite == "recif2/Bu" | datameanremp$Compasite == "recif2/Bi" | datameanremp$Compasite == "recif2/Fe" | datameanremp$Compasite == "recif3/Bi" | datameanremp$Compasite == "recif3/Bu" | datameanremp$Compasite == "recif3/Fe"]<-"Interbaie"
+
+datameanremp$Compa[datameanremp$Compa=="Interbaie" & datameanremp$Compastruct == "Columns/Columns" | datameanremp$Compa=="Interbaie" & datameanremp$Compastruct == "Disc/Disc" | datameanremp$Compa=="Interbaie" & datameanremp$Compastruct == "Pillars/Pillars"| datameanremp$Compa=="Interbaie" & datameanremp$Compastruct == "Inner_slots/Inner_slots"]<-"Interbaie 2"
+
+
+datameanremp = datameanremp %>% filter(!Compa == "Intersite") %>% filter(!Compa == "Interbaie")
+
+
+# datameanremp$Compasite2<-datameanremp$Compasite
+# datameanremp$Compasite2[datameanremp$Compasite=="recif1/recif2"| datameanremp$Compasite=="recif1/recif3"  | datameanremp$Compasite=="recif2/recif3" | datameanremp$Compasite=="recif3/recif2"| datameanremp$Compasite=="recif3/recif1"| datameanremp$Compasite=="recif2/recif1"]<-"goelo"
+
+# datameanremp2<-aggregate(BIvalue~Betaindex+Compastruct+Comp_date+Compasaison+Compa+Compasite2,data=datameanremp[datameanremp$Compasite2=="goelo",],FUN=mean)
+# datameanremp3<-aggregate(BIvalue~Betaindex+Compastruct+Comp_date+Compasaison+Compa+Compasite2,data=datameanremp[datameanremp$Compasite2!="goelo",],FUN=mean)
+# 
+# datameanremp4<-rbind(datameanremp2,datameanremp3)
+
+
+
+
+# Date Richesse
+datameanrich$Compa<-rep(0)
+
+#Site
+datameanrich$Compa[datameanrich$Compasite == "Bu/Bi"| datameanrich$Compasite == "Fe/Bi"| datameanrich$Compasite == "Fe/Bu"| datameanrich$Compasite == "VB/Bi" | datameanrich$Compasite == "VB/Bu" | datameanrich$Compasite == "VB/Fe" | datameanrich$Compasite == "recif1/Bi"| datameanrich$Compasite == "recif1/Bu" | datameanrich$Compasite == "recif1/Fe" | datameanrich$Compasite == "recif1/Bi" | datameanrich$Compasite == "recif2/Bu" | datameanrich$Compasite == "recif2/Bi" | datameanrich$Compasite == "recif2/Fe" | datameanrich$Compasite == "recif3/Bi" | datameanrich$Compasite == "recif3/Bu" | datameanrich$Compasite == "recif3/Fe" | datameanrich$Compasite == "Bi/recif1" | datameanrich$Compasite == "Bi/recif2" | datameanrich$Compasite == "Bi/recif3" | datameanrich$Compasite == "Bu/recif1" | datameanrich$Compasite == "Bu/recif2" | datameanrich$Compasite == "Bu/recif3" | datameanrich$Compasite == "Fe/recif1" | datameanrich$Compasite == "Fe/recif2" | datameanrich$Compasite == "Fe/recif3" | datameanrich$Compasite == "VB/recif1" | datameanrich$Compasite == "VB/recif2" | datameanrich$Compasite == "VB/recif3"   | datameanrich$Compasite == "VB/recif3" | datameanrich$Compasite == "VB/recif3" | datameanrich$Compasite == "recif2/recif1"| datameanrich$Compasite == "recif3/recif2"| datameanrich$Compasite == "recif3/recif1"]<-"Intersite"
+
+datameanrich$Compa[datameanrich$Compasite == "Bi/Bi"| datameanrich$Compasite == "Bu/Bu"| datameanrich$Compasite == "Fe/Fe"| datameanrich$Compasite == "VB/VB"|datameanrich$Compasite == "recif1/recif1"|datameanrich$Compasite == "recif2/recif2"|datameanrich$Compasite == "recif3/recif3"] <- "Intra"
+
+
+datameanrich$Compa[datameanrich$Compa == "Intersite" & datameanrich$Compastruct == "Columns/Columns" |datameanrich$Compa == "Intersite" & datameanrich$Compastruct == "Disc/Disc" |datameanrich$Compa == "Intersite" & datameanrich$Compastruct == "Pillars/Pillars" |datameanrich$Compa == "Intersite" & datameanrich$Compastruct == "Inner_slots/Inner_slots"]<-"Intersite 2"
+
+
+# structure
+datameanrich$Compa[datameanrich$Compastruct == "Columns/Disc" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Columns/Inner_slots" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Disc/Columns" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Disc/Inner_slots" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Disc/Pillars" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Inner_slots/Columns" & datameanrich$Compa =="Intra" | datameanrich$Compastruct == "Inner_slots/Disc" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Inner_slots/Pillars"  & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Pillars/Columns" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Pillars/Disc" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Pillars/Inner_slots"  & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Columns/Pillars" & datameanrich$Compa =="Intra"] <- "Interstruct"
+
+
+datameanrich$Compa[datameanrich$Compastruct == "Disc/Disc" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Inner_slots/Inner_slots" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Columns/Columns" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Pillars/Pillars" & datameanrich$Compa =="Intra"] <- "Intrastruct"
+
+# baie
+datameanrich$Compa[datameanrich$Compasite == "Bi/recif1" | datameanrich$Compasite == "Bi/recif2" | datameanrich$Compasite == "Bi/recif3" | datameanrich$Compasite == "Bu/recif1" | datameanrich$Compasite == "Bu/recif2" | datameanrich$Compasite == "Bu/recif3" | datameanrich$Compasite == "Fe/recif1" | datameanrich$Compasite == "Fe/recif2" | datameanrich$Compasite == "Fe/recif3" | datameanrich$Compasite == "VB/recif1" | datameanrich$Compasite == "VB/recif2" | datameanrich$Compasite == "VB/recif3"   | datameanrich$Compasite == "VB/recif3" | datameanrich$Compasite == "VB/recif3"| datameanrich$Compasite == "recif1/Bu" | datameanrich$Compasite == "recif1/Fe" | datameanrich$Compasite == "recif1/Bi" | datameanrich$Compasite == "recif2/Bu" | datameanrich$Compasite == "recif2/Bi" | datameanrich$Compasite == "recif2/Fe" | datameanrich$Compasite == "recif3/Bi" | datameanrich$Compasite == "recif3/Bu" | datameanrich$Compasite == "recif3/Fe"]<-"Interbaie"
+
+datameanrich$Compa[datameanrich$Compa=="Interbaie" & datameanrich$Compastruct == "Columns/Columns" | datameanrich$Compa=="Interbaie" & datameanrich$Compastruct == "Disc/Disc" | datameanrich$Compa=="Interbaie" & datameanrich$Compastruct == "Pillars/Pillars"| datameanrich$Compa=="Interbaie" & datameanrich$Compastruct == "Inner_slots/Inner_slots"]<-"Interbaie 2"
+
+
+datameanrich = datameanrich %>% filter(!Compa == "Intersite") %>% filter(!Compa == "Interbaie")
+
+
+# datameanrich$Compasite2<-datameanrich$Compasite
+# datameanrich$Compasite2[datameanrich$Compasite=="recif1/recif2"| datameanrich$Compasite=="recif1/recif3"  | datameanrich$Compasite=="recif2/recif3" | datameanrich$Compasite=="recif3/recif2"| datameanrich$Compasite=="recif3/recif1"| datameanrich$Compasite=="recif2/recif1"]<-"goelo"
+# 
+# 
+# datameanrich2<-aggregate(BIvalue~Betaindex+Compastruct+Comp_date+Compasaison+Compa+Compasite2,data=datameanrich[datameanrich$Compasite2=="goelo",],FUN=mean)
+# datameanrich3<-aggregate(BIvalue~Betaindex+Compastruct+Comp_date+Compasaison+Compa+Compasite2,data=datameanrich[datameanrich$Compasite2!="goelo",],FUN=mean)
+# 
+# datameanrich4<-rbind(datameanrich2,datameanrich3)
+
+
+
+
+### regroupement des jeux de données
+# databetaindex2 <- cbind(datameansimi[,-1],datameanremp[,-c(1:5,7)],datameanrich[,-c(1:5,7)])
+databetaindex2 <- cbind(datameansimi[,-1],datameanremp[,-c(1:5,7)],datameanrich[,-c(1:5,7)])
+databetaindex2<-databetaindex2[,c(1:3,4,6,7,5,8)]
+colnames(databetaindex2)[6:8]<-c("Similarité","Remplacement","Richesse")
+
+
+# databetaindex2$Compasite<-as.factor(databetaindex2$Compasite)
+databetaindex2$Compasite2<-as.factor(databetaindex2$Compasite2)
+databetaindex2$Compastruct<-as.factor(databetaindex2$Compastruct)
+databetaindex2$Comp_date<-as.factor(databetaindex2$Comp_date)
+databetaindex2$Compa<-as.factor(databetaindex2$Compa)
+databetaindex2$Compasaison<-as.factor(databetaindex2$Compasaison)
+
+
+compar<-list(c("Interstruct","Intrastruct"),c("Interstruct","Intersite 2"),c("Intrastruct","Intersite 2"))
+
+ggplot(datameansimi, aes(x=Compa, y=BIvalue))+
+  geom_violin(aes(fct_reorder(Compa,-BIvalue),fill=Compa),trim=FALSE)+
+  geom_boxplot(width=0.2,aes(fill=Compa))+
+  # scale_color_manual(values = c("gray77", "gray63", "gray40","gray8"))+
+  theme_bw()+
+  xlab("Echelle")+ ylab("Similarité")+
+  theme(legend.position="none")+
+  geom_signif(comparisons=compar,map_signif_level = TRUE,step_increase = 0.05,color="black",text_size=5)+
+  theme(axis.text.x = element_text(size=16,colour="black"))+
+  theme(axis.text.y = element_text(size=16,colour="black"))
+
+ggplot(datameanremp, aes(x=Compa, y=BIvalue))+
+  geom_violin(aes(fct_reorder(Compa,-BIvalue),fill=Compa),trim=FALSE)+
+  geom_boxplot(width=0.2,aes(fill=Compa))+
+  # scale_color_manual(values = c("gray77", "gray63", "gray40","gray8"))+
+  theme_bw()+
+  xlab("Echelle")+ ylab("Similarité")+
+  theme(legend.position="none")+
+  geom_signif(comparisons=compar,map_signif_level = TRUE,step_increase = 0.05,color="black",text_size=5)+
+  theme(axis.text.x = element_text(size=16,colour="black"))+
+  theme(axis.text.y = element_text(size=16,colour="black"))
+
+ggplot(datameanrich, aes(x=Compa, y=BIvalue))+
+  geom_violin(aes(fct_reorder(Compa,-BIvalue),fill=Compa),trim=FALSE)+
+  geom_boxplot(width=0.2,aes(fill=Compa))+
+  # scale_color_manual(values = c("gray77", "gray63", "gray40","gray8"))+
+  theme_bw()+
+  xlab("Echelle")+ ylab("Similarité")+
+  theme(legend.position="none")+
+  geom_signif(comparisons=compar,map_signif_level = TRUE,step_increase = 0.05,color="black",text_size=5)+
+  theme(axis.text.x = element_text(size=16,colour="black"))+
+  theme(axis.text.y = element_text(size=16,colour="black"))
+
+
+```
+
+
+
+
+# #nombre taxon totaux
+```{r}
+Site<-c("Bi","Bu","Fe","VB","Total Marineff","recif1","recif2","recif3","Total Goëlo")
+D2021<-c(37,25,26,29,44,0,0,0,0)
+ann1<-c(2021,2021,2021,2021,2021,2021,2021,2021,2021)
+dataann2021<-cbind(D2021,ann1,Site)
+colnames(dataann2021)<-c("value","année","Site")
+
+D2022<-c(36,28,28,34,54,17,15,17,22)
+ann2<-c(2022,2022,2022,2022,2022,2022,2022,2022,2022)
+dataann2022<-cbind(D2022,ann2,Site)
+colnames(dataann2022)<-c("value","année","Site")
+
+D2023<-c(0,0,0,0,0,17,15,17,22)
+ann3<-c(2023,2023,2023,2023,2023,2023,2023,2023,2023)
+dataann2023<-cbind(D2023,ann3,Site)
+colnames(dataann2023)<-c("value","année","Site")
+
+Dtot<-c(46,36,34,42,60,26,22,26,34)
+ann4<-c("total","total","total","total","total","total","total","total","total")
+dataanntot<-cbind(Dtot,ann4,Site)
+colnames(dataanntot)<-c("value","année","Site")
+
+
+dataann3<-as.data.frame(rbind(dataann2021,dataann2022,dataann2023,dataanntot))
+
+
+dataann3$value<-as.numeric(dataann3$value)
+dataann3$Site<-as.factor(dataann3$Site)
+dataann3$année<-as.factor(dataann3$année)
+
+dataann3$Site<-fct_relevel(dataann3$Site, c("Bi","Bu","Fe","VB","recif1","recif2","recif3","Total Marineff","Total Goëlo" ))
+
+# ggplot(dataann3, aes(année,value))+ #Site
+#   geom_bar(stat="identity",alpha=.7,aes(fill=Site))+
+#     scale_fill_manual(values = c("#f8766d", "#c49a00", "#53b400","#00c094","#00b6eb","#a58aff","#fb61d7","grey","black"))+
+#   theme_bw()+
+#   theme(axis.text.x = element_text(size=16,colour="black"))+
+#   theme(axis.text.y = element_text(size=16,colour="black"))+
+#   theme(axis.title.x = element_text(size=16,colour="black"))+
+#   theme(axis.title.y = element_text(size=16,colour="black"))
+
+
+ggplot(dataann3, aes(Site,value,fill=année))+ #Site
+  geom_bar(stat="identity",alpha=.7)+
+    # scale_fill_manual(values = c("#f8766d", "#c49a00", "#53b400","#00c094","#00b6eb","#a58aff","#fb61d7","grey","black"))+
+  theme_bw()+
+  theme(axis.text.x = element_text(size=16,colour="black",angle=35,hjust=1))+
+  theme(axis.text.y = element_text(size=16,colour="black"))+
+  theme(axis.title.x = element_text(size=16,colour="black"))+
+  theme(axis.title.y = element_text(size=16,colour="black"))
+ggsave("Richesse.png",width=9,height=8,dpi=350)
 
 ```

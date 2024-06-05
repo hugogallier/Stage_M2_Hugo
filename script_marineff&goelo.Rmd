@@ -451,8 +451,10 @@ ggplot(dataR3, aes(Structure2,S2, fill=Site))+ # Avec "fill" ou "col" du peut aj
   geom_boxplot(outlier.shape=NA)+
   theme_bw()+  
   stat_summary(fun.y = mean, geom = "point", size = 2, color = "black",position = position_dodge(width = .75))+
-  theme(axis.text.x = element_text(size=12,colour="black"))+
-  theme(axis.text.y = element_text(size=12,colour="black"))
+  theme(axis.text.x = element_text(size=16,colour="black"))+
+  theme(axis.text.y = element_text(size=16,colour="black"))+
+  theme(axis.title.x = element_text(size=16,colour="black",vjust=0))+
+  theme(axis.title.y = element_text(size=16,colour="black",vjust=2))
 ggsave("richesse taxo interbaie.png",width=9,height=8,dpi=350)
 
 
@@ -841,6 +843,7 @@ datarich<-test.mat.rich2 %>% select(Site1,Structure1,Date1,Saison1,Site2,Structu
 datatern<-cbind(datadissi[,-c(5,7)],Similarité=(1-datadissi[,9])*100,Remplacement=100*datarepl[,9],Richesse=100*datarich[,9])
 datatern<-cbind(datadissi[,-c(9)],Similarité=(1-datadissi[,9]),Remplacement=datarepl[,9],Richesse=datarich[,9])
 
+
 ``` 
   
   
@@ -1209,9 +1212,17 @@ databetaindex2$Compa<-as.factor(databetaindex2$Compa)
 databetaindex2$Compasaison<-as.factor(databetaindex2$Compasaison)
 
 
+#enlève les lignes avec goelo en inter site
+datameansimi4<-datameansimi4[which(datameansimi4$Compa!="Intersite" & datameansimi4$Compasite2 !="goelo"),]
+datameansimi5<-datameansimi4[-which(datameansimi4$Compa=="Interstruct" & datameansimi4$Compasite2=="recif1/recif1") |
+                            (datameansimi4$Compa=="Interstruct" & datameansimi4$Compasite2=="recif2/recif2") | 
+                            (datameansimi4$Compa=="Interstruct" & datameansimi4$Compasite2=="recif3/recif3"),]
+
+```
 
 
-
+plot betadiversité
+```{r}
 ### Similarité ###
 # databetaindex3=databetaindex2[,-c(1:3)]
 # databetaindex3<-databetaindex3[,-c(4:5)]
@@ -1494,6 +1505,57 @@ ggplot(datameansimi5,aes(x=as.factor(Comp_date),y=BIvalue,color=as.factor(Compa)
   geom_line()
   
   
+  
+  
+  
+##### Evolution temporelle
+  
+datameansimi6=datameansimi4 %>% filter(!Comp_date %in% c("2022-09","2023-07","2023-09"))
+datameanremp6=datameanremp4 %>% filter(!Comp_date %in% c("2022-09","2023-07","2023-09"))
+datameanrich6=datameanrich4 %>% filter(!Comp_date %in% c("2022-09","2023-07","2023-09"))
+
+datameansimi6<-as.data.frame(lapply(datameansimi6,as.factor))
+datameansimi6$BIvalue<-as.numeric(datameansimi6$BIvalue)
+
+datameanremp6<-as.data.frame(lapply(datameanremp6,as.factor))
+datameanremp6$BIvalue<-as.numeric(datameanremp6$BIvalue)
+
+datameanrich6<-as.data.frame(lapply(datameanrich6,as.factor))
+datameanrich6$BIvalue<-as.numeric(datameanrich6$BIvalue)
+
+
+ggplot(datameansimi6,aes(x=Comp_date,y=BIvalue))+
+  geom_boxplot()+facet_wrap(~Compa)+theme_bw()+
+  theme(axis.text.x = element_text(size=10,colour="black"))+
+   theme(axis.text.y = element_text(size=10,colour="black"))+
+  stat_summary(fun = 'mean', geom = "point", size = 2,position = position_dodge(width = .75),aes(fill=Compa))+
+theme(legend.position = "none")
+ggsave("similaritéechelles_temporel.png",width=15,height=8,dpi=350)
+
+
+
+ggplot(datameanremp6,aes(x=Comp_date,y=BIvalue))+
+  geom_boxplot()+facet_wrap(~Compa)+theme_bw()+
+  theme(axis.text.x = element_text(size=10,colour="black"))+
+   theme(axis.text.y = element_text(size=10,colour="black"))+
+  stat_summary(fun = 'mean', geom = "point", size = 2,position = position_dodge(width = .75),aes(fill=Compa))+
+  theme(legend.position = "none")
+ggsave("remplacementechelles_temporel.png",width=15,height=8,dpi=350)
+
+
+
+ggplot(datameanrich6,aes(x=Comp_date,y=BIvalue))+
+  geom_boxplot()+facet_wrap(~Compa)+theme_bw()+
+  theme(axis.text.x = element_text(size=10,colour="black"))+
+   theme(axis.text.y = element_text(size=10,colour="black"))+
+  stat_summary(fun = 'mean', geom = "point", size = 2,position = position_dodge(width = .75),aes(fill=Compa))+
+  theme(legend.position = "none")
+ggsave("richesseechelles_temporel.png",width=15,height=8,dpi=350)
+
+
+
+lm1<-lm(data=datameanremp6,BIvalue~Comp_date)
+summary(lm1)
 ```
 
 
@@ -1794,8 +1856,484 @@ ggplot(datameansimi7,aes(x = dist, y = BIvalue, color=Betaindex ))+
 
 #model null
 ```{r}
+### model null
+dataR
 
-sppdata<-levels(as.factor(dataRGM$spp))
+#moyenne selon les quadrats
+dataR2=dataRGM %>% ungroup %>%
+  select(spp,Site,Structure2,Micro,Day_delta,Date_courte,Mcov) %>%
+  distinct()%>%
+  mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
+  group_by(Site,Structure2,Day_delta,Years,Mcov,Micro) %>%
+  # summarize(S=n()) %>%
+  na.omit()%>%
+  droplevels()
+
+dataR3=dataR2 %>%
+  group_by(spp,Site,Structure2,Date_courte,Micro) %>%
+  summarize(Mcov2 = mean(Mcov,.by=c(Micro,Date_courte,Quad2)))
+
+#choix de la date
+dataR4=dataR3 %>% ungroup() %>% select(spp,Date_courte,Mcov2) %>% filter(Date_courte=="2022-01")
+
+#calcul du minimum et maximum par taxon
+dataR5=dataR4 %>% group_by(spp) %>% summarize(min=min(Mcov2,.by=spp)) 
+dataR6=dataR4 %>% group_by(spp) %>% summarize(max=max(Mcov2)) 
+dataR7<-cbind(dataR5,dataR6[,-1])
+
+dataR7$min<-as.numeric(dataR7$min)
+dataR7$max<-as.numeric(dataR7$max)
+
+#permet de créer une valeur random par ligne en fonction du min et max #nb dans runif à changer
+dataR7$random_value<-mapply(function(min, max) runif(nrow(dataR7), min=dataR7$min, max=dataR7$max),dataR7$min,dataR7$max)
+
+#prendre que les données de random
+rv<-as.data.frame(dataR7$random_value)
+
+#joindre les données des spp et des random
+dataR8<-cbind(dataR7[,c(1:3)],rv)
+# colnames(dataR8)[4:ncol(dataR8)]<-c(1:(ncol(dataR8)-3))
+colnames(dataR8)[4:ncol(dataR8)]<-paste("inv", 1:(ncol(dataR8)-3))
+
+#boucle pour ajouter n nombre de 0 par inventaire
+n<-10
+for (i in 4:ncol(dataR8)){
+  dataR8[,i][sample(nrow(dataR8),n)]<-0
+}
+
+
+#colonnes à la place des lignes et inversement
+dataR9<-as.data.frame(t(dataR8))
+colnames(dataR9)<-dataR8$spp
+dataR9$inv<-rownames(dataR9)
+dataR9<-dataR9[-1,]
+
+
+#proportion par rapport à 100%
+dataR10<-dataR9
+dataR10bis<-dataR9$inv
+dataR10<-as.data.frame(lapply(dataR10[,-(ncol(dataR10))],as.numeric))
+
+dataR21=matrix()
+for (col in 1:ncol(dataR10)) {
+  dataR10[[col]] <- (dataR10[[col]]  * 100)/sum(dataR10[[col]]) 
+  }
+
+
+#Calcul de la nestedness, diversité et turnover
+dataR11<-cbind(as.factor(dataR10bis),dataR10)
+colnames(dataR11)[1]<-"inventaire"
+databetadiv2<-beta.div.comp(dataR11[-c(1:2),-1],coef="S")
+
+
+# Extraction des matrices
+mat.D=as.matrix(databetadiv2$D)
+mat.D[upper.tri(mat.D)]<-NA
+diag(mat.D)<-NA
+rownames(mat.D)<-dataR11$inventaire[-c(1:2)] #change le nom des lignes avec les metadonnées
+colnames(mat.D)<-dataR11$inventaire[-c(1:2)] #change le nom des colonnes avec les metadonnées
+ 
+mat.repl=as.matrix(databetadiv2$repl)
+mat.repl[upper.tri(mat.repl)]<-NA
+diag(mat.repl)<-NA
+rownames(mat.repl)<-dataR11$inventaire[-c(1:2)] #change le nom des lignes avec les metadonnées
+colnames(mat.repl)<-dataR11$inventaire[-c(1:2)] #change le nom des colonnes avec les metadonnées
+ 
+mat.rich=as.matrix(databetadiv2$rich)
+mat.rich[upper.tri(mat.rich)]<-NA
+diag(mat.rich)<-NA
+rownames(mat.rich)<-dataR11$inventaire[-c(1:2)] #change le nom des lignes avec les metadonnées
+colnames(mat.rich)<-dataR11$inventaire[-c(1:2)]#change le nom des colonnes avec les metadonnées
+ 
+
+# Transformation des matrices en df
+test.mat.D=na.omit(reshape2::melt(mat.D)) 
+test.mat.D2 <- test.mat.D %>%
+  mutate(compainv= paste(Var1,Var2,sep="_"))
+
+
+test.mat.repl=na.omit(reshape2::melt(mat.repl)) %>% mutate(Type='repl')
+test.mat.repl2 <- test.mat.repl %>%
+   mutate(compainv= paste(Var1,Var2,sep="_"))
+
+
+test.mat.rich=na.omit(reshape2::melt(mat.rich)) %>% mutate(Type='rich')
+test.mat.rich2 <- test.mat.rich %>%
+    mutate(compainv= paste(Var1,Var2,sep="_"))
+
+
+#Création jeu de données rassemblant les différentes données
+datadissi<-test.mat.D2 
+datarepl<-test.mat.repl2 
+datarich<-test.mat.rich2
+
+datatern<-cbind(datadissi[,c(1:2,3)],Similarité=(1-datadissi[,3])*100,Remplacement=100*datarepl[,3],Richesse=100*datarich[,3])
+
+```
+
+
+#### réattribution des valeurs
+```{r}
+##### changement des valeurs du jeu de données de base
+
+dataRGM$saison<-dataRGM$Date_courte
+dataRGM$saison[dataRGM$saison == "2021-04" | dataRGM$saison == "2022-04"] <- "printemps"
+dataRGM$saison[dataRGM$saison == "2021-07" | dataRGM$saison == "2022-07" | dataRGM$saison == "2022-09"| dataRGM$saison == "2023-09" | dataRGM$saison == "2023-07"] <- "été"
+dataRGM$saison[dataRGM$saison == "2021-10" | dataRGM$saison == "2021-11"| dataRGM$saison == "2022-11"] <- "automne"
+dataRGM$saison[dataRGM$saison == "2022-01"] <- "hiver"
+
+
+dataR3=dataRGM %>% ungroup %>%
+  select(spp,Site,Structure2,Micro,Date_courte,Mcov,saison) %>%
+  mutate(num=seq(1:nrow(dataRGM))) %>% 
+  distinct()%>%
+  filter(saison=="été") %>% 
+  group_by(Site,Structure2,Mcov,Micro,Date_courte,saison,num) %>%
+  # as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Structure2,Micro,Date_courte,saison)) %>%
+  na.omit()%>%
+  droplevels() %>% 
+  spread(spp,Mcov) %>% ungroup() %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) %>% 
+  mutate(Name=paste(Site,Structure2,Date_courte,saison,sep=","))
+
+dataR3=dataRM %>% ungroup %>%
+  select(spp,Site,Structure2,Micro,Date_courte,Mcov,saison) %>%
+  mutate(num=seq(1:nrow(dataRM))) %>% 
+  distinct()%>%
+  filter(saison=="été") %>% 
+  group_by(Site,Structure2,Mcov,Micro,Date_courte,saison,num) %>%
+  # as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Structure2,Micro,Date_courte,saison)) %>%
+  na.omit()%>%
+  droplevels() %>% 
+  spread(spp,Mcov) %>% ungroup() %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) %>% 
+  mutate(Name=paste(Site,Structure2,Date_courte,saison,sep=","))
+
+
+
+
+dataR3$Site<-as.factor(dataR3$Site)
+dataR3$Micro<-as.factor(dataR3$Micro)
+dataR3$Date_courte<-as.factor(dataR3$Date_courte)
+dataR3$saison<-as.factor(dataR3$saison)
+
+
+# réattribution aléatoire des valeurs du dataframe
+dataR4<-dataR3[,c(8:ncol(dataR3)-1)]
+dataR4bis<-dataR3[,c(1:6,ncol(dataR3))]
+# data_comp4<-data_comp3
+for (i in 1:nrow(dataR4)) {
+  data1<- as.data.frame(sample(dataR4[i,]))
+  colnames(data1)[1:ncol(data1)]<-seq(1:ncol(data1))
+  dataR4[i, ]<-data1
+}
+
+dataR5<-cbind(dataR4bis,dataR4)
+
+
+databetadiv2<-beta.div.comp(dataR5[,-c(1:7)],coef="S")
+
+
+# Extraction des matrices
+mat.D=as.matrix(databetadiv2$D)
+mat.D[upper.tri(mat.D)]<-NA
+diag(mat.D)<-NA
+rownames(mat.D)<-data_comp2$Name #change le nom des lignes avec les metadonnées
+colnames(mat.D)<-data_comp2$Name #change le nom des colonnes avec les metadonnées
+ 
+mat.repl=as.matrix(databetadiv2$repl)
+mat.repl[upper.tri(mat.repl)]<-NA
+diag(mat.repl)<-NA
+rownames(mat.repl)<-data_comp2$Name #change le nom des lignes avec les metadonnées
+colnames(mat.repl)<-data_comp2$Name #change le nom des colonnes avec les metadonnées
+ 
+mat.rich=as.matrix(databetadiv2$rich)
+mat.rich[upper.tri(mat.rich)]<-NA
+diag(mat.rich)<-NA
+rownames(mat.rich)<-data_comp2$Name #change le nom des lignes avec les metadonnées
+colnames(mat.rich)<-data_comp2$Name #change le nom des colonnes avec les metadonnées
+ 
+
+# Transformation des matrices en df
+test.mat.D=na.omit(reshape2::melt(mat.D)) %>% mutate(Type='D') 
+test.mat.D2 <- test.mat.D %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.D2)<-c("Site1","Structure1","Date1","Saison1","Site2","Structure2","Date2","Saison2","Dissimilarité","type")
+
+
+test.mat.repl=na.omit(reshape2::melt(mat.repl)) %>% mutate(Type='repl')
+test.mat.repl2 <- test.mat.repl %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.repl2)<-c("Site1","Structure1","Date1","Saison1","Site2","Structure2","Date2","Saison2","Dissimilarité","type")
+
+
+test.mat.rich=na.omit(reshape2::melt(mat.rich)) %>% mutate(Type='rich')
+test.mat.rich2 <- test.mat.rich %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:4), sep = ",", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.rich2)<-c("Site1","Structure1","Date1","Saison1","Site2","Structure2","Date2","Saison2","Dissimilarité","type")
+
+
+
+#Création jeu de données rassemblant les différentes données
+datadissi<-test.mat.D2 %>% select(Site1,Structure1,Date1,Saison1,Site2,Structure2,Date2,Saison2,Dissimilarité) 
+datarepl<-test.mat.repl2 %>% select(Site1,Structure1,Date1,Saison1,Site2,Structure2,Date2,Saison2,Dissimilarité) 
+datarich<-test.mat.rich2 %>% select(Site1,Structure1,Date1,Saison1,Site2,Structure2,Date2,Saison2,Dissimilarité)
+
+datatern<-cbind(datadissi[,-c(9)],Similarité=(1-datadissi[,9])*100,Remplacement=100*datarepl[,9],Richesse=100*datarich[,9])
+
+
+
+####
+datatern2=datatern %>%
+  # filter(Structure1 == 'Disc') %>%
+    # filter(Structure1 %in% c('Disc','Inner_slots')) %>%
+    # filter(Structure2 %in% c('Disc','Inner_slots')) %>%
+  # filter(Structure2%in% c('Disc')) %>%
+    # filter(Structure1 %in% c('Inner_slots')) %>%
+  # filter(Site1 == 'Fe') %>%
+    # filter(Site2 == 'Fe') %>%
+  #   filter(Site1!=Site2) %>%
+  # filter(Site1 == Site2) %>%
+  filter(Saison1 == Saison2) %>%
+  # filter(Structure1!=Structure2) %>%
+  # filter(Structure1 == Structure2) %>%
+  # filter(Date1!=Date2) %>%
+  # filter(Date1==Date2) %>%
+  # filter(Date1 == '2022-01') %>%
+  # filter(Date2 == '2022-01') %>%
+  mutate(Comp_site=Site1,Comp_struct=Structure1,Comp_date=Date1)
+
+
+datatern2=datatern2 %>% 
+ mutate(Compasite<-paste(Site1,Site2,sep="/")) %>% 
+  mutate(Compastruct<-paste(Structure1,Structure2,sep="/")) %>% 
+  mutate(Compadate<-paste(Date1,Date2,sep="/")) %>% 
+  mutate(Compasaison<-paste(Saison1,Saison2,sep="/")) %>% 
+  mutate(Compasite_date<-paste(Site1,Date1,sep="/"))
+colnames(datatern2)[15]<-"Compasite"
+colnames(datatern2)[16]<-"Compastruct"
+colnames(datatern2)[17]<-"Compadate"
+colnames(datatern2)[18]<-"Compasaison"
+colnames(datatern2)[19]<-"Compasitedate"
+
+
+
+#pour pouvoir mettre mettre les données de structure et date ensemble
+# datatern2=datatern2 %>% mutate(Compasitedate=paste(Comp_struct,Compadate))
+datatern2=datatern2 %>% mutate(Compasite_struct=paste(Compasite,Structure1))
+datatern2=datatern2 %>% mutate(Years=substr(Date1, start = 1, stop = 4))
+datatern2=datatern2 %>% mutate(Site_Years=paste(Compasite,Years))
+datatern2=datatern2 %>% mutate(Compastruct_date=paste(Compadate,Compastruct))
+datatern2=datatern2 %>% mutate(Compastruct_site_date=paste(Compasitedate,Compastruct))
+datatern2=datatern2 %>% mutate(Compasite_date=paste(Compasite,Date1))
+
+datamean<-datatern2 %>%  group_by(Compasite,Compastruct,Comp_date,Compasaison) %>% 
+  dplyr::summarize(Similarité=mean(Similarité),
+            Remplacement=mean(Remplacement),
+            Richesse=mean(Richesse))
+
+
+datameansimi=datamean %>% select(Compasite,Compastruct,Comp_date,Compasaison,Similarité) %>% 
+  mutate(Betaindex= "Similarité") %>% select(Betaindex,Compasite,Compastruct,Comp_date,Compasaison,Similarité)
+colnames(datameansimi)[6]<-"BIvalue"
+
+datameanremp=datamean %>% select(Compasite,Compastruct,Comp_date,Compasaison,Remplacement) %>% 
+  mutate(Betaindex= "Remplacement") %>% select(Betaindex,Compasite,Compastruct,Comp_date,Compasaison,Remplacement)
+colnames(datameanremp)[6]<-"BIvalue"
+
+datameanrich=datamean %>% select(Compasite,Compastruct,Comp_date,Compasaison,Richesse)  %>% 
+  mutate(Betaindex= "Richesse") %>% select(Betaindex,Compasite,Compastruct,Comp_date,Compasaison,Richesse)
+colnames(datameanrich)[6]<-"BIvalue"
+
+databetaindex <- rbind(datameansimi,datameanremp,datameanrich)
+
+databetaindex$BIvalue<-as.numeric(databetaindex$BIvalue)
+databetaindex$Betaindex<-as.factor(databetaindex$Betaindex)
+databetaindex$Compastruct<-as.factor(databetaindex$Compastruct)
+databetaindex$Compasite<-as.factor(databetaindex$Compasite)
+databetaindex$Comp_date<-as.factor(databetaindex$Comp_date)
+databetaindex$Compasaison<-as.factor(databetaindex$Compasaison)
+# databetaindex$Comp_day<-as.numeric(databetaindex$Comp_day)
+
+  
+##### Test comparaison interstructures et intersite avec binaire #####
+
+# Data similarité
+datameansimi$Compa<-rep(0)
+
+# site
+datameansimi$Compa[datameansimi$Compasite == "Bu/Bi"| datameansimi$Compasite == "Fe/Bi"| datameansimi$Compasite == "Fe/Bu"| datameansimi$Compasite == "VB/Bi" | datameansimi$Compasite == "VB/Bu" | datameansimi$Compasite == "VB/Fe" | datameansimi$Compasite == "recif1/Bi"| datameansimi$Compasite == "recif1/Bu" | datameansimi$Compasite == "recif1/Fe" | datameansimi$Compasite == "recif1/Bi" | datameansimi$Compasite == "recif2/Bu" | datameansimi$Compasite == "recif2/Bi" | datameansimi$Compasite == "recif2/Fe" | datameansimi$Compasite == "recif3/Bi" | datameansimi$Compasite == "recif3/Bu" | datameansimi$Compasite == "recif3/Fe" | datameansimi$Compasite == "Bi/recif1" | datameansimi$Compasite == "Bi/recif2" | datameansimi$Compasite == "Bi/recif3" | datameansimi$Compasite == "Bu/recif1" | datameansimi$Compasite == "Bu/recif2" | datameansimi$Compasite == "Bu/recif3" | datameansimi$Compasite == "Fe/recif1" | datameansimi$Compasite == "Fe/recif2" | datameansimi$Compasite == "Fe/recif3" | datameansimi$Compasite == "VB/recif1" | datameansimi$Compasite == "VB/recif2" | datameansimi$Compasite == "VB/recif3"   | datameansimi$Compasite == "VB/recif3" | datameansimi$Compasite == "VB/recif3" | datameansimi$Compasite == "recif2/recif1"| datameansimi$Compasite == "recif3/recif2"| datameansimi$Compasite == "recif3/recif1"]<-"Intersite"
+
+datameansimi$Compa[datameansimi$Compasite == "Bi/Bi"| datameansimi$Compasite == "Bu/Bu"| datameansimi$Compasite == "Fe/Fe"| datameansimi$Compasite == "VB/VB"|datameansimi$Compasite == "recif1/recif1"|datameansimi$Compasite == "recif2/recif2"|datameansimi$Compasite == "recif3/recif3"] <- "Intra"
+
+
+datameansimi$Compa[datameansimi$Compa == "Intersite" & datameansimi$Compastruct == "Columns/Columns" |datameansimi$Compa == "Intersite" & datameansimi$Compastruct == "Disc/Disc" |datameansimi$Compa == "Intersite" & datameansimi$Compastruct == "Pillars/Pillars" |datameansimi$Compa == "Intersite" & datameansimi$Compastruct == "Inner_slots/Inner_slots"]<-"Intersite 2"
+
+
+# structure
+datameansimi$Compa[datameansimi$Compastruct == "Columns/Disc" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Columns/Inner_slots" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Disc/Columns" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Disc/Inner_slots" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Disc/Pillars" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Inner_slots/Columns" & datameansimi$Compa =="Intra" | datameansimi$Compastruct == "Inner_slots/Disc" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Inner_slots/Pillars"  & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Pillars/Columns" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Pillars/Disc" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Pillars/Inner_slots"  & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Columns/Pillars" & datameansimi$Compa =="Intra"] <- "Interstruct"
+
+
+datameansimi$Compa[datameansimi$Compastruct == "Disc/Disc" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Inner_slots/Inner_slots" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Columns/Columns" & datameansimi$Compa =="Intra"| datameansimi$Compastruct == "Pillars/Pillars" & datameansimi$Compa =="Intra"] <- "Intrastruct"
+
+# baie
+datameansimi$Compa[datameansimi$Compasite == "Bi/recif1" | datameansimi$Compasite == "Bi/recif2" | datameansimi$Compasite == "Bi/recif3" | datameansimi$Compasite == "Bu/recif1" | datameansimi$Compasite == "Bu/recif2" | datameansimi$Compasite == "Bu/recif3" | datameansimi$Compasite == "Fe/recif1" | datameansimi$Compasite == "Fe/recif2" | datameansimi$Compasite == "Fe/recif3" | datameansimi$Compasite == "VB/recif1" | datameansimi$Compasite == "VB/recif2" | datameansimi$Compasite == "VB/recif3"   | datameansimi$Compasite == "VB/recif3" | datameansimi$Compasite == "VB/recif3"| datameansimi$Compasite == "recif1/Bu" | datameansimi$Compasite == "recif1/Fe" | datameansimi$Compasite == "recif1/Bi" | datameansimi$Compasite == "recif2/Bu" | datameansimi$Compasite == "recif2/Bi" | datameansimi$Compasite == "recif2/Fe" | datameansimi$Compasite == "recif3/Bi" | datameansimi$Compasite == "recif3/Bu" | datameansimi$Compasite == "recif3/Fe"]<-"Interbaie"
+
+datameansimi$Compa[datameansimi$Compa=="Interbaie" & datameansimi$Compastruct == "Columns/Columns" | datameansimi$Compa=="Interbaie" & datameansimi$Compastruct == "Disc/Disc" | datameansimi$Compa=="Interbaie" & datameansimi$Compastruct == "Pillars/Pillars"| datameansimi$Compa=="Interbaie" & datameansimi$Compastruct == "Inner_slots/Inner_slots"]<-"Interbaie 2"
+
+datameansimi = datameansimi %>% filter(!Compa == "Intersite") %>% filter(!Compa == "Interbaie")
+
+# datameansimi$a<-rep(0)
+# datameansimi$a[datameansimi$Compasite=="recif1/recif2"| datameansimi$Compasite=="recif1/recif3"  | datameansimi$Compasite=="recif2/recif3" | datameansimi$Compasite=="recif3/recif2"| datameansimi$Compasite=="recif3/recif1"| datameansimi$Compasite=="recif2/recif1"]<-"ab"
+
+# datameansimi$Compasite2<-datameansimi$Compasite
+# datameansimi$Compasite2[datameansimi$Compasite=="recif1/recif2"| datameansimi$Compasite=="recif1/recif3"  | datameansimi$Compasite=="recif2/recif3" | datameansimi$Compasite=="recif3/recif2"| datameansimi$Compasite=="recif3/recif1"| datameansimi$Compasite=="recif2/recif1"]<-"goelo"
+
+
+# datameansimi2<-aggregate(BIvalue~Betaindex+Compastruct+Comp_date+Compasaison+Compa+Compasite2,data=datameansimi[datameansimi$Compasite2=="goelo",],FUN=mean)
+# datameansimi3<-aggregate(BIvalue~Betaindex+Compastruct+Comp_date+Compasaison+Compa+Compasite2,data=datameansimi[datameansimi$Compasite2!="goelo",],FUN=mean)
+# 
+# datameansimi4<-rbind(datameansimi2,datameansimi3)
+
+
+
+# Data remplacement
+datameanremp$Compa<-rep(0)
+# site
+datameanremp$Compa[datameanremp$Compasite == "Bu/Bi"| datameanremp$Compasite == "Fe/Bi"| datameanremp$Compasite == "Fe/Bu"| datameanremp$Compasite == "VB/Bi" | datameanremp$Compasite == "VB/Bu" | datameanremp$Compasite == "VB/Fe" | datameanremp$Compasite == "recif1/Bi"| datameanremp$Compasite == "recif1/Bu" | datameanremp$Compasite == "recif1/Fe" | datameanremp$Compasite == "recif1/Bi" | datameanremp$Compasite == "recif2/Bu" | datameanremp$Compasite == "recif2/Bi" | datameanremp$Compasite == "recif2/Fe" | datameanremp$Compasite == "recif3/Bi" | datameanremp$Compasite == "recif3/Bu" | datameanremp$Compasite == "recif3/Fe" | datameanremp$Compasite == "Bi/recif1" | datameanremp$Compasite == "Bi/recif2" | datameanremp$Compasite == "Bi/recif3" | datameanremp$Compasite == "Bu/recif1" | datameanremp$Compasite == "Bu/recif2" | datameanremp$Compasite == "Bu/recif3" | datameanremp$Compasite == "Fe/recif1" | datameanremp$Compasite == "Fe/recif2" | datameanremp$Compasite == "Fe/recif3" | datameanremp$Compasite == "VB/recif1" | datameanremp$Compasite == "VB/recif2" | datameanremp$Compasite == "VB/recif3"   | datameanremp$Compasite == "VB/recif3" | datameanremp$Compasite == "VB/recif3" | datameanremp$Compasite == "recif2/recif1"| datameanremp$Compasite == "recif3/recif2"| datameanremp$Compasite == "recif3/recif1"]<-"Intersite"
+
+datameanremp$Compa[datameanremp$Compasite == "Bi/Bi"| datameanremp$Compasite == "Bu/Bu"| datameanremp$Compasite == "Fe/Fe"| datameanremp$Compasite == "VB/VB"|datameanremp$Compasite == "recif1/recif1"|datameanremp$Compasite == "recif2/recif2"|datameanremp$Compasite == "recif3/recif3"] <- "Intra"
+
+
+datameanremp$Compa[datameanremp$Compa == "Intersite" & datameanremp$Compastruct == "Columns/Columns" |datameanremp$Compa == "Intersite" & datameanremp$Compastruct == "Disc/Disc" |datameanremp$Compa == "Intersite" & datameanremp$Compastruct == "Pillars/Pillars" |datameanremp$Compa == "Intersite" & datameanremp$Compastruct == "Inner_slots/Inner_slots"]<-"Intersite 2"
+
+
+# structure
+datameanremp$Compa[datameanremp$Compastruct == "Columns/Disc" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Columns/Inner_slots" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Disc/Columns" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Disc/Inner_slots" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Disc/Pillars" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Inner_slots/Columns" & datameanremp$Compa =="Intra" | datameanremp$Compastruct == "Inner_slots/Disc" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Inner_slots/Pillars"  & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Pillars/Columns" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Pillars/Disc" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Pillars/Inner_slots"  & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Columns/Pillars" & datameanremp$Compa =="Intra"] <- "Interstruct"
+
+
+datameanremp$Compa[datameanremp$Compastruct == "Disc/Disc" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Inner_slots/Inner_slots" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Columns/Columns" & datameanremp$Compa =="Intra"| datameanremp$Compastruct == "Pillars/Pillars" & datameanremp$Compa =="Intra"] <- "Intrastruct"
+
+# baie
+datameanremp$Compa[datameanremp$Compasite == "Bi/recif1" | datameanremp$Compasite == "Bi/recif2" | datameanremp$Compasite == "Bi/recif3" | datameanremp$Compasite == "Bu/recif1" | datameanremp$Compasite == "Bu/recif2" | datameanremp$Compasite == "Bu/recif3" | datameanremp$Compasite == "Fe/recif1" | datameanremp$Compasite == "Fe/recif2" | datameanremp$Compasite == "Fe/recif3" | datameanremp$Compasite == "VB/recif1" | datameanremp$Compasite == "VB/recif2" | datameanremp$Compasite == "VB/recif3"   | datameanremp$Compasite == "VB/recif3" | datameanremp$Compasite == "VB/recif3"| datameanremp$Compasite == "recif1/Bu" | datameanremp$Compasite == "recif1/Fe" | datameanremp$Compasite == "recif1/Bi" | datameanremp$Compasite == "recif2/Bu" | datameanremp$Compasite == "recif2/Bi" | datameanremp$Compasite == "recif2/Fe" | datameanremp$Compasite == "recif3/Bi" | datameanremp$Compasite == "recif3/Bu" | datameanremp$Compasite == "recif3/Fe"]<-"Interbaie"
+
+datameanremp$Compa[datameanremp$Compa=="Interbaie" & datameanremp$Compastruct == "Columns/Columns" | datameanremp$Compa=="Interbaie" & datameanremp$Compastruct == "Disc/Disc" | datameanremp$Compa=="Interbaie" & datameanremp$Compastruct == "Pillars/Pillars"| datameanremp$Compa=="Interbaie" & datameanremp$Compastruct == "Inner_slots/Inner_slots"]<-"Interbaie 2"
+
+
+datameanremp = datameanremp %>% filter(!Compa == "Intersite") %>% filter(!Compa == "Interbaie")
+
+
+# datameanremp$Compasite2<-datameanremp$Compasite
+# datameanremp$Compasite2[datameanremp$Compasite=="recif1/recif2"| datameanremp$Compasite=="recif1/recif3"  | datameanremp$Compasite=="recif2/recif3" | datameanremp$Compasite=="recif3/recif2"| datameanremp$Compasite=="recif3/recif1"| datameanremp$Compasite=="recif2/recif1"]<-"goelo"
+
+# datameanremp2<-aggregate(BIvalue~Betaindex+Compastruct+Comp_date+Compasaison+Compa+Compasite2,data=datameanremp[datameanremp$Compasite2=="goelo",],FUN=mean)
+# datameanremp3<-aggregate(BIvalue~Betaindex+Compastruct+Comp_date+Compasaison+Compa+Compasite2,data=datameanremp[datameanremp$Compasite2!="goelo",],FUN=mean)
+# 
+# datameanremp4<-rbind(datameanremp2,datameanremp3)
+
+
+
+
+# Date Richesse
+datameanrich$Compa<-rep(0)
+
+#Site
+datameanrich$Compa[datameanrich$Compasite == "Bu/Bi"| datameanrich$Compasite == "Fe/Bi"| datameanrich$Compasite == "Fe/Bu"| datameanrich$Compasite == "VB/Bi" | datameanrich$Compasite == "VB/Bu" | datameanrich$Compasite == "VB/Fe" | datameanrich$Compasite == "recif1/Bi"| datameanrich$Compasite == "recif1/Bu" | datameanrich$Compasite == "recif1/Fe" | datameanrich$Compasite == "recif1/Bi" | datameanrich$Compasite == "recif2/Bu" | datameanrich$Compasite == "recif2/Bi" | datameanrich$Compasite == "recif2/Fe" | datameanrich$Compasite == "recif3/Bi" | datameanrich$Compasite == "recif3/Bu" | datameanrich$Compasite == "recif3/Fe" | datameanrich$Compasite == "Bi/recif1" | datameanrich$Compasite == "Bi/recif2" | datameanrich$Compasite == "Bi/recif3" | datameanrich$Compasite == "Bu/recif1" | datameanrich$Compasite == "Bu/recif2" | datameanrich$Compasite == "Bu/recif3" | datameanrich$Compasite == "Fe/recif1" | datameanrich$Compasite == "Fe/recif2" | datameanrich$Compasite == "Fe/recif3" | datameanrich$Compasite == "VB/recif1" | datameanrich$Compasite == "VB/recif2" | datameanrich$Compasite == "VB/recif3"   | datameanrich$Compasite == "VB/recif3" | datameanrich$Compasite == "VB/recif3" | datameanrich$Compasite == "recif2/recif1"| datameanrich$Compasite == "recif3/recif2"| datameanrich$Compasite == "recif3/recif1"]<-"Intersite"
+
+datameanrich$Compa[datameanrich$Compasite == "Bi/Bi"| datameanrich$Compasite == "Bu/Bu"| datameanrich$Compasite == "Fe/Fe"| datameanrich$Compasite == "VB/VB"|datameanrich$Compasite == "recif1/recif1"|datameanrich$Compasite == "recif2/recif2"|datameanrich$Compasite == "recif3/recif3"] <- "Intra"
+
+
+datameanrich$Compa[datameanrich$Compa == "Intersite" & datameanrich$Compastruct == "Columns/Columns" |datameanrich$Compa == "Intersite" & datameanrich$Compastruct == "Disc/Disc" |datameanrich$Compa == "Intersite" & datameanrich$Compastruct == "Pillars/Pillars" |datameanrich$Compa == "Intersite" & datameanrich$Compastruct == "Inner_slots/Inner_slots"]<-"Intersite 2"
+
+
+# structure
+datameanrich$Compa[datameanrich$Compastruct == "Columns/Disc" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Columns/Inner_slots" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Disc/Columns" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Disc/Inner_slots" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Disc/Pillars" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Inner_slots/Columns" & datameanrich$Compa =="Intra" | datameanrich$Compastruct == "Inner_slots/Disc" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Inner_slots/Pillars"  & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Pillars/Columns" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Pillars/Disc" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Pillars/Inner_slots"  & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Columns/Pillars" & datameanrich$Compa =="Intra"] <- "Interstruct"
+
+
+datameanrich$Compa[datameanrich$Compastruct == "Disc/Disc" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Inner_slots/Inner_slots" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Columns/Columns" & datameanrich$Compa =="Intra"| datameanrich$Compastruct == "Pillars/Pillars" & datameanrich$Compa =="Intra"] <- "Intrastruct"
+
+# baie
+datameanrich$Compa[datameanrich$Compasite == "Bi/recif1" | datameanrich$Compasite == "Bi/recif2" | datameanrich$Compasite == "Bi/recif3" | datameanrich$Compasite == "Bu/recif1" | datameanrich$Compasite == "Bu/recif2" | datameanrich$Compasite == "Bu/recif3" | datameanrich$Compasite == "Fe/recif1" | datameanrich$Compasite == "Fe/recif2" | datameanrich$Compasite == "Fe/recif3" | datameanrich$Compasite == "VB/recif1" | datameanrich$Compasite == "VB/recif2" | datameanrich$Compasite == "VB/recif3"   | datameanrich$Compasite == "VB/recif3" | datameanrich$Compasite == "VB/recif3"| datameanrich$Compasite == "recif1/Bu" | datameanrich$Compasite == "recif1/Fe" | datameanrich$Compasite == "recif1/Bi" | datameanrich$Compasite == "recif2/Bu" | datameanrich$Compasite == "recif2/Bi" | datameanrich$Compasite == "recif2/Fe" | datameanrich$Compasite == "recif3/Bi" | datameanrich$Compasite == "recif3/Bu" | datameanrich$Compasite == "recif3/Fe"]<-"Interbaie"
+
+datameanrich$Compa[datameanrich$Compa=="Interbaie" & datameanrich$Compastruct == "Columns/Columns" | datameanrich$Compa=="Interbaie" & datameanrich$Compastruct == "Disc/Disc" | datameanrich$Compa=="Interbaie" & datameanrich$Compastruct == "Pillars/Pillars"| datameanrich$Compa=="Interbaie" & datameanrich$Compastruct == "Inner_slots/Inner_slots"]<-"Interbaie 2"
+
+
+datameanrich = datameanrich %>% filter(!Compa == "Intersite") %>% filter(!Compa == "Interbaie")
+
+
+# datameanrich$Compasite2<-datameanrich$Compasite
+# datameanrich$Compasite2[datameanrich$Compasite=="recif1/recif2"| datameanrich$Compasite=="recif1/recif3"  | datameanrich$Compasite=="recif2/recif3" | datameanrich$Compasite=="recif3/recif2"| datameanrich$Compasite=="recif3/recif1"| datameanrich$Compasite=="recif2/recif1"]<-"goelo"
+# 
+# 
+# datameanrich2<-aggregate(BIvalue~Betaindex+Compastruct+Comp_date+Compasaison+Compa+Compasite2,data=datameanrich[datameanrich$Compasite2=="goelo",],FUN=mean)
+# datameanrich3<-aggregate(BIvalue~Betaindex+Compastruct+Comp_date+Compasaison+Compa+Compasite2,data=datameanrich[datameanrich$Compasite2!="goelo",],FUN=mean)
+# 
+# datameanrich4<-rbind(datameanrich2,datameanrich3)
+
+
+
+
+### regroupement des jeux de données
+# databetaindex2 <- cbind(datameansimi[,-1],datameanremp[,-c(1:5,7)],datameanrich[,-c(1:5,7)])
+databetaindex2 <- cbind(datameansimi[,-1],datameanremp[,-c(1:5,7)],datameanrich[,-c(1:5,7)])
+databetaindex2<-databetaindex2[,c(1:3,4,6,7,5,8)]
+colnames(databetaindex2)[6:8]<-c("Similarité","Remplacement","Richesse")
+
+
+# databetaindex2$Compasite<-as.factor(databetaindex2$Compasite)
+databetaindex2$Compasite2<-as.factor(databetaindex2$Compasite2)
+databetaindex2$Compastruct<-as.factor(databetaindex2$Compastruct)
+databetaindex2$Comp_date<-as.factor(databetaindex2$Comp_date)
+databetaindex2$Compa<-as.factor(databetaindex2$Compa)
+databetaindex2$Compasaison<-as.factor(databetaindex2$Compasaison)
+
+
+compar<-list(c("Interstruct","Intrastruct"),c("Interstruct","Intersite 2"),c("Intrastruct","Intersite 2"))
+
+ggplot(datameansimi, aes(x=Compa, y=BIvalue))+
+  geom_violin(aes(fct_reorder(Compa,-BIvalue),fill=Compa),trim=FALSE)+
+  geom_boxplot(width=0.2,aes(fill=Compa))+
+  # scale_color_manual(values = c("gray77", "gray63", "gray40","gray8"))+
+  theme_bw()+
+  xlab("Echelle")+ ylab("Similarité")+
+  theme(legend.position="none")+
+  geom_signif(comparisons=compar,map_signif_level = TRUE,step_increase = 0.05,color="black",text_size=5)+
+  theme(axis.text.x = element_text(size=16,colour="black"))+
+  theme(axis.text.y = element_text(size=16,colour="black"))
+
+ggplot(datameanremp, aes(x=Compa, y=BIvalue))+
+  geom_violin(aes(fct_reorder(Compa,-BIvalue),fill=Compa),trim=FALSE)+
+  geom_boxplot(width=0.2,aes(fill=Compa))+
+  # scale_color_manual(values = c("gray77", "gray63", "gray40","gray8"))+
+  theme_bw()+
+  xlab("Echelle")+ ylab("Similarité")+
+  theme(legend.position="none")+
+  geom_signif(comparisons=compar,map_signif_level = TRUE,step_increase = 0.05,color="black",text_size=5)+
+  theme(axis.text.x = element_text(size=16,colour="black"))+
+  theme(axis.text.y = element_text(size=16,colour="black"))
+
+ggplot(datameanrich, aes(x=Compa, y=BIvalue))+
+  geom_violin(aes(fct_reorder(Compa,-BIvalue),fill=Compa),trim=FALSE)+
+  geom_boxplot(width=0.2,aes(fill=Compa))+
+  # scale_color_manual(values = c("gray77", "gray63", "gray40","gray8"))+
+  theme_bw()+
+  xlab("Echelle")+ ylab("Similarité")+
+  theme(legend.position="none")+
+  geom_signif(comparisons=compar,map_signif_level = TRUE,step_increase = 0.05,color="black",text_size=5)+
+  theme(axis.text.x = element_text(size=16,colour="black"))+
+  theme(axis.text.y = element_text(size=16,colour="black"))
+
+
+```
 
 
 ```

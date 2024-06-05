@@ -283,6 +283,18 @@ ggplot(dataR2, aes(Day_delta, S, col=Site))+# Avec "fill" ou "col" tu peux ajout
   theme_bw()+
 theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # <- rotation des dates pour qu'elles soient lisibles
 
+
+
+
+
+dataR2=dataR %>% ungroup %>% 
+  select(Site,Structure2,Micro,Day_delta) %>%
+  distinct()%>%
+  filter(Site=='recif3') %>% 
+  group_by(Site,Structure2,Micro,Day_delta) %>%
+  summarize(S=n()) %>%
+  na.omit()
+
 ```
 
 #Comparaison intersite des Micro habitats
