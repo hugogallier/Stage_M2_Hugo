@@ -2689,7 +2689,7 @@ theme(legend.background = element_rect(fill="#ececec"))+
   theme(legend.key = element_rect(fill="#ececec"))+
   annotate("text",x = c(65,159,252,344,433,524,617,710),y=0.85,
            label=c("Hiver","Printemps","Eté","Automne","Hiver","Printemps","Eté","Automne"),
-           colour=c("#666666","#666666","#666666","#666666","#666666","#666666","#666666","#666666"),size=5,angle=35)
+           colour=c("#666666","#666666","#666666","#666666","#666666","#666666","#666666","#666666"),size=6,angle=45)
 ggsave("Indicedepiélou.png",width=9,height=8,dpi=350)
 
 ```
@@ -2797,8 +2797,8 @@ datatern2=datatern %>%
     # filter(Site1!=Site2) %>%
   filter(Site1 == Site2) %>%
   # filter(Saison1 == Saison2) %>%
-  filter(Structure1!=Structure2) %>%
-  # filter(Structure1 == Structure2) %>%
+  # filter(Structure1!=Structure2) %>%
+  filter(Structure1 == Structure2) %>%
   # filter(Date1!=Date2) %>%
   filter(Date1==Date2) %>%
   # filter(Date1 == '2022-11') %>%
@@ -2818,9 +2818,11 @@ datatern2=datatern2 %>%
   mutate(Compasite_date<-paste(Site1,Date1,sep="/")) 
 colnames(datatern2)[14]<-"Compasite"
 colnames(datatern2)[15]<-"Compastruct"
-colnames(datatern2)[16]<-"Compadate"
-colnames(datatern2)[17]<-"Compasaison"
-colnames(datatern2)[18]<-"Compasitedate"
+colnames(datatern2)[16]<-"Comp_site"
+colnames(datatern2)[17]<-"Comp_struct"
+colnames(datatern2)[18]<-"Compadate"
+colnames(datatern2)[19]<-"Compasaison"
+colnames(datatern2)[20]<-"Compasitedate"
 
 #pour pouvoir mettre mettre les données de structure et date ensemble
 # datatern2=datatern2 %>% mutate(Compasitedate=paste(Comp_struct,Compadate))
@@ -2831,18 +2833,18 @@ datatern2=datatern2 %>% mutate(Compastruct_date=paste(Compadate,Compastruct))
 datatern2=datatern2 %>% mutate(Compastruct_site_date=paste(Compasitedate,Compastruct))
 datatern2=datatern2 %>% mutate(Compasite_date=paste(Compasite,Date1))
 
-datamean<-datatern2 %>%  group_by(Comp_site,Compasite,Compastruct,Comp_struct) %>%  #permet de faire la moyenne de chaque colonne par site/struct
+datamean<-datatern2 %>%  group_by(Compasite,Compasaison) %>%  #permet de faire la moyenne de chaque colonne par site/struct
   #  Compastruct,,Comp_site,Compadate,Compadate,Compadate,Compastruct,Compastruct,Site_Years <-à utiliser dans la ligne d'avant afin de faire les comparaisons voulues
   dplyr::summarize(Similarité=mean(Similarité),
             Remplacement=mean(Remplacement),
             Richesse=mean(Richesse))
 
-ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement,group=Compastruct)) +
+ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement,group=Compasaison)) +
   # geom_point(aes(colour=Compasite), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3) +
     # geom_point(aes(colour=Compastruct), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3) +
       # geom_point(aes(colour=Compasitedate), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.2) +
-  geom_point(aes(color=Compastruct),position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.1)+
-        geom_point(data=datamean,aes(color=Compastruct)) +
+  geom_point(colour="grey",position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3)+
+        geom_point(data=datamean,aes(color=Compasaison)) +
   # stat_density_tern( #ajout de la densité
             # geom="polygon",aes(fill=after_stat(level)),bins=10,color='grey')+
             # geom="polygon",aes(fill=Structure1),bins=10,color='grey')+
@@ -2853,10 +2855,11 @@ ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement,group=Compast
   # geom_crosshair_tern(data=datamean,aes(color=Compadate))+
   # geom_crosshair_tern(data=datamean,aes(color=Compastruct_date))+
   # geom_crosshair_tern(data=datamean,aes(color=Compasitedate))+
-    geom_crosshair_tern(data=datamean,aes(color=Compastruct))+
+    geom_crosshair_tern(data=datamean,aes(color=Compasaison))+
+    theme(strip.text.x = element_text(size = 12))+
   # facet_wrap(.~Comp_site)+
-  # facet_wrap(.~Compasite)+
-    facet_wrap(.~Comp_site)+
+    facet_wrap(.~Compasite)+
+  ggtern_labels()
   labs(title="")
   # scale_color_paletteer_d("dichromat::SteppedSequential_5")
   # labs(color = "Structures comparées")+
@@ -4458,9 +4461,9 @@ plot_smooths(model=model111111, series=Day_delta)+theme_bw()+ #permet de mettre 
 # annotate("rect",xmin=478,xmax=570.9,ymin=0,ymax=10,alpha=.1,fill="green")+
 #   annotate("rect",xmin=571,xmax=663.9,ymin=0,ymax=10,alpha=.1,fill="orange")+
 #   annotate("rect",xmin=664,xmax=750,ymin=0,ymax=10,alpha=.1,fill="brown")+
-annotate("text",x = c(65,159,252,344,433,524,617,715),y=110,
+annotate("text",x = c(65,159,252,344,433,524,617,715),y=105,
            label=c("Hiver","Printemps","Eté","Automne","Hiver","Printemps","Eté","Automne"),
-           colour=c("#666666","#666666","#666666","#666666","#666666","#666666","#666666","#666666"),size=4,angle=35)+
+           colour=c("#666666","#666666","#666666","#666666","#666666","#666666","#666666","#666666"),size=6,angle=45)+
    xlab("Nombre de jours d'immersion")+
   ylab("Pourcentage de roche nue sur le récif (%)")+
    theme(axis.text.x = element_text(size=16,color="black"))+
@@ -5079,13 +5082,13 @@ datatern<-cbind(datadissi[,-c(9)],Similarité=(1-datadissi[,9])*100,Remplacement
 ####
 datatern2=datatern %>%
   # filter(Structure1 == 'Disc') %>%
-    # filter(Structure1 %in% c('Disc','Inner_slots')) %>%
-    # filter(Structure2 %in% c('Disc','Inner_slots')) %>%
+  # filter(Structure1 %in% c('Disc','Inner_slots')) %>%
+  # filter(Structure2 %in% c('Disc','Inner_slots')) %>%
   # filter(Structure2%in% c('Disc')) %>%
-    # filter(Structure1 %in% c('Inner_slots')) %>%
+  # filter(Structure1 %in% c('Inner_slots')) %>%
   # filter(Site1 == 'Fe') %>%
-    # filter(Site2 == 'Fe') %>%
-  #   filter(Site1!=Site2) %>%
+  # filter(Site2 == 'Fe') %>%
+  # filter(Site1 != Site2) %>%
   # filter(Site1 == Site2) %>%
   filter(Saison1 == Saison2) %>%
   # filter(Structure1!=Structure2) %>%
@@ -5316,7 +5319,6 @@ ggplot(datameanrich, aes(x=Compa, y=BIvalue))+
   theme(axis.text.x = element_text(size=16,colour="black"))+
   theme(axis.text.y = element_text(size=16,colour="black"))
 
-
 ```
 
 
@@ -5376,3 +5378,9 @@ ggplot(dataann3, aes(Site,value,fill=année))+ #Site
 ggsave("Richesse.png",width=9,height=8,dpi=350)
 
 ```
+
+
+
+
+
+

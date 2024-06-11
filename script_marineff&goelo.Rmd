@@ -360,6 +360,7 @@ dataRM=dataR1 %>% filter(!spp %in% c("NI","Unassigned","ponte","Ponte",'None','N
   filter(!Structure2 %in% c('Holes','Upper_slots','Dome')) %>% 
   filter(!Date_courte == '2021-01') %>% 
   select(spp,abb,Site,Micro,Date_courte,Structure2,Mcov,Day_delta,Quad2)
+
 ```
 
 
@@ -1526,30 +1527,34 @@ datameanrich6$BIvalue<-as.numeric(datameanrich6$BIvalue)
 
 ggplot(datameansimi6,aes(x=Comp_date,y=BIvalue))+
   geom_boxplot()+facet_wrap(~Compa)+theme_bw()+
-  theme(axis.text.x = element_text(size=10,colour="black"))+
-   theme(axis.text.y = element_text(size=10,colour="black"))+
+  theme(axis.text.x = element_text(size=12,colour="black"))+
+   theme(axis.text.y = element_text(size=12,colour="black"))+
   stat_summary(fun = 'mean', geom = "point", size = 2,position = position_dodge(width = .75),aes(fill=Compa))+
-theme(legend.position = "none")
+  theme(legend.position = "none")+
+  theme(strip.text.x = element_text(size = 12))
 ggsave("similaritéechelles_temporel.png",width=15,height=8,dpi=350)
 
 
 
 ggplot(datameanremp6,aes(x=Comp_date,y=BIvalue))+
   geom_boxplot()+facet_wrap(~Compa)+theme_bw()+
-  theme(axis.text.x = element_text(size=10,colour="black"))+
-   theme(axis.text.y = element_text(size=10,colour="black"))+
+  theme(axis.text.x = element_text(size=12,colour="black"))+
+   theme(axis.text.y = element_text(size=12,colour="black"))+
   stat_summary(fun = 'mean', geom = "point", size = 2,position = position_dodge(width = .75),aes(fill=Compa))+
-  theme(legend.position = "none")
+  theme(legend.position = "none")+
+  theme(strip.text.x = element_text(size = 12))
 ggsave("remplacementechelles_temporel.png",width=15,height=8,dpi=350)
 
 
 
 ggplot(datameanrich6,aes(x=Comp_date,y=BIvalue))+
   geom_boxplot()+facet_wrap(~Compa)+theme_bw()+
-  theme(axis.text.x = element_text(size=10,colour="black"))+
-   theme(axis.text.y = element_text(size=10,colour="black"))+
+  theme(axis.text.x = element_text(size=12,colour="black"))+
+  theme(axis.text.y = element_text(size=12,colour="black"))+
   stat_summary(fun = 'mean', geom = "point", size = 2,position = position_dodge(width = .75),aes(fill=Compa))+
-  theme(legend.position = "none")
+  theme(legend.position = "none")+
+  theme(strip.text.x = element_text(size = 12))
+
 ggsave("richesseechelles_temporel.png",width=15,height=8,dpi=350)
 
 
@@ -1855,6 +1860,7 @@ ggplot(datameansimi7,aes(x = dist, y = BIvalue, color=Betaindex ))+
 
 
 #model null
+## réattribution des valeurs selon min et max
 ```{r}
 ### model null
 dataR
@@ -1922,28 +1928,29 @@ for (col in 1:ncol(dataR10)) {
 
 #Calcul de la nestedness, diversité et turnover
 dataR11<-cbind(as.factor(dataR10bis),dataR10)
+dataR11<-dataR11[-c(1:2),]
 colnames(dataR11)[1]<-"inventaire"
-databetadiv2<-beta.div.comp(dataR11[-c(1:2),-1],coef="S")
+databetadiv2<-beta.div.comp(dataR11[,-1],coef="S")
 
 
 # Extraction des matrices
 mat.D=as.matrix(databetadiv2$D)
 mat.D[upper.tri(mat.D)]<-NA
 diag(mat.D)<-NA
-rownames(mat.D)<-dataR11$inventaire[-c(1:2)] #change le nom des lignes avec les metadonnées
-colnames(mat.D)<-dataR11$inventaire[-c(1:2)] #change le nom des colonnes avec les metadonnées
+rownames(mat.D)<-dataR11$inventaire #change le nom des lignes avec les metadonnées
+colnames(mat.D)<-dataR11$inventaire #change le nom des colonnes avec les metadonnées
  
 mat.repl=as.matrix(databetadiv2$repl)
 mat.repl[upper.tri(mat.repl)]<-NA
 diag(mat.repl)<-NA
-rownames(mat.repl)<-dataR11$inventaire[-c(1:2)] #change le nom des lignes avec les metadonnées
-colnames(mat.repl)<-dataR11$inventaire[-c(1:2)] #change le nom des colonnes avec les metadonnées
+rownames(mat.repl)<-dataR11$inventaire #change le nom des lignes avec les metadonnées
+colnames(mat.repl)<-dataR11$inventaire #change le nom des colonnes avec les metadonnées
  
 mat.rich=as.matrix(databetadiv2$rich)
 mat.rich[upper.tri(mat.rich)]<-NA
 diag(mat.rich)<-NA
-rownames(mat.rich)<-dataR11$inventaire[-c(1:2)] #change le nom des lignes avec les metadonnées
-colnames(mat.rich)<-dataR11$inventaire[-c(1:2)]#change le nom des colonnes avec les metadonnées
+rownames(mat.rich)<-dataR11$inventaire #change le nom des lignes avec les metadonnées
+colnames(mat.rich)<-dataR11$inventaire#change le nom des colonnes avec les metadonnées
  
 
 # Transformation des matrices en df
@@ -1967,12 +1974,15 @@ datadissi<-test.mat.D2
 datarepl<-test.mat.repl2 
 datarich<-test.mat.rich2
 
-datatern<-cbind(datadissi[,c(1:2,3)],Similarité=(1-datadissi[,3])*100,Remplacement=100*datarepl[,3],Richesse=100*datarich[,3])
+datatern<-cbind(datadissi[,c(1:2)],Similarité=(1-datadissi[,3])*100,Remplacement=100*datarepl[,3],Richesse=100*datarich[,3])
 
 ```
 
 
-#### réattribution des valeurs
+
+
+
+#### réattribution des valeurs par ligne
 ```{r}
 ##### changement des valeurs du jeu de données de base
 
@@ -2336,4 +2346,216 @@ ggplot(datameanrich, aes(x=Compa, y=BIvalue))+
 ```
 
 
+# boucle
+```{r}
+dataRGM$saison<-dataRGM$Date_courte
+dataRGM$saison[dataRGM$saison == "2021-04" | dataRGM$saison == "2022-04"] <- "printemps"
+dataRGM$saison[dataRGM$saison == "2021-07" | dataRGM$saison == "2022-07" | dataRGM$saison == "2022-09"| dataRGM$saison == "2023-09" | dataRGM$saison == "2023-07"] <- "été"
+dataRGM$saison[dataRGM$saison == "2021-10" | dataRGM$saison == "2021-11"| dataRGM$saison == "2022-11"] <- "automne"
+dataRGM$saison[dataRGM$saison == "2022-01"] <- "hiver"
+
+
+# données selon chaque micro par structure
+dataR3=dataRGM %>% ungroup %>%
+  select(spp,Site,Structure2,Micro,Date_courte,Mcov,saison) %>%
+  # mutate(num=seq(1:nrow(dataRGM))) %>%
+  distinct()%>%
+  filter(Structure2 %in% c("Disc","Columns","Pillars")) %>%
+  group_by(Site,Structure2,Micro,Mcov,Date_courte,saison) %>%
+  # as.data.frame() %>% summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Structure2,Micro,Date_courte,saison)) %>%
+  na.omit()%>%
+  droplevels() %>% ungroup() %>% 
+    summarize(Mcov2=mean(Mcov),.by=c(spp,Site,Structure2,Micro,Date_courte,saison)) %>% 
+  spread(spp,Mcov2) %>% ungroup() %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) %>% 
+  mutate(Name=paste(Site,Structure2,Date_courte,saison,sep=","))
+
+
+dataR3$Site<-as.factor(dataR3$Site)
+dataR3$Structure2<-as.factor(dataR3$Structure2)
+dataR3$Micro<-as.factor(dataR3$Micro)
+dataR3$Date_courte<-as.factor(dataR3$Date_courte)
+dataR3$saison<-as.factor(dataR3$saison)
+
+
+#boucle pour faire cette réattribution selon les pour chaque date et site
+L=list()
+for (i in 1: length(levels(dataR3$Date_courte))){#boucle selon chaque date
+  Date_sel=levels(dataR3$Date_courte)[i]
+  
+  data_sub=dataR3 %>% filter(Date_courte==Date_sel)
+  
+  List1=list()
+  for (j in (1:length(levels(factor(data_sub$Site))))){#boucle selon chaque site
+    
+    Site_sel=na.omit(levels(factor(data_sub$Site)))[j]
+    
+    data_site_sel=data_sub %>%  filter(Site==Site_sel) %>% mutate(Structure=Structure2)
+    
+    List2=list()
+    for (k in (1:nrow(data_site_sel))){# boucle réattribution
+      
+      
+      dataR4<-data_site_sel[,c(6:(ncol(data_site_sel)-2))]
+      dataR4bis<-data_site_sel[,c(1:5,ncol(data_site_sel))]
+      
+        for (l in (1:5)){ # ajout de 5 réplicats par quadrats
+           data1[l,]<- as.data.frame(sample(dataR4[k,]))
+           colnames(data1[l,])[1:ncol(data1)]<-seq(1:ncol(data1))
+        }
+      data2<-data1
+      List2[[k]]<-data2
+      
+    }
+    
+    DF_virtuel=do.call(rbind,List2)
+
+     Matrice_virtuel=DF_virtuel %>%  mutate(Date=rep(Date_sel),
+                                                  Site=rep(Site_sel),
+                                         Structure=rep(data_site_sel$Structure2,each=5),
+                                         Name=paste(Date,Site,Structure,sep = "_"))
+     
+    List1[[j]]<-Matrice_virtuel
+  }
+      DF_virtuel2=do.call(rbind, List1)
+    L[[i]]<-DF_virtuel2
+
+}
+DF_virtuel3=do.call(rbind, L)
+colnames(DF_virtuel3)[c(1:(ncol(DF_virtuel3)-4))]<-colnames(dataR4)
+DF_virtuel3$inv<-rep(1:5, times=(nrow(DF_virtuel3)/5)) #ajout du numéro de répétition du quadrat
+DF_virtuel3$Name<-paste(DF_virtuel3$Name,DF_virtuel3$inv,sep="_")
+
+DF_virtuel4<-DF_virtuel3[,-c(ncol(DF_virtuel3),(ncol(DF_virtuel3)-1),(ncol(DF_virtuel3)-2),(ncol(DF_virtuel3)-3),(ncol(DF_virtuel3)-4))]
+DF_virtueltest<-DF_virtuel4[c(1:100),]
+
+databetadiv2<-beta.div.comp(DF_virtueltest,coef="S")
+# databetadiv2<-beta.div.comp(DF_virtuel4,coef="S")
+
+
+
+# Extraction des matrices
+mat.D=as.matrix(databetadiv2$D)
+mat.D[upper.tri(mat.D)]<-NA
+diag(mat.D)<-NA
+# rownames(mat.D)<-DF_virtuel3$Name 
+# colnames(mat.D)<-data_comp2$Name 
+rownames(mat.D)<-DF_virtuel3$Name [c(1:100)] 
+colnames(mat.D)<-DF_virtuel3$Name [c(1:100)] 
+
+mat.repl=as.matrix(databetadiv2$repl)
+mat.repl[upper.tri(mat.repl)]<-NA
+diag(mat.repl)<-NA
+# rownames(mat.repl)<-data_comp2$Name 
+# colnames(mat.repl)<-data_comp2$Name 
+rownames(mat.repl)<-DF_virtuel3$Name [c(1:100)] 
+colnames(mat.repl)<-DF_virtuel3$Name [c(1:100)] 
+
+mat.rich=as.matrix(databetadiv2$rich)
+mat.rich[upper.tri(mat.rich)]<-NA
+diag(mat.rich)<-NA
+# rownames(mat.rich)<-data_comp2$Name 
+# colnames(mat.rich)<-data_comp2$Name 
+rownames(mat.rich)<-DF_virtuel3$Name [c(1:100)] 
+colnames(mat.rich)<-DF_virtuel3$Name [c(1:100)] 
+
+
+
+# Transformation des matrices en df
+test.mat.D=na.omit(reshape2::melt(mat.D)) %>% mutate(Type='D') 
+test.mat.D2 <- test.mat.D %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:4), sep = "_", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:4), sep = "_", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.D2)<-c("Date1","Site1","Structure1","inv1","Date2","Site2","Structure2","inv2","Dissimilarité","type")
+
+
+test.mat.repl=na.omit(reshape2::melt(mat.repl)) %>% mutate(Type='repl')
+test.mat.repl2 <- test.mat.repl %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:4), sep = "_", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:4), sep = "_", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.repl2)<-c("Date1","Site1","Structure1","inv1","Date2","Site2","Structure2","inv2","Remplacement","type")
+
+
+test.mat.rich=na.omit(reshape2::melt(mat.rich)) %>% mutate(Type='rich')
+test.mat.rich2 <- test.mat.rich %>%
+  mutate(row_id = row_number()) %>%  # Créer une colonne pour identifier chaque ligne
+  separate(Var1, into = paste0("Var1", 1:4), sep = "_", extra = "drop") %>% #utilise les meta données de la colonne var 1 
+  separate(Var2, into = paste0("Var2", 1:4), sep = "_", extra = "drop") %>% #utilise les meta données de la colonne var 2
+  select(-row_id)  # Supprimer la colonne d'identification
+colnames(test.mat.rich2)<-c("Date1","Site1","Structure1","inv1","Date2","Site2","Structure2","inv2","Richesse","type")
+
+
+
+#Création jeu de données rassemblant les différentes données
+datadissi<-test.mat.D2 %>% select(Date1,Site1,Structure1,Date2,Site2,Structure2,Dissimilarité) 
+datarepl<-test.mat.repl2 %>% select(Date1,Site1,Structure1,Date2,Site2,Structure2,Remplacement) 
+datarich<-test.mat.rich2 %>% select(Date1,Site1,Structure1,Date2,Site2,Structure2,Richesse)
+
+datatern<-cbind(datadissi[,-c(7)],Similarité=(1-datadissi[,7])*100,Remplacement=100*datarepl[,7],Richesse=100*datarich[,7])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# boucle sans modification
+L=list()
+for (i in 1: length(levels(dataR3$Date_courte))){#boucle selon chaque date
+  Date_sel=levels(dataR3$Date_courte)[i]
+  
+  data_sub=dataR3 %>% filter(Date_courte==Date_sel)
+  
+  List1=list()
+  for (j in (1:length(levels(factor(data_sub$Site))))){#boucle selon chaque site
+    
+    Site_sel=na.omit(levels(factor(data_sub$Site)))[j]
+    
+    data_site_sel=data_sub %>%  filter(Site==Site_sel) %>% mutate(Structure=Structure2)
+    
+    List2=list()
+    for (k in (1:nrow(data_site_sel))){# boucle réattribution
+      
+      
+      dataR4<-data_site_sel[,c(6:(ncol(data_site_sel)-2))]
+      dataR4bis<-data_site_sel[,c(1:5,ncol(data_site_sel))]
+      
+      # dataR4_2=matrix(nrow=nrow(data_site_sel), ncol=ncol(data_site_sel))
+           data1<- as.data.frame(sample(dataR4[k,]))
+           colnames(data1)[1:ncol(data1)]<-seq(1:ncol(data1))
+           List2[[k]]<-data1
+      
+    }
+    
+    DF_virtuel=do.call(rbind,List2)
+
+     Matrice_virtuel=DF_virtuel %>%  mutate(Date=Date_sel,
+                                                  Site=Site_sel,
+                                         Structure=data_site_sel$Structure2,
+                                         Name=paste(Date,Site,Structure,sep = "_"))
+     
+    # DF_virtuel=do.call(rbind,List2)
+    List1[[j]]<-Matrice_virtuel
+  }
+      DF_virtuel2=do.call(rbind, List1)
+    L[[i]]<-DF_virtuel2
+
+}
+DF_virtuel3=do.call(rbind, L)
+
+
 ```
+
+
+
