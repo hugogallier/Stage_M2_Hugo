@@ -53,6 +53,8 @@ library(iml)
 library(randomForest)
 library(partykit)
 library(glmnet)
+library(ggnewscale)
+library(ggpp)
 
 ```
 
@@ -745,7 +747,6 @@ dataR3$S2<-as.numeric(dataR3$S2)
 dataR3$saison<-as.factor(dataR3$saison)
 dataR3$Day_delta<-as.numeric(dataR3$Day_delta)
 # dataR3$Years<-as.factor(dataR3$Years)
-str(dataR3)
 
 
 #ajout de l'indice de shannon dans le df pour la gam
@@ -892,7 +893,11 @@ le qqplot + plot fitted versus deviance plot
 
 qq_plot=qq_plot(model111111, method = "simulate")+
   labs(subtitle = NULL, title=NULL)+
-  theme_bw()
+  theme_bw()+
+  theme(axis.text.y = element_text(size=20,color="black"))+
+    theme(axis.text.x = element_text(size=20,color="black"))+
+  theme(axis.title.x = element_text(size = 14))+
+ theme(axis.title.y = element_text(size = 14))
 qq_plot
 
 
@@ -904,17 +909,25 @@ dev_mod <- ggplot(df_mod, aes(x = log_fitted, y = residuals))+
     geom_point() +
   geom_hline(yintercept=0, linetype=2)+
     labs(x = "Linear predictor", y = "Deviance residual")+
-  theme_bw()
-
-
-dig_plot_tot=ggarrange(qq_plot, dev_mod, ncol=2)+theme(axis.text.x = element_text(size=20,color="red"))+
+    theme_bw()+
   theme(axis.text.y = element_text(size=20,color="black"))+
+      theme(axis.text.x = element_text(size=20,color="black"))+
   theme(axis.title.x = element_text(size = 14))+
  theme(axis.title.y = element_text(size = 14))
+
+
+dig_plot_tot=ggarrange(qq_plot, dev_mod, ncol=2)
 
 dig_plot_tot
 ggsave("conditionsapplications.png",width=11,height=8,dpi=350)
 
+
+
+library(DHARMa)
+library(mgcViz)
+
+simulationOutput <- simulateResiduals(fittedModel = model111111)
+plot(simulationOutput)
 ```
 
 
@@ -1805,7 +1818,7 @@ sDlength$Site<-c("Bi","Bu","Fe","VB")
 sDlength$sd<-sqrt(sDlength$Trajectory)
 colnames(sDlength)[1:5]<-c("premier","deuxieme","troisieme","quatrieme","cinquieme")
 # save(sDlength, file="sDlength.Rdata")
-load("sDlength")
+# load("sDlength")
 
 
 ##### Trajectoire Totale #####
@@ -1861,17 +1874,39 @@ ggsave("Distance vecteurs entre les dates.png",width=9,height=8,dpi=350)
 
 
 # test significativité
-sDlength=sDlength %>% filter(!Site=="Fe")
-aov1<-aov(Trajectory~Structure+Site+Structure*Site,data=sDlength)
-aov1<-aov(value~Structure*Site+Numinv,data=sDlengthtot)
+aov1<-aov(value~Structure*Numinv+Site*Numinv,data=sDlengthtot)
 summary(aov1)
 
-adonis2(sDlength$Trajectory~Site+Structure,data=sDlength,permutations=999)
+# adonis2(sDlength$Trajectory~Site+Structure,data=sDlength,permutations=999)
+# 
+# groupe<-sDlength$Site
+# groupe<-sDlength$Structure
+# 
+# adonis3<-permanova_pairwise(sDlength[,-c(2:4)],groupe,permutations=999,method='bray',padj="bonferroni")
 
-groupe<-sDlength$Site
-groupe<-sDlength$Structure
+plot(aov1$residuals,ylab="Résidus")
+leveneTest(sDlengthtot$value~sDlengthtot$Structure_site)
 
-adonis3<-permanova_pairwise(sDlength[,-c(2:4)],groupe,permutations=999,method='bray',padj="bonferroni")
+# qqPlot(sDlengthtot$value)
+qqPlot(aov1$residuals)
+shapiro.test(x = aov1$residuals )
+qqnorm(aov1$residuals)
+qqline(aov1$residuals)
+
+
+# sDlength1<-sDlength[,c(1,7,8)]
+# sDlength2<-sDlength[,c(2,7,8)]
+# sDlength3<-sDlength[,c(3,7,8)]
+# sDlength4<-sDlength[,c(4,7,8)]
+# sDlength5<-sDlength[,c(5,7,8)]
+# colnames(sDlength1)[1]<-"value"
+# colnames(sDlength2)[1]<-"value"
+# colnames(sDlength3)[1]<-"value"
+# colnames(sDlength4)[1]<-"value"
+# colnames(sDlength5)[1]<-"value"
+# 
+# sDlength6<-rbind(sDlength1,sDlength2,sDlength3,sDlength4,sDlength5)
+# sDlength6$Date<-seq("1","2","3","4",5)
 
 
 ## box plot longueur 
@@ -1887,6 +1922,8 @@ ggplot(sDlengthtot,aes(x= Site, y=value, fill=Structure))+
   theme(axis.text.y = element_text(size=16,colour="black"))
 ggsave("longueur entre les segments.png",width=9,height=8,dpi=350)
 
+aov1<-aov(value~Structure*Site,data=sDlengthtot)
+summary(aov1)
 
 ```
 
@@ -1896,7 +1933,7 @@ ggsave("longueur entre les segments.png",width=9,height=8,dpi=350)
 ##### Angles moyens Structure par structure
 data_comp2=dataR %>% ungroup %>%
   select(spp,Site,Structure2,Micro,Date_courte,Day_delta,Mcov,Quad2,saison) %>%
-  filter(Structure2 == "Disc") %>%
+  filter(Structure2 == "Inner_slots") %>%
   filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>%
   distinct()%>%
   group_by(Site,Structure2,Mcov,Micro,Quad2,Date_courte,saison) %>%
@@ -1922,16 +1959,8 @@ distdataR<-vegdist(Comp_mat, method='bray')
 sDA<-trajectoryAngles(distdataR,data_comp2$Site,surveys=NULL) #angle des vecteurs
 
 sDACo=sDA%>%  select(-rho)
-# %>% mutate("S5-S6"=="0") 
-# # colnames(sDACo)[7]<-"S5-S6"
-# sDACo<-sDACo[,-7]
-# sDACo<-sDACo[,c(1:4,7,5:6)] 
 sDADi=sDA %>%  select(-rho)
 sDAPi=sDA %>%  select(-rho)
-# %>% mutate("S5-S6"=="0") 
-# colnames(sDAPi)[7]<-"S5-S6"
-# sDAPi<-sDAPi[,-7]
-# sDAPi<-sDAPi[,c(1:4,7,5:6)]
 sDAF=sDA  %>%  select(-rho)
 
 sDAngle<-rbind(sDACo,sDADi,sDAPi,sDAF)
@@ -1941,7 +1970,7 @@ sDAngle$sd<-sqrt(sDAngle$mean)
 
 colnames(sDAngle)[c(1:5)]<-c("premier","deuxieme","troisieme","quatrieme","mean")
 # save(sDAngle, file="data.RData")
-load("sDAngle")
+# load("sDAngle")
 
 
 ##### Angle entre inventaires #####
@@ -1975,27 +2004,31 @@ facet_wrap(~Site)
 ggsave("Angles vecteurs entre les dates.png",width=9,height=8,dpi=350)
 
 
-
-
-##### Angle avec la moyenne totale #####
-ggplot(sDAngle, aes(Structure,mean,fill=Structure))+ 
-  geom_bar(stat="identity",alpha=.7)+
-  # geom_boxplot()+
-  # geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2, position=position_dodge(.9))+ #ajout des barres d'erreur
-  theme_bw()+ 
-  xlab("")+ylab("Angles moyens des vecteurs")+
-  facet_wrap(~Site)
-
-
-
 #test significativité
-aov1<-aov(mean~Structure+Site,data=sDAngle)
-aov1<-aov(value~Structure*Site+Numinv,data=sDAngletot)
+aov1<-aov(value~Structure*Numinv+Site*Numinv,data=sDAngletot)
 summary(aov1)
 
-groupe<-sDAngle$Site
-groupe<-sDAngle$Structure
-adonis3<-permanova_pairwise(sDAngle$mean,groupe,permutations=999,method='bray',padj="bonferroni")
+# groupe<-sDAngle$Site
+# groupe<-sDAngle$Structure
+# adonis3<-permanova_pairwise(sDAngle$mean,groupe,permutations=999,method='bray',padj="bonferroni")
+
+plot(aov1$residuals,ylab="Résidus")
+leveneTest(sDlengthtot$value~sDlengthtot$Structure_site)
+
+# qqPlot(sDlengthtot$value)
+qqPlot(aov1$residuals)
+shapiro.test(x = aov1$residuals )
+qqnorm(aov1$residuals)
+qqline(aov1$residuals)
+
+##### Angle avec la moyenne totale #####
+# ggplot(sDAngle, aes(Structure,mean,fill=Structure))+ 
+#   geom_bar(stat="identity",alpha=.7)+
+#   # geom_boxplot()+
+#   # geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2, position=position_dodge(.9))+ #ajout des barres d'erreur
+#   theme_bw()+ 
+#   xlab("")+ylab("Angles moyens des vecteurs")+
+#   facet_wrap(~Site)
 
 
 ## box plot angles 
@@ -2011,6 +2044,13 @@ ggplot(sDAngletot,aes(x= Site, y=value, fill=Structure))+
   theme(axis.text.y = element_text(size=16,colour="black"))
 ggsave("angle entre les segments.png",width=9,height=8,dpi=350)
 
+#test significativité
+aov1<-aov(value~Structure*Site,data=sDAngletot)
+summary(aov1)
+
+groupe<-sDAngle$Site
+groupe<-sDAngle$Structure
+adonis3<-permanova_pairwise(sDAngle$mean,groupe,permutations=999,method='bray',padj="bonferroni")
 
 ```
 
@@ -2240,8 +2280,8 @@ ggdendrogram(arbre,labels=FALSE)
 
 ```
 
-# # Courbe d'accumulation
-## Méthode 1 (intrapolation)
+##  Courbe d'accumulation
+### Méthode 1 (intrapolation)
 ```{r}
 #Permet de savoir le nombre de taxon retrouvé selon l'effort d'inventaire
 # Courbe d'accumulation package vegan (seulement intrapolation)
@@ -2334,7 +2374,7 @@ estimateR(as.integer(Comp_mat5))
 
 ```
 
-## Méthode 2 (intra et extrapolation)
+### Méthode 2 (intra et extrapolation)
 
 ```{r}
 #Création d'une matrice d'incidence
@@ -2455,7 +2495,7 @@ plot(out.raw)
 Rar_disc_df=as.data.frame(out.raw$AsyEst)
 
 
-### Colonnes
+### Faille
 data_comp1=data_PQ_light %>% ungroup %>% 
   select(spp,Date_courte,Site,Structure2, Code_struct) %>% 
    filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte','None')) %>%
@@ -2498,6 +2538,8 @@ data_comp1=data_PQ_light %>% ungroup %>%
    filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte','None')) %>%
   mutate(date_st=paste0(Date_courte,'_',Code_struct)) %>%  
    filter(Structure2 %in% c("Disc","Pillars","Columns","Inner_slots")) %>% 
+   # filter(Date_courte %in% c("2021-01","2021-04","2021-07","2021-10","2021-11")) %>% 
+    filter(Date_courte %in% c("2021-11")) %>% 
   mutate(P=1) %>% 
     select(-c(Date_courte,Code_struct)) %>% 
   distinct() %>% group_by(Site) %>% 
@@ -2517,64 +2559,83 @@ comp_list=as.list(data_comp1)
 
 # Application de la fonction + names
 comp_list_clean=lapply(comp_list, fun_clean)
-names(comp_list_clean)<-c('Bi','Bu','Fe','Vb')
+names(comp_list_clean)<-c('Bi','Bu','Fe','VB')
 
 # Fonction
 out.raw <- iNEXT(comp_list_clean,q=0,
                  datatype="incidence_raw",
                  endpoint=500)
 
-p1<-plot(out.raw,xlim=c(0,500))
+plot(out.raw,xlim=c(0,150),ylim=c(0,80))
 
 
-
-
-
-# Ici tu les données concernant l'estimation de la rich. totale
+# Ici tu as les données concernant l'estimation de la rich. totale
 Rar_disc_df=as.data.frame(out.raw$AsyEst)
 
-specpool(as.numeric(comp_list_clean$Bi))
+
+
+
+#####  Détermination de la richesse en fonction des différents indicateurs
+dataR$saison<-dataR$Date_courte
+dataR$saison[dataR$saison == "2021-04" | dataR$saison == "2022-04"] <- "printemps"
+dataR$saison[dataR$saison == "2021-07" | dataR$saison == "2022-07"] <- "été"
+dataR$saison[dataR$saison == "2021-10" | dataR$saison == "2021-11"| dataR$saison == "2022-11"] <- "automne"
+dataR$saison[dataR$saison == "2022-01"] <- "hiver"
+dataR$saison[dataR$saison == "2021-01" |dataR$saison == "2022-01"] <- "hiver"
+
+dataR$Day_delta[dataR$Date_courte == "2021-10" & dataR$Site == "Fe"]<-"336"
+dataR$Day_delta[dataR$Date_courte == "2021-10" & dataR$Site == "VB"]<-"339"
+dataR$Date_courte[dataR$Date_courte == "2021-10" & dataR$Site == "Fe"]<-"2021-11"
+dataR$Date_courte[dataR$Date_courte == "2021-10" & dataR$Site == "VB"]<-"2021-11"
+
+
+data_comp2=dataR %>% ungroup %>% 
+  select(spp,Mcov,Site,Micro,Date_courte,Structure2,saison,Quad2,Day_delta) %>% 
+  mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
+  group_by(spp,Site,Micro,Date_courte,Structure2,saison,Years,Day_delta) %>% 
+  # filter(Date_courte %in% c("2021-04","2021-07","2021-11","2022-01","2022-04","2022-11")) %>% 
+       # filter(Date_courte %in% c("2022-11")) %>% 
+  distinct() %>% drop_na() %>% 
+  summarize(Mcov2 = mean(Mcov,.by=c(spp,Micro,Day_delta,Quad2))) %>%
+  spread(spp,Mcov2) %>% ungroup() %>% 
+  mutate(across(everything(.), ~replace_na(., 0))) %>% 
+  mutate(Compsite_date=paste(Site,Date_courte,sep=","))
+
+#permet d'avoir une matrice en binaire
+colonnes_a_modifier<-colnames(data_comp2[c(8:ncol(data_comp2))])
+data_comp2[colonnes_a_modifier] <- lapply(data_comp2[colonnes_a_modifier], function(colonne) {
+  colonne[colonne > 0] <- 1
+  return(colonne)
+})
+
+
+
+data_comp2$Site<-as.factor(data_comp2$Site)
+data_comp2$Micro<-as.factor(data_comp2$Micro)
+data_comp2$Date_courte<-as.factor(data_comp2$Date_courte)
+data_comp2$Day_delta<-as.factor(data_comp2$Day_delta)
+data_comp2$Years<-as.factor(data_comp2$Years)
+data_comp2$Compsite_date<-as.factor(data_comp2$Compsite_date)
+
+Comp_mat=data_comp2 %>% select(-c(Site,Micro,Structure2,Date_courte,saison,Years,Day_delta,Compsite_date)) %>% as.matrix()
+Meta_data=data_comp2 %>% select(Site,Micro,Structure2,Date_courte,saison,Years,Day_delta,Compsite_date) 
+
+
+specpool(Comp_mat, Meta_data$Site, smallsample = TRUE)
+estimateR(x, ...)
+specpool2vect(X, index = c("jack1","jack2", "chao", "boot","Species"))
+pa<-poolaccum(Comp_mat, permutations = 100, minsize = 3)
+estaccumR(Comp_mat, permutations = 100, parallel = getOption("mc.cores"))
+## S3 method for class 'poolaccum'
+summary(object, display, alpha = 0.05, ...)
+## S3 method for class 'poolaccum'
+plot(pa, alpha = 0.05, type = c("l","g"))
 
 
 
 
-### test  
-data_comp1=data_PQ_light %>% ungroup %>% 
-  select(spp,Date_courte,Site,Structure2, Code_struct) %>% 
-   filter(!spp %in% c('NA','NI', 'Unassigned','ponte','Ponte','None')) %>%
-   filter(Date_courte %in% c("2022-07","2021-07")) %>% 
-  filter(Site == "Bi") %>% 
-  mutate(date_st=paste0(Date_courte,'_',Code_struct)) %>%  
-   filter(Structure2 %in% c("Disc","Pillars","Columns","Inner_slots")) %>% 
-  mutate(P=1) %>% 
-    select(-c(Date_courte,Code_struct)) %>% 
-  distinct() %>% group_by(Structure2) %>% 
-  group_split()
-
-
-# On créait une fonction pour nettoyer l'intérieur de la liste
-fun_clean=function(x){
-  x%>% spread(date_st,P) %>% 
-    distinct(spp,.keep_all = TRUE) %>% #ajout de cette fonction permettant de ne pas additionner les taxons en fonction des        structures
-    select(-c(spp,Site,Structure2)) %>% 
-      mutate(across(everything(.), ~replace_na(., 0))) %>% 
-  as.data.frame()}
-
-# Convertion de split df en list
-comp_list=as.list(data_comp1)
-
-# Application de la fonction + names
-comp_list_clean=lapply(comp_list, fun_clean)
-names(comp_list_clean)<-c('Bi','Bu','Fe','Vb')
-
-# Fonction
-out.raw <- iNEXT(comp_list_clean,q=0,
-                 datatype="incidence_raw",
-                 endpoint=250)
-plot(out.raw)
 
 ```
-
 
 
 # ### Indices Beta
@@ -2648,18 +2709,19 @@ ggplot(Piélouind2, aes(Day_delta,Piélou, col=Site))+ # Avec "fill" ou "col" du
   ylab("Indice de Piélou")+
   # geom_jitter(alpha=.3)+  # On ajoute les points (pas nécessaire mais utile pour savoir sur quoi se base les boxplots)
   # geom_boxplot()+
-  annotate("rect",xmin=112,xmax=205.9,ymin=0.45,ymax=0.9,alpha=.3,fill="grey")+
-  annotate("rect",xmin=206,xmax=298.9,ymin=0.45,ymax=0.9,alpha=.3,fill="#666666")+
-  annotate("rect",xmin=299,xmax=388.9,ymin=0.45,ymax = 0.9,alpha=.3,fill="grey")+
-  annotate("rect",xmin=389,xmax=477.9,ymin=0.45,ymax = 0.9,alpha=.3,fill="#666666")+
-annotate("rect",xmin=478,xmax=570.9,ymin=0.45,ymax = 0.9,alpha=.3,fill="grey")+
-  annotate("rect",xmin=571,xmax=663.9,ymin=0.45,ymax = 0.9,alpha=.3,fill="#666666")+
-  annotate("rect",xmin=664,xmax=750,ymin=0.45,ymax = 0.9,alpha=.3,fill="grey")+
+annotate("rect",xmin=18,xmax=111.9,ymin=0.3,ymax=0.9,alpha=.3,fill="#666666")+
+  annotate("rect",xmin=112,xmax=205.9,ymin=0.3,ymax=0.9,alpha=.3,fill="grey")+
+  annotate("rect",xmin=206,xmax=298.9,ymin=0.3,ymax=0.9,alpha=.3,fill="#666666")+
+  annotate("rect",xmin=299,xmax=388.9,ymin=0.3,ymax = 0.9,alpha=.3,fill="grey")+
+  annotate("rect",xmin=389,xmax=477.9,ymin=0.3,ymax = 0.9,alpha=.3,fill="#666666")+
+annotate("rect",xmin=478,xmax=570.9,ymin=0.3,ymax = 0.9,alpha=.3,fill="grey")+
+  annotate("rect",xmin=571,xmax=663.9,ymin=0.3,ymax = 0.9,alpha=.3,fill="#666666")+
+  annotate("rect",xmin=664,xmax=750,ymin=0.3,ymax = 0.9,alpha=.3,fill="grey")+
   geom_line(aes(group=Site))+
   geom_point()+
   theme_bw() +
-    (scale_y_continuous(limits=c(0.45,0.9)))+
-      (scale_x_continuous(limits=c(110,750)))+
+    (scale_y_continuous(limits=c(0.3,0.9)))+
+      (scale_x_continuous(limits=c(0,750)))+
   theme(axis.text.x = element_text(size=16,colour="black"))+
    theme(axis.text.y = element_text(size=16,colour="black"))+
   theme(axis.title.x = element_text(size=16,colour="black",vjust=0))+
@@ -2814,7 +2876,7 @@ datatern2=datatern2 %>%
  mutate(Compasite<-paste(Site1,Site2,sep="/")) %>% 
   mutate(Compastruct<-paste(Structure1,Structure2,sep="/")) %>% 
   mutate(Compadate<-paste(Date1,Date2,sep="/")) %>% 
-  mutate(Compasaison<-paste(Saison1,Saison2,sep="/")) %>% 
+  mutate(Compasaison<-paste(Saison1,sep="/")) %>% 
   mutate(Compasite_date<-paste(Site1,Date1,sep="/")) 
 colnames(datatern2)[14]<-"Compasite"
 colnames(datatern2)[15]<-"Compastruct"
@@ -2833,37 +2895,37 @@ datatern2=datatern2 %>% mutate(Compastruct_date=paste(Compadate,Compastruct))
 datatern2=datatern2 %>% mutate(Compastruct_site_date=paste(Compasitedate,Compastruct))
 datatern2=datatern2 %>% mutate(Compasite_date=paste(Compasite,Date1))
 
-datamean<-datatern2 %>%  group_by(Compasite,Compasaison) %>%  #permet de faire la moyenne de chaque colonne par site/struct
-  #  Compastruct,,Comp_site,Compadate,Compadate,Compadate,Compastruct,Compastruct,Site_Years <-à utiliser dans la ligne d'avant afin de faire les comparaisons voulues
+
+# datatern2$structint_ext<-rep("Structures externes")
+# datatern2$structint_ext[which(datatern2$Compastruct=="Inner_slots")]<-"Structure interne"
+
+datamean<-datatern2 %>%  group_by(Compasite,Compasaison) %>% 
   dplyr::summarize(Similarité=mean(Similarité),
             Remplacement=mean(Remplacement),
             Richesse=mean(Richesse))
+
+datamean$Compasaison<-fct_relevel(datamean$Compasaison,c("printemps","été","automne","hiver"))
 
 ggtern(data=datatern2, aes(x=Richesse,y=Similarité,z=Remplacement,group=Compasaison)) +
   # geom_point(aes(colour=Compasite), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3) +
     # geom_point(aes(colour=Compastruct), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3) +
       # geom_point(aes(colour=Compasitedate), position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.2) +
   geom_point(colour="grey",position=position_jitter_tern(x=0.1, y=0.1, z=0.1),alpha=.3)+
-        geom_point(data=datamean,aes(color=Compasaison)) +
+        geom_point(data=datamean,aes(colour=Compasaison))+
   # stat_density_tern( #ajout de la densité
             # geom="polygon",aes(fill=after_stat(level)),bins=10,color='grey')+
             # geom="polygon",aes(fill=Structure1),bins=10,color='grey')+
             # geom="polygon",aes(fill=Compasite),bins=10,color='grey')+
   theme_hidetitles()+ #enlève le nom des axes
   theme_showarrows()+ #montre les fléches
-  # geom_crosshair_tern(data=datamean,aes(color=Compastruct_date))+
-  # geom_crosshair_tern(data=datamean,aes(color=Compadate))+
-  # geom_crosshair_tern(data=datamean,aes(color=Compastruct_date))+
-  # geom_crosshair_tern(data=datamean,aes(color=Compasitedate))+
-    geom_crosshair_tern(data=datamean,aes(color=Compasaison))+
+    geom_crosshair_tern(data=datamean,aes(colour=Compasaison))+
     theme(strip.text.x = element_text(size = 12))+
   # facet_wrap(.~Comp_site)+
     facet_wrap(.~Compasite)+
-  ggtern_labels()
   labs(title="")
   # scale_color_paletteer_d("dichromat::SteppedSequential_5")
   # labs(color = "Structures comparées")+
-  
+ggsave("Compasite_saison.png",dpi=350,height = 10,width=12)
 #### trajectoire avec flèches pour comparer les structures semblables
 
   # geom_path(data=datamean[which(datamean$Comp_site == "Bi" & datamean$Comp_struct=="Disc"),],group=1,aes(color=Compasitedate),arrow=arrow(type="closed",length=unit(0.07,"inches"),ends="last"))+
@@ -4482,52 +4544,55 @@ data_comp2=dataR %>% ungroup %>%
   select(spp,Mcov,Site,Micro,Date_courte,Structure2,saison,Quad2,Day_delta) %>% 
   mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
   group_by(spp,Site,Micro,Date_courte,Structure2,saison,Years,Day_delta) %>% 
-  filter(Site == "VB") %>% 
+  filter(Site == "Fe") %>% 
   # filter(Structure2 == "Disc") %>% 
-  # filter(Date_courte == "2021-11") %>%
+  filter(Years == "2022") %>%
   distinct() %>% drop_na() %>% 
   summarize(Mcov2 = mean(Mcov,.by=c(spp,Micro,Day_delta,Quad2)))
 
-
-
-  # spread(spp,Mcov2) %>% ungroup() %>%
-  # mutate(across(everything(.), ~replace_na(., 0)))
-
-  
+#faire la moyenne par structure
 data_comp3=data_comp2 %>% ungroup %>% 
   select(spp,Site,Structure2,Day_delta,Mcov2) %>% 
       group_by(spp,Site,Structure2,Day_delta) %>%  
   summarize(Mcov3 = mean(Mcov2,.by=c(spp,Structure2))) 
 
-# ggplot(data_comp2,aes(x=Structure2,y=Mcov2,col=spp))+
-#   geom_col()
-# 
-# ggplot(data_comp3,aes(x=Structure2,y=Mcov3,col=spp))+
-#   geom_col()
-
+#faire la moyenne par date
 data_comp4=data_comp3 %>% ungroup %>% 
   select(spp,Site,Structure2,Day_delta,Mcov3) %>% 
       group_by(spp,Site,Structure2) %>%  
   summarize(Mcov4 = mean(Mcov3,.by=c(spp,Day_delta)))
 
+#ajout intervalle de confiance
  data_comp4=data_comp4 %>% 
    mutate(sd=sqrt(Mcov4))
 
 data_comp5 <- data_comp4[order(data_comp4$Mcov4, decreasing = TRUE), ]#mettre dans l'ordre décroissant
 
-# ggplot(data_comp4,aes(x=spp,y=Mcov3,fill=Structure2))+
-#   geom_bar(stat="identity")+
-#   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+#diviser pour avoir une valeur représentative de l'année
+data_comp5$Mcov4<-data_comp5$Mcov4/nlevels(as.factor(data_comp3$Day_delta))
+data_comp5$sd<-data_comp5$sd/nlevels(as.factor(data_comp3$Day_delta))
 
-# ggplot(data_comp5,aes(x=spp,y=Mcov4,fill=Structure2))+
-#   geom_bar(stat="identity")+
-#   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+#proportion relative par structure
+data_comp6=data_comp5 %>% ungroup() %>% 
+  mutate(Mcov5 = (Mcov4*100/(sum(Mcov4))) ,.by=Structure2) %>% 
+     mutate(sd2=sqrt(Mcov5))
 
-ggplot(data_comp5,aes(x=reorder(spp,-Mcov4, function(x){sum(x)}),y=Mcov4,fill=Structure2))+
-  geom_bar(stat="identity",position=position_dodge())+
-  geom_errorbar(aes(ymin=Mcov4-sd, ymax=Mcov4+sd), width=.2, #ajout des barres d'erreur
-                 position=position_dodge(.9))+ 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+#bar plot non empilé
+# ggplot(data_comp5,aes(x=reorder(spp,-Mcov4, function(x){sum(x)}),y=Mcov4,fill=Structure2))+
+#   geom_bar(stat="identity",position=position_dodge())+
+#   geom_errorbar(aes(ymin=Mcov4-sd, ymax=Mcov4+sd), width=.2, #ajout des barres d'erreur
+#                  position=position_dodge(.9))+ 
+#   theme_bw()+
+#   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+#barplot empilé
+ggplot(data_comp6,aes(x=reorder(spp,-Mcov5, function(x){sum(x)}),y=Mcov5,fill=Structure2))+
+  geom_bar(stat="identity",position="stack")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,size=12,color="black"))+
+    theme(axis.text.y = element_text(size=12,color="black"))+xlab("")
+ggsave("Taxon Fe 2022.png",width=10,height=8,dpi=350)
 
 ```
 
@@ -4617,27 +4682,7 @@ plot_smooths(model=model111111, series=Day_delta,comparison=Site)+theme_bw() #pe
 
 
 
-# # Test calcul divers
-
-##### Indice de Simpson
-```{r}
-# Montre la diversité taxonomique, 0 étant la présence d'une espèce et 1 une diversité importante
-dataR2=dataR %>% ungroup %>%
-  filter(saison == 'été') %>% 
-  select(spp,Site) %>% 
-  distinct()%>% 
-  group_by(spp,Site) %>% 
-  summarize(S=n()) %>%
-  na.omit()
-
-dataR4<-spread((dataR3=dataR2 %>% 
-  group_by(spp,Site) %>%
-  summarize(S2 = mean(S))),key=spp,value=S2) 
-dataR4[is.na(dataR4)]<-0
-
-simpsonind<-diversity(dataR4[,-1],index="simpson")
-
-```
+# ### Test calcul divers
 
 ##### Test différence échantillonage
 ```{r}
@@ -4781,6 +4826,12 @@ dataR$Date_courte[dataR$Date_courte == "2021-10" & dataR$Site == "VB"]<-"2021-11
 
 # # Proportion des taxons lors de la période avec la richesse taxo minimale
 ```{r}
+dataR$saison<-dataR$Date_courte
+dataR$saison[dataR$saison == "2021-04" | dataR$saison == "2022-04"] <- "printemps"
+dataR$saison[dataR$saison == "2021-07" | dataR$saison == "2022-07"] <- "été"
+dataR$saison[dataR$saison == "2021-10" | dataR$saison == "2021-11"| dataR$saison == "2022-11"] <- "automne"
+dataR$saison[dataR$saison == "2022-01"] <- "hiver"
+
 data_comp2=dataR %>% ungroup %>% 
   select(spp,Mcov,Site,Micro,Date_courte,Structure2,saison,Quad2,Day_delta) %>% 
   mutate(Years=substr(Date_courte, start = 1, stop = 4)) %>%
@@ -4818,6 +4869,7 @@ ggplot(data_comp31Bi,aes(x = 0,y=Mcov3,fill=forcats::fct_inorder(spp)))+
   scale_alpha(range=c(1,.2))+
   coord_polar("y",start=0)+
   geom_label_repel(aes(label =paste(spp,":",format(Mcov3,digits=1),"%")), position=position_stacknudge(x = .9, y=.2,vjust=.5),size=8,force=25)+
+  scale_fill_manual(values=c("#ff9900","#990099","#109628"))+
   theme_void()+
   theme(legend.position="none") 
   ggsave("piechartBi.png",width=9,height=8,dpi=350)
@@ -4827,6 +4879,7 @@ ggplot(data_comp31Bi,aes(x = 0,y=Mcov3,fill=forcats::fct_inorder(spp)))+
   scale_alpha(range=c(1,.2))+
   coord_polar("y",start=0)+
   geom_label_repel(aes(label =paste(spp,":",format(Mcov3,digits=1),"%")), position=position_stacknudge(x = .9, y=.2,vjust=.5),size=8,force=25)+
+  scale_fill_manual(values=c("tan4","#3366cc","#ff9900","#109628","#0099c6"))+
   theme_void()+
   theme(legend.position="none") 
   ggsave("piechartBu.png",width=9,height=8,dpi=350)
@@ -4836,6 +4889,7 @@ ggplot(data_comp31Bi,aes(x = 0,y=Mcov3,fill=forcats::fct_inorder(spp)))+
   scale_alpha(range=c(1,.2))+
   coord_polar("y",start=0)+
   geom_label_repel(aes(label =paste(spp,":",format(Mcov3,digits=1),"%")), position=position_stacknudge(x = .9, y=.2,vjust=.5),size=8,force=25)+
+  scale_fill_manual(values=c("#dd4477","#66aa00","#109628","#0099c6"))+
   theme_void()+
   theme(legend.position="none") 
   ggsave("piechartFe.png",width=9,height=8,dpi=350)
@@ -4845,6 +4899,7 @@ ggplot(data_comp31Bi,aes(x = 0,y=Mcov3,fill=forcats::fct_inorder(spp)))+
   scale_alpha(range=c(1,.2))+
   coord_polar("y",start=0)+
   geom_label_repel(aes(label =paste(spp,":",format(Mcov3,digits=1),"%")), position=position_stacknudge(x = .9, y=.2,vjust=.5),size=8,force=25)+
+  scale_fill_manual(values=c("tan4","#dc3912","#ff9900","#dd4477","#109628"))+
   theme_void()+
   theme(legend.position="none") 
   ggsave("piechartVB.png",width=9,height=8,dpi=350)
